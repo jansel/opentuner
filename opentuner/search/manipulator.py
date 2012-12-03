@@ -64,9 +64,11 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     super(ConfigurationManipulator, self).__init__(**kwargs)
 
   def add_cartesian_parameter(self, p):
+    p.set_parent(self)
     self.cartesian_params.append(p)
     
   def add_maze_parameter(self, p):
+    p.set_parent(self)
     self.cartesian_params.append(p)
 
   def set_search_driver(self, search_driver):
@@ -107,7 +109,11 @@ class Parameter(object):
     self.name = name
     #coerced means this should be excluded when iterating over both cartesian and maze
     self.coerced = coerced
+    self.parent = None
     super(Parameter, self).__init__()
+
+  def set_parent(self, manipulator):
+    self.parent = manipulator
 
   def validate(self, config):
     '''is the given config valid???'''
