@@ -1,38 +1,39 @@
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, \
-    Float, PickleType, ForeignKey, Text
+    Float, PickleType, ForeignKey, Text, func
+import re
 
-Base = declarative_base()
+class Base(object):
+  @declared_attr
+  def __tablename__(cls):
+    '''convert camel case to underscores'''
+    return re.sub(r'([a-z])([A-Z])', r'\1_\2', cls.__name__).lower()
+
+  id = Column(Integer, primary_key=True)
+
+Base = declarative_base(cls=Base)
 
 class Configuration(Base):
-  __tablename__ = 'configuration'
-  id   = Column(Integer, primary_key=True)
   hash = Column(String(32))
   data = Column(PickleType)
 
 class MachineClass(Base):
-  __tablename__ = 'machine_class'
-  id            = Column(Integer, primary_key=True)
   name          = Column(String(128))
 
 class Machine(Base):
-  __tablename__ = 'machine'
-  id            = Column(Integer, primary_key=True)
   name          = Column(String(128))
   cpu           = Column(String(32))
   memory        = Column(Integer)
   machine_class = Column(ForeignKey(MachineClass.id))
 
 class InputClass(Base):
-  __tablename__ = 'program_input_class'
-  id   = Column(Integer, primary_key=True)
   name = Column(String(128))
   size = Column(Integer)
 
 class Input(Base):
-  __tablename__ = 'program_input'
-  id            = Column(Integer, primary_key=True)
   state         = Column(Enum('ANY_MACHINE', 'SINGLE_MACHINE', 'DELETED'))
   input_class   = Column(ForeignKey(InputClass.id))
   machine       = Column(ForeignKey(MachineClass.id))
@@ -40,17 +41,14 @@ class Input(Base):
   extra         = Column(PickleType)
 
 class TuningRun(Base):
-  __tablename__ = 'tuning_run'
-  id = Column(Integer, primary_key=True)
-  program_version = Column(String(128))
-  start_date      = Column(DateTime)
+  name            = Column(String(128), default='unnamed')
+  program_version = Column(String(128), default='unknown')
+  start_date      = Column(DateTime, default=func.now())
   end_date        = Column(DateTime)
   settings        = Column(PickleType)
 
 class Result(Base):
-  __tablename__   = 'result'
-  id              = Column(Integer, primary_key=True)
-  state           = Column(Enum('OK', 'TIMEOUT', 'ERROR'))
+  state           = Column(Enum('OK', 'TIMEOUT', 'ERROR'), default='OK')
   configuration   = Column(ForeignKey(Configuration.id))
   machine         = Column(ForeignKey(Machine.id))
   input           = Column(ForeignKey(Input.id))
@@ -59,23 +57,23 @@ class Result(Base):
   accuracy        = Column(Float)
   confidence      = Column(Float)
   extra           = Column(PickleType)
-  collection_date = Column(DateTime)
+  collection_date = Column(DateTime, default=func.now())
   collection_cost = Column(Float)
 
 class DesiredResult(Base):
-  __tablename__ = 'desired_result'
-  id            = Column(Integer, primary_key=True)
-  state         = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED'))
+  state         = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED'), default = 'REQUESTED')
   configuration = Column(ForeignKey(Configuration.id))
   generation    = Column(Integer)
   priority      = Column(Float)
+  priority_raw  = Column(Float)
   requestor     = Column(String(128))
   tuning_run    = Column(ForeignKey(TuningRun.id))
-  request_date  = Column(DateTime)
+  request_date  = Column(DateTime, default=func.now())
   start_date    = Column(DateTime)
   result        = Column(ForeignKey(Result.id))
 
 if __name__ == '__main__':
+  #test:
   engine = create_engine('sqlite:///:memory:', echo=True)
   Base.metadata.create_all(engine) 
 
