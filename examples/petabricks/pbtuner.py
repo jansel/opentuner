@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!../../venv/bin/python
 import re
 import argparse
 from pprint import pprint
