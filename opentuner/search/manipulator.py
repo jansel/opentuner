@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import abc 
+import copy 
 import itertools
 import logging 
 import math 
@@ -8,6 +9,7 @@ import random
 import subprocess
 import sys
 import tempfile
+import hashlib 
 from pprint import pprint
 from collections import defaultdict
 
@@ -47,6 +49,11 @@ class ConfigurationManipulatorBase(object):
   @abc.abstractmethod
   def maze_veiw(self, config):
     '''return a list of MazeParameter objects'''
+    return
+
+  @abc.abstractmethod
+  def hash_config(self, config):
+    '''produce unique hash value for the given config'''
     return
 
 
@@ -98,6 +105,14 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     '''return a list of MazeParameter objects'''
     return self.maze_params
 
+  def hash_config(self, config):
+    '''produce unique hash value for the given config'''
+    m = hashlib.sha256()
+    for p in self.cartesian_veiw(config)+self.maze_veiw(config):
+      m.update(p.name)
+      m.update(p.hash_value(config))
+      m.update('|')
+    return m.hexdigest()
 
 class Parameter(object):
   '''
@@ -129,6 +144,16 @@ class Parameter(object):
     '''some legal value of this parameter (for creating initial configs)'''
     return
 
+  @abc.abstractmethod
+  def copy_value(self, src, dst):
+    '''copy the value of this parameter from src to dst config'''
+    pass
+
+  @abc.abstractmethod
+  def hash_value(self, config):
+    '''produce unique hash for this value in the config'''
+    return
+
 class CartesianParameter(Parameter):
   '''
   a single dimension in a cartesian space, with a minimum and a maximum value
@@ -138,6 +163,14 @@ class CartesianParameter(Parameter):
   def __init__(self, name, value_type=int, **kwargs):
     self.value_type = value_type
     super(CartesianParameter, self).__init__(name, **kwargs)
+
+  def hash_value(self, config):
+    '''produce unique hash for this value in the config'''
+    return hashlib.sha256(repr(self.get_value(config))).hexdigest()
+
+  def copy_value(self, src, dst):
+    '''copy the value of this parameter from src to dst config'''
+    self.set_value(dst, self.get_value(src)) 
 
   @abc.abstractmethod
   def set_value(self, config, value):

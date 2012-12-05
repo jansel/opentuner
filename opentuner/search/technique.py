@@ -1,6 +1,5 @@
 
 import abc
-
 from opentuner.resultsdb.models import *
 
 class SearchTechniqueBase(object):
@@ -11,6 +10,10 @@ class SearchTechniqueBase(object):
   
   def begin_generation(self, driver, generation):
     '''called at the start of a generation'''
+    pass
+
+  def mid_generation(self, driver, generation):
+    '''called after techniques have run, before results have been gathered'''
     pass
 
   def end_generation(self, driver, generation):
@@ -26,6 +29,16 @@ class SearchTechniqueBase(object):
     """return at most count resultsdb.models.DesiredResult objects based on past performance"""
     return
 
+  @property
+  def name(self):
+    '''name of this SearchTechnique uses for display/accounting'''
+    return self.__class__.__name__
+
+  @property
+  def allow_pipelining(self):
+    '''true if technique supports overlapping generations, with delayed results'''
+    return True
+
 class SearchTechnique(SearchTechniqueBase):
   '''
   a search search technique with basic utility functions
@@ -37,10 +50,11 @@ class SearchTechnique(SearchTechniqueBase):
 
   def desired_result(self, manipulator, driver, i):
     '''create and return a resultsdb.models.DesiredResult'''
-    desired = DesiredResult()
     cfg, priority = self.desired_configuration(manipulator, driver, i)
-    desired.configuration = driver.get_configuration(cfg)
-    desired.priority      = float(priority)
+    config = driver.get_configuration(cfg)
+    desired = DesiredResult()
+    desired.configuration = config
+    desired.priority_raw  = float(priority)
     return desired
 
   @abc.abstractmethod
@@ -65,7 +79,7 @@ class PureRandomInitializer(PureRandom):
   '''
   def is_ready(self, driver, generation):
     '''only run this technique in generation 0'''
-    return not super(PureRandomInitializer, self).is_ready(driver, generation)
+    return generation==0
 
 def get_enabled(args):
   return [PureRandom(), PureRandomInitializer()]

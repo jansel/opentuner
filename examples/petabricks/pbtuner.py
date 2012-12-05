@@ -1,6 +1,7 @@
 #!../../venv/bin/python
 import re
 import argparse
+import logging
 from pprint import pprint
 
 import deps #fix sys.path
@@ -27,6 +28,8 @@ def main(args):
   driver.main()
 
 if __name__ == '__main__':
+  logging.basicConfig(level=logging.DEBUG)
+  logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.INFO)
   parser = argparse.ArgumentParser(parents=[opentuner.search.driver.argparser])
   args = parser.parse_args()
   args.cfgfile = 'linux_static_x86_64/Sort2.cfg.default'
