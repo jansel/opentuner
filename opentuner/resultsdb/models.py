@@ -28,14 +28,24 @@ class Configuration(Base):
       session.flush()
       return session.query(Configuration).filter_by(hash=hashv).one()
     except sqlalchemy.orm.exc.NoResultFound:
-      config = Configuration()
-      config.hash = hashv
-      config.data = datav
-      session.add(config)
-      return config
+      t = Configuration()
+      t.hash = hashv
+      t.data = datav
+      session.add(t)
+      return t 
 
 class MachineClass(Base):
   name          = Column(String(128))
+
+  @classmethod
+  def get(cls, session, name='default'):
+    try:
+      session.flush()
+      return session.query(MachineClass).filter_by(name=name).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+      t = MachineClass(name=name)
+      session.add(t)
+      return t
 
 class Machine(Base):
   name             = Column(String(128))
@@ -50,15 +60,26 @@ class InputClass(Base):
   name = Column(String(128))
   size = Column(Integer)
 
+  @classmethod
+  def get(cls, session, name='default', size=-1):
+    try:
+      session.flush()
+      return session.query(InputClass).filter_by(name=name, size=size).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+      t = InputClass(name=name, size=size)
+      session.add(t)
+      return t
+
 class Input(Base):
-  state          = Column(Enum('ANY_MACHINE', 'SINGLE_MACHINE', 'DELETED'))
+  #state          = Column(Enum('ANY_MACHINE', 'SINGLE_MACHINE', 'DELETED'),
+  #                        default='ANY_MACHINE')
 
   input_class_id = Column(ForeignKey(InputClass.id))
   input_class    = relationship(InputClass, backref='inputs')
 
   #optional, set only for state='SINGLE_MACHINE'
-  machine_id     = Column(ForeignKey(MachineClass.id))
-  machine        = relationship(MachineClass, backref='inputs')
+  #machine_id     = Column(ForeignKey(MachineClass.id))
+  #machine        = relationship(MachineClass, backref='inputs')
 
   #optional, for use by InputManager
   path           = Column(Text)
@@ -72,8 +93,7 @@ class TuningRun(Base):
   args            = Column(PickleType)
 
 class Result(Base):
-  state           = Column(Enum('OK', 'TIMEOUT', 'ERROR'), default='OK')
-
+  #set by MeasurementDriver:
   configuration_id= Column(ForeignKey(Configuration.id))
   configuration   = relationship(Configuration, backref='results')
 
@@ -86,13 +106,16 @@ class Result(Base):
   tuning_run_id   = Column(ForeignKey(TuningRun.id))
   tuning_run      = relationship(TuningRun, backref='results')
 
+  collection_date = Column(DateTime, default=func.now())
+  collection_cost = Column(Float)
+
+  #set by MeasurementInterface:
+  state           = Column(Enum('OK', 'TIMEOUT', 'ERROR'), default='OK')
   time            = Column(Float)
   accuracy        = Column(Float)
   confidence      = Column(Float)
   extra           = Column(PickleType)
 
-  collection_date = Column(DateTime, default=func.now())
-  collection_cost = Column(Float)
 
 class DesiredResult(Base):
   #set by the technique:

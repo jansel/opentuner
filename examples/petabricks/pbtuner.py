@@ -5,45 +5,34 @@ import logging
 import subprocess
 import tempfile 
 from pprint import pprint
+log = logging.getLogger(__name__)
 
 import deps #fix sys.path
+from deps import etree
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
                                          FloatParameter)
 from opentuner.search.driver import SearchDriver
-from opentuner.measurement import MeasurementInterface
+from opentuner.measurement import MeasurementInterface, MeasurementDriver
+from opentuner.measurement.inputmanager import FixedInputManager 
 
-class PetaBricksMeasurment(MeasurementInterface):
+class PetaBricksInterface(MeasurementInterface):
   def __init__(self, args):
-    self.cmd_prefix = [
-        args.program,
-        '--time',
-        '--accuracy',
-      ]
+    self.cmd_prefix = [args.program, '--time', '--accuracy']
+    super(PetaBricksInterface, self).__init__()
 
-  def test_configuration(self, measurement_driver, cfg):
+  def run(self, measurement_driver, desired_result, input):
+    time, acc = pbrun(self.cmd_prefix+['-n', str(input.input_class.size)],
+                      desired_result.configuration.data)
 
-    with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
-      for k,v in cfg.iteritems():
-        print >>cfgtmp, k, '=', v
-      cfgtmp.flush()
-      cmd = self.cmd_prefix + [
-          '-n', str(10000),
-          '--config', cfgtmp.name,
-        ]
-      p = subprocess.Popen(cmd,
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE)
-      out, err = p.communicate()
-
-
-    print out
-    print err
-
-
+    result = opentuner.resultsdb.models.Result()
+    result.time = time
+    result.accuracy = acc
+    return result
 
 def create_config_manipulator(cfgfile):
+  '''helper to create the configuration manipulator'''
   cfg=open(cfgfile).read()
   manipulator = ConfigurationManipulator()
 
@@ -54,13 +43,37 @@ def create_config_manipulator(cfgfile):
   
   return manipulator
 
+def pbrun(cmd_prefix, cfg):
+  '''
+  helper to run a given petabricks configuration and return (time, accuracy)
+  '''
+
+  with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
+    for k,v in cfg.iteritems():
+      print >>cfgtmp, k, '=', v
+    cfgtmp.flush()
+    cmd = cmd_prefix + ['--config', cfgtmp.name]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+
+  try:
+    root = etree.XML(out)
+    time = float(root.find('stats/timing').get('average'))
+    acc  = float(root.find('stats/accuracy').get('average'))
+    return time, acc
+  except:
+    log.exception("run failed: stderr=%s // stdout=%s", out, err)
+    raise
 
 def main(args):
-  driver = SearchDriver(create_config_manipulator(args.program_cfg_default), args)
-  driver.main()
+  search = SearchDriver(create_config_manipulator(args.program_cfg_default), args)
+  search.main()
 
-  tester = PetaBricksMeasurment(args)
-  tester.test_configuration(None, driver.manipulator.random())
+  measurement = MeasurementDriver(search.session,
+                                  PetaBricksInterface(args),
+                                  FixedInputManager(size=200),
+                                  args)
+  measurement.main()
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)

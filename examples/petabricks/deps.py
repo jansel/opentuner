@@ -7,3 +7,15 @@ proj_root = os.path.normpath(
                 '../..'))
 sys.path.insert(0, proj_root)
 
+
+try:
+  from lxml import etree
+except ImportError:
+  try:
+    # Python 2.5
+    import xml.etree.cElementTree as etree
+  except ImportError:
+    import xml.etree.ElementTree as etree
+
+
+

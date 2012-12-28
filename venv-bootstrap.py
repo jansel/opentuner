@@ -1902,6 +1902,7 @@ default_target_dir = 'venv'
 pip_install_packages = [
     'sqlalchemy',
     'pysqlite',
+#   'lxml',
     'virtualenv',
   ]
 
