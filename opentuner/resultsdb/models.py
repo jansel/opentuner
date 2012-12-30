@@ -50,8 +50,9 @@ class MachineClass(Base):
 class Machine(Base):
   name             = Column(String(128))
 
-  cpu              = Column(String(32))
-  memory           = Column(Integer)
+  cpu              = Column(String(128))
+  cores            = Column(Integer)
+  memory_gb        = Column(Float)
 
   machine_class_id = Column(ForeignKey(MachineClass.id))
   machine_class    = relationship(MachineClass, backref='machines')

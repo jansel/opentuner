@@ -12,10 +12,9 @@ import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
                                          FloatParameter)
-from opentuner.search.driver import SearchDriver
 from opentuner.measurement import MeasurementInterface
-from opentuner.tuningrun import TuningRunMain
 from opentuner.measurement.inputmanager import FixedInputManager 
+from opentuner.tuningrunmain import TuningRunMain
 
 log = logging.getLogger(__name__)
 

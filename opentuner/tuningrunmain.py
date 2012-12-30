@@ -24,7 +24,6 @@ class TuningRunMain(object):
                                                   args=args)
     self.session.add(self.tuning_run)
 
-    self.machine = None
     self.session.commit()
     self.search_driver = search_driver(self.Session(),
                                        self.tuning_run,
@@ -33,7 +32,6 @@ class TuningRunMain(object):
                                        args)
     self.measurement_driver = measurement_driver(self.Session(),
                                                  self.tuning_run,
-                                                 self.machine,
                                                  measurement_interface,
                                                  input_manager,
                                                  args)
