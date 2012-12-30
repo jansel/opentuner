@@ -5,7 +5,6 @@ import logging
 import subprocess
 import tempfile 
 from pprint import pprint
-log = logging.getLogger(__name__)
 
 import deps #fix sys.path
 from deps import etree
@@ -14,8 +13,11 @@ from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
                                          FloatParameter)
 from opentuner.search.driver import SearchDriver
-from opentuner.measurement import MeasurementInterface, MeasurementDriver
+from opentuner.measurement import MeasurementInterface
+from opentuner.tuningrun import TuningRunMain
 from opentuner.measurement.inputmanager import FixedInputManager 
+
+log = logging.getLogger(__name__)
 
 class PetaBricksInterface(MeasurementInterface):
   def __init__(self, args):
@@ -66,14 +68,12 @@ def pbrun(cmd_prefix, cfg):
     raise
 
 def main(args):
-  search = SearchDriver(create_config_manipulator(args.program_cfg_default), args)
-  search.main()
-
-  measurement = MeasurementDriver(search.session,
-                                  PetaBricksInterface(args),
-                                  FixedInputManager(size=200),
-                                  args)
-  measurement.main()
+  m = TuningRunMain(
+        create_config_manipulator(args.program_cfg_default),
+        PetaBricksInterface(args),
+        FixedInputManager(size=200),
+        args)
+  m.main()
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)

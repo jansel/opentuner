@@ -11,17 +11,16 @@ log = logging.getLogger(__name__)
 class SearchDriver(object):
   '''controls the search process'''
 
-  def __init__(self, manipulator, args):
-    self.engine, self.Session = resultsdb.connect()
-    self.session     = self.Session()
+  def __init__(self, session, tuning_run, manipulator, results_wait, args):
+    self.session     = session
+    self.tuning_run  = tuning_run
     self.manipulator = manipulator
-    self.generation  = 0
     self.args        = args
+    self.generation  = 0
     self.population  = []
     self.techniques  = technique.get_enabled(args)
+    self.wait_for_results = results_wait
     self.pipelining_cooldown = set()
-    self.tuning_run  = TuningRun(start_date=datetime.now(),
-                                 args=args)
 
   def convergence_criterea(self):
     '''returns true if the tuning process should stop'''
@@ -89,10 +88,6 @@ class SearchDriver(object):
 
 
   def deduplicate_desired_results(self, desired_results):
-    #TODO
-    pass
-
-  def wait_for_results(self, gen):
     #TODO
     pass
 
