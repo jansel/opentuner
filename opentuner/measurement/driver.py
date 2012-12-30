@@ -1,4 +1,4 @@
-
+import argparse
 import logging
 import time
 import socket
@@ -158,5 +158,6 @@ def _memorysize():
     log.warning("failed to get total memory")
     return None
 
+argparser = argparse.ArgumentParser(add_help=False)
 
 

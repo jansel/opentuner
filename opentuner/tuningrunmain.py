@@ -1,4 +1,5 @@
 import logging
+import argparse
 from datetime import datetime
 
 from opentuner import resultsdb
@@ -20,8 +21,14 @@ class TuningRunMain(object):
 
     self.engine, self.Session = resultsdb.connect()
     self.session = self.Session()
-    self.tuning_run  = resultsdb.models.TuningRun(start_date=datetime.now(),
-                                                  args=args)
+
+    self.tuning_run  = (
+      resultsdb.models.TuningRun(
+        name            = args.label,
+        args            = args,
+        start_date      = datetime.now(),
+        program_version = measurement_interface.program_version()
+      ))
     self.session.add(self.tuning_run)
 
     self.session.commit()
@@ -37,11 +44,26 @@ class TuningRunMain(object):
                                                  args)
 
   def main(self):
-    self.search_driver.main()
+    try:
+      self.search_driver.main()
+      self.tuning_run.state = 'COMPLETE'
+    except:
+      self.tuning_run.state = 'ABORTED'
+      raise
+    finally:
+      self.tuning_run.end_date = datetime.now()
+      self.session.commit()
 
   def results_wait(self, generation):
     '''called by search_driver to wait for results'''
     #single process version:
     self.measurement_driver.process_all()
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--label', default="unnamed", 
+                       help="name for the TuningRun")
+
+
+
 
 

@@ -119,8 +119,8 @@ class SearchDriver(object):
 
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--generations',     type=int, default=1)
-argparser.add_argument('--population-size', type=int, default=3)
+argparser.add_argument('--generations',     type=int, default=2)
+argparser.add_argument('--population-size', type=int, default=2)
 
 
 

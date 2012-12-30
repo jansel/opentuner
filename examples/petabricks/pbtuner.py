@@ -20,17 +20,23 @@ log = logging.getLogger(__name__)
 
 class PetaBricksInterface(MeasurementInterface):
   def __init__(self, args):
-    self.cmd_prefix = [args.program, '--time', '--accuracy']
+    self.program = args.program
     super(PetaBricksInterface, self).__init__()
   
   def run(self, measurement_driver, desired_result, input):
-    time, acc = pbrun(self.cmd_prefix+['-n', str(input.input_class.size)],
+    time, acc = pbrun([args.program,
+                       '--time',
+                       '--accuracy',
+                       '-n=%d' % input.input_class.size],
                       desired_result.configuration.data)
-
     result = opentuner.resultsdb.models.Result()
     result.time = time
     result.accuracy = acc
     return result
+
+
+  def program_version(self):
+    return self.file_hash(self.program)
 
 def create_config_manipulator(cfgfile):
   '''helper to create the configuration manipulator'''
@@ -77,7 +83,7 @@ def main(args):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
   logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.INFO)
-  parser = argparse.ArgumentParser(parents=[opentuner.search.driver.argparser])
+  parser = argparse.ArgumentParser(parents=opentuner.argparsers())
   parser.add_argument('program',
                       help='PetaBricks binary program to autotune')
   parser.add_argument('--program-cfg-default',

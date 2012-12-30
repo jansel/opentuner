@@ -89,9 +89,12 @@ class Input(Base):
 class TuningRun(Base):
   name            = Column(String(128), default='unnamed')
   program_version = Column(String(128), default='unknown')
+  args            = Column(PickleType)
+  
+  state            = Column(Enum('RUNNING', 'COMPLETE', 'ABORTED'),
+                            default = 'RUNNING')
   start_date      = Column(DateTime, default=func.now())
   end_date        = Column(DateTime)
-  args            = Column(PickleType)
 
 class Result(Base):
   #set by MeasurementDriver:
