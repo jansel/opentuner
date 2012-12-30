@@ -20,6 +20,10 @@ class MeasurementDriver(object):
                measurement_interface,
                input_manager,
                args):
+
+    if not args.machine_class:
+      args.machine_class = 'default'
+
     self.session = session
     self.tuning_run = tuning_run
     self.args = args
@@ -51,7 +55,7 @@ class MeasurementDriver(object):
     '''
     get (or create) the machine class we are currently running on
     '''
-    return MachineClass.get(self.session)
+    return MachineClass.get(self.session, name=self.args.machine_class)
 
   def run_desired_result(self, desired_result):
     '''
@@ -61,7 +65,7 @@ class MeasurementDriver(object):
     self.session.add(input)
     self.session.flush()
 
-    log.info('running desired result %s on input %s', desired_result.id, input.id)
+    log.debug('running desired result %s on input %s', desired_result.id, input.id)
 
     self.input_manager.before_run(self, desired_result, input)
 
@@ -78,8 +82,12 @@ class MeasurementDriver(object):
     self.input_manager.after_run(self, desired_result, input)
     
     result.collection_cost = self.lap_timer()
-    log.info('collection_cost %.2f seconds', result.collection_cost)
-
+    self.session.flush()
+    log.info('Result(id=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
+             result.id,
+             result.time,
+             result.accuracy,
+             result.collection_cost)
     self.session.commit()
 
   def lap_timer(self):
@@ -120,6 +128,11 @@ class MeasurementDriver(object):
       if self.claim_desired_result(dr):
         self.run_desired_result(dr)
 
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--machine-class',
+                       help="name of the machine class being run on")
+
+
 def _cputype():
   try:
     return re.search(r"model name\s*:\s*([^\n]*)",
@@ -157,7 +170,4 @@ def _memorysize():
   except:
     log.warning("failed to get total memory")
     return None
-
-argparser = argparse.ArgumentParser(add_help=False)
-
 

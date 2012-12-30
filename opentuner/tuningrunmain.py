@@ -19,7 +19,10 @@ class TuningRunMain(object):
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
 
-    self.engine, self.Session = resultsdb.connect()
+    if not args.database:
+      args.database = 'sqlite://' #in memory
+
+    self.engine, self.Session = resultsdb.connect(args.database)
     self.session = self.Session()
 
     self.tuning_run  = (
@@ -62,6 +65,9 @@ class TuningRunMain(object):
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--label', default="unnamed", 
                        help="name for the TuningRun")
+argparser.add_argument('--database', 
+                       help=("database to store tuning results in, see: "
+                             "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
 
 
 

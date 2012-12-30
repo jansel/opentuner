@@ -38,7 +38,7 @@ class MachineClass(Base):
   name          = Column(String(128))
 
   @classmethod
-  def get(cls, session, name='default'):
+  def get(cls, session, name):
     try:
       session.flush()
       return session.query(MachineClass).filter_by(name=name).one()

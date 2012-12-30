@@ -82,7 +82,7 @@ def main(args):
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
-  logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.INFO)
+  #logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.INFO)
   parser = argparse.ArgumentParser(parents=opentuner.argparsers())
   parser.add_argument('program',
                       help='PetaBricks binary program to autotune')
