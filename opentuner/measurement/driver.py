@@ -82,9 +82,10 @@ class MeasurementDriver(object):
     self.input_manager.after_run(self, desired_result, input)
     
     result.collection_cost = self.lap_timer()
-    self.session.flush()
-    log.info('Result(id=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
+    self.session.flush()#populate result.id
+    log.info('Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
              result.id,
+             result.configuration.id,
              result.time,
              result.accuracy,
              result.collection_cost)

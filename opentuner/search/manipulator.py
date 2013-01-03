@@ -20,18 +20,9 @@ class ConfigurationManipulatorBase(object):
   '''
   __metaclass__ = abc.ABCMeta
 
-  def preferred_view(self, config):
-    '''
-    return list of either maze or cartesian parameters, whichever is more 
-    natural
-    '''
-    return filter(lambda x: not x.coerced,
-                  self.cartesian_veiw(config) + self.maze_veiw(config))
-
   def validate(self, config):
     '''is the given config valid???'''
-    return all(map(lambda x: x.validate(config),
-                   self.cartesian_veiw()+self.maze_veiw()))
+    return all(map(lambda x: x.validate(config), self.parameters(config)))
 
   def set_search_driver(self, search_driver):
     pass
@@ -42,13 +33,8 @@ class ConfigurationManipulatorBase(object):
     return
 
   @abc.abstractmethod
-  def cartesian_veiw(self, config):
-    '''return a list of CartesianParameter objects'''
-    return
-
-  @abc.abstractmethod
-  def maze_veiw(self, config):
-    '''return a list of MazeParameter objects'''
+  def parameters(self, config):
+    '''return a list of of Parameter objects'''
     return
 
   @abc.abstractmethod
@@ -63,55 +49,47 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
   configs in a dict-like object
   '''
 
-  def __init__(self, cartesian=[], maze=[], config_type=dict, **kwargs):
-    self.cartesian_params = list(cartesian)
-    self.maze_params = list(maze)
+  def __init__(self, params=[], config_type=dict, **kwargs):
+    self.params = list(params)
     self.config_type = config_type
     self.search_driver = None
     super(ConfigurationManipulator, self).__init__(**kwargs)
 
-  def add_cartesian_parameter(self, p):
+  def add_parameter(self, p):
     p.set_parent(self)
-    self.cartesian_params.append(p)
-    
-  def add_maze_parameter(self, p):
-    p.set_parent(self)
-    self.cartesian_params.append(p)
-
+    self.params.append(p)
+  
   def set_search_driver(self, search_driver):
     self.search_driver = search_driver
 
   def seed_config(self):
     '''produce a fixed seed configuration'''
     cfg = self.config_type()
-    all_params = filter(lambda x: not x.coerced,
-                        self.cartesian_params+self.maze_params)
-    for p in all_params:
+    for p in self.params:
       cfg[p.name] = p.seed_value()
     return cfg
 
   def random(self):
     '''produce a random configuration'''
     cfg = self.seed_config()
-    for p in self.preferred_view(cfg):
+    for p in self.parameters(cfg):
       p.randomize(cfg)
     return cfg
 
-  def cartesian_veiw(self, config):
-    '''return a list of CartesianParameter objects'''
-    return self.cartesian_params
-
-  def maze_veiw(self, config):
-    '''return a list of MazeParameter objects'''
-    return self.maze_params
-
+  def parameters(self, config):
+    '''return a list of Parameter objects'''
+    return self.params
+  
   def hash_config(self, config):
     '''produce unique hash value for the given config'''
     m = hashlib.sha256()
-    for p in self.cartesian_veiw(config)+self.maze_veiw(config):
+    params = list(self.parameters(config))
+    params.sort(key=lambda x: x.name)
+    for i, p in enumerate(params):
       m.update(p.name)
       m.update(p.hash_value(config))
-      m.update('|')
+      m.update(str(i))
+      m.update("|")
     return m.hexdigest()
 
 class Parameter(object):
@@ -120,10 +98,8 @@ class Parameter(object):
   '''
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, name, coerced=False):
+  def __init__(self, name):
     self.name = name
-    #coerced means this should be excluded when iterating over both cartesian and maze
-    self.coerced = coerced
     self.parent = None
     super(Parameter, self).__init__()
 
@@ -154,7 +130,7 @@ class Parameter(object):
     '''produce unique hash for this value in the config'''
     return
 
-class CartesianParameter(Parameter):
+class PrimativeParameter(Parameter):
   '''
   a single dimension in a cartesian space, with a minimum and a maximum value
   '''
@@ -162,7 +138,7 @@ class CartesianParameter(Parameter):
 
   def __init__(self, name, value_type=int, **kwargs):
     self.value_type = value_type
-    super(CartesianParameter, self).__init__(name, **kwargs)
+    super(PrimativeParameter, self).__init__(name, **kwargs)
 
   def hash_value(self, config):
     '''produce unique hash for this value in the config'''
@@ -187,7 +163,7 @@ class CartesianParameter(Parameter):
     '''return the legal range for this parameter, inclusive'''
     return (0, 1)
   
-class MazeParameter(Parameter):
+class ComplexParameter(Parameter):
   '''
   a non-cartesian parameter conforming to a maze interface with a variable
   number of directions that can be taken from any given point
@@ -206,7 +182,7 @@ class MazeParameter(Parameter):
     '''
     pass
 
-class NumericParameter(CartesianParameter):
+class NumericParameter(PrimativeParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     '''min/max are inclusive'''
     super(NumericParameter, self).__init__(name, **kwargs)

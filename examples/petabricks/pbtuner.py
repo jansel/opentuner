@@ -46,7 +46,7 @@ def create_config_manipulator(cfgfile):
   for m in re.finditer(r" *([a-zA-Z0-9_-]+)[ =]+([0-9e.+-]+) *[#] *([a-z]+).* ([0-9]+) to ([0-9]+)", cfg):
     k, v, valtype, minval, maxval =  m.group(1,2,3,4,5)
     assert valtype=='int'
-    manipulator.add_cartesian_parameter(IntegerParameter(k, minval, int(maxval)))
+    manipulator.add_parameter(IntegerParameter(k, minval, int(maxval)))
   
   return manipulator
 
