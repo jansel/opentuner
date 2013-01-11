@@ -1,7 +1,5 @@
 
 import abc
-import copy 
-import random
 from opentuner.resultsdb.models import *
 
 class SearchTechniqueBase(object):
@@ -49,13 +47,10 @@ class SearchTechniqueBase(object):
     '''called for each new Result(), regardless of who requested it'''
     pass
     
-  
-
 class SearchTechnique(SearchTechniqueBase):
   '''
   a search search technique with basic utility functions
   '''
-  
   def desired_results(self, manipulator, driver, count):
     '''call search_suggestion() count times'''
     return [self.desired_result(manipulator, driver, i) for i in xrange(count)]
@@ -97,70 +92,48 @@ class PureRandomInitializer(PureRandom):
     '''only run this technique in generation 0'''
     return generation==0
 
-class EvolutionaryTechnique(SearchTechnique):
-  def __init__(self, mutation_rate = 0.1, crossover_rate = 0.0):
-    self.mutation_rate = mutation_rate
-    self.crossover_rate = crossover_rate
-    super(EvolutionaryTechnique, self).__init__()
+def ProceduralSearchTechnique(SearchTechnique):
+  def __init__(self):
+    self.gen = None
+    self.done = False
+    self.latest_results = []
+    super(ProceduralSearchTechnique, self).__init__()
 
   def desired_configuration(self, manipulator, driver, i):
-    '''
-    return a (cfg, priority) that we should test,
-    through random mutation and crossover
-    '''
-    parents = self.selection(driver)
-    parents = map(copy.deepcopy, parents)
-
-    if len(parents) > 1:
-      cfg = self.crossover(parents, manipulator, driver)
-    else:
-      cfg = parents[0]
-
-    self.mutation(cfg, manipulator, driver)
-
-    return (cfg, 0.0)
-
-
-  def mutation(self, cfg, manipulator, driver):
-    '''
-    mutate cfg in place
-    '''
-    for param in manipulator.parameters(cfg):
-      if random.random() < self.mutation_rate:
-        self.mutate_param(cfg, param, manipulator, driver)
-
-  def mutate_param(self, cfg, param, manipulator, driver):
-    '''
-    mutate single parameter of cfg in place
-    '''
-    param.randomize(cfg)
-
-  def crossover(self, manipulator, driver):
-    assert False
-
-  def selection(self, driver):
-    '''return a list of parent configurations to use'''
-    if random.random() < self.crossover_rate:
-      return [self.select(driver), self.select(driver)]
-    else:
-      return [self.select(driver)]
+    if self.gen is None:
+      self.gen = self.main_generator(manipulator, driver)
+    if not self.done:
+      try:
+        return self.gen.next(), 0.0
+      except StopIteration:
+        self.done = True
+    return None, 0.0
 
   @abc.abstractmethod
-  def select(self, driver):
-    '''return a single random parent configuration'''
-    return cfg
+  def main_generator(self, manipulator, driver):
+    '''
+    custom procedure to conduct this search, should
+    yield cfg
+    to request tests and call self.get_result() 
+    '''
+    pass
 
-class GreedySelectionMixin(object):
-  def select(self, driver):
-    '''return a single random parent configuration'''
-    best_result = driver.results_query(objective_ordered = True).limit(1).one()
-    return best_result.configuration.data
+  def handle_result(self, result, driver):
+    self.latest_results.append(result)
 
-class GreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):
-  pass
+  def get_all_results(self):
+    t = self.latest_results
+    self.latest_results = list()
+    return t
+
+  def get_one_result(self):
+    return self.latest_results.pop(0)
 
 def get_enabled(args):
-  return [PureRandom(), PureRandomInitializer(), GreedyMutation()]
+  from evolutionarytechniques import GreedyMutation
+  return [PureRandomInitializer(), 
+          PureRandom(),
+          GreedyMutation()]
 
 
 
