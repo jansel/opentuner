@@ -92,7 +92,7 @@ class SearchDriver(object):
     pass
 
   def result_handlers(self, techniques, generation):
-    q = self.results_query().join(DesiredResult).filter(DesiredResult.generation == generation)
+    q = self.results_query(generation = generation)
     for r in q:
       log.debug("calling result handlers result Result %d, requested by %s",
                 r.id, [dr.requestor for dr in r.desired_results])
@@ -100,14 +100,19 @@ class SearchDriver(object):
         t.handle_result(r, self)
 
 
-  def results_query(self):
-    return (self.session.query(Result)
-            #.join(Result.desired_results)
-            #.filter(DesiredResult.tuning_run == self.tuning_run)
-            .filter(Result.id.in_(
-                        self.session.query(DesiredResult.result_id)
-                        .filter_by(tuning_run = self.tuning_run).subquery()))
-            )
+  def results_query(self, generation = None, objective_ordered = False):
+    q = self.session.query(Result)
+    subq = (self.session.query(DesiredResult.result_id)
+           .filter_by(tuning_run = self.tuning_run))
+    if generation is not None:
+      subq = subq.filter_by(generation = generation)
+    q = q.filter(Result.id.in_(subq.subquery()))
+    if objective_ordered:
+      q = self.order_by_objective(q)
+    return q
+
+  def order_by_objective(self, q):
+    return q.order_by(Result.time)
 
   def run_generation(self):
     techniques = self.active_techniques()
