@@ -26,7 +26,10 @@ class SearchTechniqueBase(object):
 
   @abc.abstractmethod
   def desired_results(self, manipulator, driver, count):
-    """return at most count resultsdb.models.DesiredResult objects based on past performance"""
+    """
+    return at most count resultsdb.models.DesiredResult objects based on past
+    performance
+    """
     return
 
   @property
@@ -38,6 +41,13 @@ class SearchTechniqueBase(object):
   def allow_pipelining(self):
     '''true if technique supports overlapping generations, with delayed results'''
     return True
+
+  @abc.abstractmethod
+  def handle_result(self, result, requestor_name, driver):
+    '''called for each new Result(), regardless of who requested it'''
+    pass
+    
+  
 
 class SearchTechnique(SearchTechniqueBase):
   '''
@@ -65,6 +75,10 @@ class SearchTechnique(SearchTechniqueBase):
     '''
     return (dict(), 0.0)
 
+  def handle_result(self, result, driver):
+    '''called for each new Result(), regardless of who requested it'''
+    pass
+
 class PureRandom(SearchTechnique):
   '''
   request configurations completely randomly
@@ -80,6 +94,32 @@ class PureRandomInitializer(PureRandom):
   def is_ready(self, driver, generation):
     '''only run this technique in generation 0'''
     return generation==0
+
+
+class EvolutionaryTechnique(SearchTechnique):
+
+  
+  def desired_configuration(self, manipulator, driver, i):
+    '''
+    return a (cfg, priority) that we should test,
+    through random mutation and crossover
+    '''
+    parents = self.selection(driver, i)
+
+    if len(parents) > 1:
+      parent = self.crossover(parents)
+    else:
+      parent = parents[0]
+
+  @abc.abstractmethod
+  def selection(self, driver, i):
+    '''
+    return a list of parent configurations to use
+    '''
+    return []
+
+
+
 
 def get_enabled(args):
   return [PureRandom(), PureRandomInitializer()]

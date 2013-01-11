@@ -91,6 +91,20 @@ class SearchDriver(object):
     #TODO
     pass
 
+  def result_handlers(self, techniques, generation):
+    q = self.results_query().filter(DesiredResult.generation == generation)
+    for r in q:
+      log.debug("calling result handlers result Result %d, requested by %s",
+                r.id, [dr.requestor for dr in r.desired_results])
+      for t in techniques: 
+        t.handle_result(r, self)
+
+
+  def results_query(self):
+    return (self.session.query(Result)
+            .join(Result.desired_results)
+            .filter(DesiredResult.tuning_run == self.tuning_run))
+
   def run_generation(self):
     techniques = self.active_techniques()
 
@@ -101,6 +115,8 @@ class SearchDriver(object):
     self.technique_hooks(techniques, 'mid_generation')
     self.session.commit()
     self.wait_for_results(self.generation)
+    
+    self.result_handlers(techniques, self.generation)
 
     self.technique_hooks(techniques, 'end_generation')
 
