@@ -39,13 +39,15 @@ class PetaBricksInterface(MeasurementInterface):
   def program_version(self):
     return self.file_hash(self.program)
 
-def create_config_manipulator(cfgfile):
+def create_config_manipulator(cfgfile, upper_limit):
   '''helper to create the configuration manipulator'''
   cfg=open(cfgfile).read()
   manipulator = ConfigurationManipulator()
 
   for m in re.finditer(r" *([a-zA-Z0-9_-]+)[ =]+([0-9e.+-]+) *[#] *([a-z]+).* ([0-9]+) to ([0-9]+)", cfg):
     k, v, valtype, minval, maxval =  m.group(1,2,3,4,5)
+    if upper_limit:
+      maxval = min(maxval, upper_limit)
     assert valtype=='int'
     manipulator.add_parameter(IntegerParameter(k, minval, int(maxval)))
   
@@ -77,7 +79,7 @@ def main(args):
   program_settings = json.load(open(args.program_settings))
   log.debug("program_settings: %s", str(program_settings))
   m = TuningRunMain(
-        create_config_manipulator(args.program_cfg_default),
+        create_config_manipulator(args.program_cfg_default, program_settings['n']+1),
         PetaBricksInterface(args),
         FixedInputManager(size=program_settings['n']),
         args)
@@ -94,6 +96,9 @@ if __name__ == '__main__':
   parser.add_argument('--program-settings',
                       help="override default program settings file location")
   args = parser.parse_args()
+
+  if not args.database:
+    args.database = 'sqlite:///' + args.program + '.db'
 
   if not args.program_cfg_default:
     args.program_cfg_default = args.program + '.cfg.default'
