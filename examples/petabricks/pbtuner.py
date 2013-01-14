@@ -4,6 +4,7 @@ import argparse
 import logging
 import subprocess
 import tempfile 
+import json
 from pprint import pprint
 
 import deps #fix sys.path
@@ -73,10 +74,12 @@ def pbrun(cmd_prefix, cfg):
     raise
 
 def main(args):
+  program_settings = json.load(open(args.program_settings))
+  log.debug("program_settings: %s", str(program_settings))
   m = TuningRunMain(
         create_config_manipulator(args.program_cfg_default),
         PetaBricksInterface(args),
-        FixedInputManager(size=200),
+        FixedInputManager(size=program_settings['n']),
         args)
   m.main()
 

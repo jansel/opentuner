@@ -1,4 +1,3 @@
-
 import abc
 import copy 
 import random
@@ -11,7 +10,7 @@ class EvolutionaryTechnique(SearchTechnique):
     self.crossover_rate = crossover_rate
     super(EvolutionaryTechnique, self).__init__()
 
-  def desired_configuration(self, manipulator, driver, i):
+  def desired_configuration(self, manipulator, driver):
     '''
     return a (cfg, priority) that we should test,
     through random mutation and crossover
@@ -25,9 +24,7 @@ class EvolutionaryTechnique(SearchTechnique):
       cfg = parents[0]
 
     self.mutation(cfg, manipulator, driver)
-
-    return (cfg, 0.0)
-
+    return cfg
 
   def mutation(self, cfg, manipulator, driver):
     '''

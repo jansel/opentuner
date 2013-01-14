@@ -5,6 +5,7 @@ import logging
 from opentuner import resultsdb
 from opentuner.resultsdb.models import *
 import technique
+import plugin
 
 log = logging.getLogger(__name__)
 
@@ -18,9 +19,16 @@ class SearchDriver(object):
     self.args        = args
     self.generation  = 0
     self.population  = []
+    self.plugins     = plugin.get_enabled(args)
     self.techniques  = technique.get_enabled(args)
     self.wait_for_results = results_wait
     self.pipelining_cooldown = set()
+    self.plugins.sort(key = lambda x: x.priority)
+    self.techniques.sort(key = lambda x: x.priority)
+
+  def add_plugin(self, p):
+    self.plugins.append(p)
+    self.plugins.sort(key = lambda x: x.priority)
 
   def convergence_criterea(self):
     '''returns true if the tuning process should stop'''
@@ -73,20 +81,6 @@ class SearchDriver(object):
     self.session.add_all(desired)
     return desired
 
-  def technique_hooks(self, techniques, fname, gen=None):
-    '''call fname on each technique'''
-
-    if gen is None:
-      gen = self.generation
-
-    fname = intern(fname)
-    
-    log.debug("%s %d hooks", fname, gen)
-
-    for t in techniques:
-      getattr(t, fname)(self, gen)
-
-
   def deduplicate_desired_results(self, desired_results):
     #TODO
     pass
@@ -115,19 +109,40 @@ class SearchDriver(object):
     return q.order_by(Result.time)
 
   def run_generation(self):
+    self.plugin_proxy.before_generation(self)
+
     techniques = self.active_techniques()
 
-    self.technique_hooks(techniques, 'begin_generation')
-
+    self.plugin_proxy.before_techniques(self)
     desired = self.generate_desired_results(techniques)
+    self.plugin_proxy.before_techniques(self)
 
-    self.technique_hooks(techniques, 'mid_generation')
     self.session.commit()
+
+    self.plugin_proxy.before_result_wait(self)
     self.wait_for_results(self.generation)
+    self.plugin_proxy.after_result_wait(self)
     
     self.result_handlers(techniques, self.generation)
+   
+    self.plugin_proxy.after_generation(self)
 
-    self.technique_hooks(techniques, 'end_generation')
+  @property
+  def plugin_proxy(self):
+    '''
+    forward any method calls on the returned object to all plugins
+    '''
+    plugins = self.plugins
+    class PluginProxy(object):
+      def __getattr__(self, method_name):
+        def plugin_method_proxy(*args, **kwargs):
+          rv = []
+          for plugin in plugins:
+            rv.append(getattr(plugin, method_name)(*args, **kwargs))
+          return filter(lambda x: x is not None, rv)
+
+        return plugin_method_proxy
+    return PluginProxy()
 
   def get_configuration(self, cfg):
     '''called by SearchTechniques to create Configuration objects'''
@@ -137,15 +152,17 @@ class SearchDriver(object):
     return config
 
   def main(self):
+    self.plugin_proxy.before_main(self)
     while not self.convergence_criterea():
       self.run_generation()
       self.generation += 1
+    self.plugin_proxy.after_main(self)
 
 
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--generations',     type=int, default=2)
-argparser.add_argument('--population-size', type=int, default=2)
+argparser.add_argument('--generations',     type=int, default=10)
+argparser.add_argument('--population-size', type=int, default=10)
 
 
 

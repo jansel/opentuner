@@ -8,18 +8,6 @@ class SearchTechniqueBase(object):
   '''
   __metaclass__ = abc.ABCMeta
   
-  def begin_generation(self, driver, generation):
-    '''called at the start of a generation'''
-    pass
-
-  def mid_generation(self, driver, generation):
-    '''called after techniques have run, before results have been gathered'''
-    pass
-
-  def end_generation(self, driver, generation):
-    '''called at the end of a generation'''
-    pass
-
   def is_ready(self, driver, generation):
     '''test if enough data has been gathered to use this technique'''
     return generation > 0
@@ -38,6 +26,11 @@ class SearchTechniqueBase(object):
     return self.__class__.__name__
 
   @property
+  def priority(self):
+    '''control order the technique gets run in, lower runs first'''
+    return 0
+
+  @property
   def allow_pipelining(self):
     '''true if technique supports overlapping generations, with delayed results'''
     return True
@@ -53,24 +46,27 @@ class SearchTechnique(SearchTechniqueBase):
   '''
   def desired_results(self, manipulator, driver, count):
     '''call search_suggestion() count times'''
-    return [self.desired_result(manipulator, driver, i) for i in xrange(count)]
+    return filter(lambda x: x is not None,
+                  [self.desired_result(manipulator, driver) for i in xrange(count)])
 
-  def desired_result(self, manipulator, driver, i):
+  def desired_result(self, manipulator, driver):
     '''create and return a resultsdb.models.DesiredResult'''
-    cfg, priority = self.desired_configuration(manipulator, driver, i)
+    cfg = self.desired_configuration(manipulator, driver)
+    if cfg is None:
+      return None
     config = driver.get_configuration(cfg)
     desired = DesiredResult()
     desired.configuration = config
-    desired.priority_raw  = float(priority)
+    desired.priority_raw  = 1.0
     return desired
 
   @abc.abstractmethod
-  def desired_configuration(self, manipulator, driver, i):
+  def desired_configuration(self, manipulator, driver):
     '''
-    return a (cfg, priority) that we should test
-    given a ConfigurationManipulator, SearchDriver, and suggestion number
+    return a cfg that we should test
+    given a ConfigurationManipulator and SearchDriver
     '''
-    return (dict(), 0.0)
+    return dict()
 
   def handle_result(self, result, driver):
     '''called for each new Result(), regardless of who requested it'''
@@ -80,9 +76,9 @@ class PureRandom(SearchTechnique):
   '''
   request configurations completely randomly
   '''
-  def desired_configuration(self, manipulator, driver, i):
+  def desired_configuration(self, manipulator, driver):
     '''return a (cfg, priority) that we should test'''
-    return manipulator.random(), 0.0
+    return manipulator.random()
 
 class PureRandomInitializer(PureRandom):
   '''
@@ -99,15 +95,15 @@ def ProceduralSearchTechnique(SearchTechnique):
     self.latest_results = []
     super(ProceduralSearchTechnique, self).__init__()
 
-  def desired_configuration(self, manipulator, driver, i):
+  def desired_configuration(self, manipulator, driver):
     if self.gen is None:
       self.gen = self.main_generator(manipulator, driver)
     if not self.done:
       try:
-        return self.gen.next(), 0.0
+        return self.gen.next()
       except StopIteration:
         self.done = True
-    return None, 0.0
+    return None
 
   @abc.abstractmethod
   def main_generator(self, manipulator, driver):
@@ -120,6 +116,9 @@ def ProceduralSearchTechnique(SearchTechnique):
 
   def handle_result(self, result, driver):
     self.latest_results.append(result)
+
+  def is_ready(self, driver, generation):
+    return not self.done
 
   def get_all_results(self):
     t = self.latest_results
