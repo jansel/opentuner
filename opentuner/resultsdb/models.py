@@ -90,9 +90,9 @@ class TuningRun(Base):
   name            = Column(String(128), default='unnamed')
   program_version = Column(String(128), default='unknown')
   args            = Column(PickleType)
-  
-  state            = Column(Enum('RUNNING', 'COMPLETE', 'ABORTED'),
-                            default = 'RUNNING')
+
+  state            = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED'),
+                            default = 'QUEUED')
   start_date      = Column(DateTime, default=func.now())
   end_date        = Column(DateTime)
 
@@ -145,7 +145,15 @@ class DesiredResult(Base):
   result_id        = Column(ForeignKey(Result.id))
   result           = relationship(Result, backref='desired_results')
   start_date       = Column(DateTime)
-  
+
+class TechniqueAccounting(Base):
+  tuning_run_id    = Column(ForeignKey(TuningRun.id))
+  tuning_run       = relationship(TuningRun, backref='accounting') 
+  generation       = Column(Integer)
+  budget           = Column(Integer)
+  name             = Column(String(128))
+  start_date       = Column(DateTime, default=func.now())
+  end_date         = Column(DateTime)
 
 if __name__ == '__main__':
   #test:

@@ -36,13 +36,13 @@ class SearchDriver(object):
 
   def active_techniques(self):
     '''returns list of techniques to use in the current generation'''
-    return [t for t in self.techniques 
-            if t.is_ready(self, self.generation) 
+    return [t for t in self.techniques
+            if t.is_ready(self, self.generation)
             and t not in self.pipelining_cooldown]
 
-  def technique_budget(self, technique):
+  def technique_budget(self, technique, techniques):
     '''determine budget of tests to allocate to technique'''
-    return self.args.population_size
+    return self.args.population_size / len(techniques)
 
   def rescale_technique_priorities(self, technique, desired_results, budget):
     '''normalize the priorities output by the techniques so they sum to 1.0'''
@@ -72,13 +72,22 @@ class SearchDriver(object):
     '''get DesiredResult objects from each technique'''
     desired = list()
     for t in techniques:
-      budget = self.technique_budget(t)
-      tdesired = t.desired_results(self.manipulator, self, budget)
+      accounting = TechniqueAccounting(
+          tuning_run = self.tuning_run,
+          generation = self.generation,
+          budget = self.technique_budget(t, techniques),
+          name = t.name,
+          start_date = datetime.now(),
+        )
+      tdesired = t.desired_results(self.manipulator, self, accounting.budget)
       for d in tdesired:
         self.initialize_desired_result(t, d)
-      self.rescale_technique_priorities(t, tdesired, budget)
+      self.rescale_technique_priorities(t, tdesired, accounting.budget)
       desired.extend(tdesired)
-    self.session.add_all(desired)
+      self.session.add_all(tdesired)
+
+      accounting.end_date = datetime.now()
+      self.session.add(accounting)
     return desired
 
   def deduplicate_desired_results(self, desired_results):
@@ -122,9 +131,9 @@ class SearchDriver(object):
     self.plugin_proxy.before_result_wait(self)
     self.wait_for_results(self.generation)
     self.plugin_proxy.after_result_wait(self)
-    
+
     self.result_handlers(techniques, self.generation)
-   
+
     self.plugin_proxy.after_generation(self)
 
   @property

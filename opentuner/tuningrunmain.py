@@ -16,38 +16,52 @@ class TuningRunMain(object):
                measurement_interface,
                input_manager,
                args,
-               search_driver = SearchDriver,
+               search_driver_cls = SearchDriver,
                measurement_driver = MeasurementDriver):
 
+    self.args = args
     if not args.database:
       args.database = 'sqlite://' #in memory
 
     self.engine, self.Session = resultsdb.connect(args.database)
     self.session = self.Session()
+    self.tuning_run = None
+    self.search_driver_cls = search_driver_cls
+    self.measurement_driver_cls = measurement_driver
+    self.measurement_interface = measurement_interface
+    self.input_manager = input_manager
+    self.manipulator = manipulator
 
-    self.tuning_run  = (
-      resultsdb.models.TuningRun(
-        name            = args.label,
-        args            = args,
-        start_date      = datetime.now(),
-        program_version = measurement_interface.program_version()
-      ))
-    self.session.add(self.tuning_run)
 
-    self.session.commit()
-    self.search_driver = search_driver(self.Session(),
-                                       self.tuning_run,
-                                       manipulator,
-                                       self.results_wait,
-                                       args)
-    self.measurement_driver = measurement_driver(self.Session(),
-                                                 self.tuning_run,
-                                                 measurement_interface,
-                                                 input_manager,
-                                                 args)
+  def init(self):
+    if self.tuning_run is None:
+      self.tuning_run  = (
+        resultsdb.models.TuningRun(
+          name            = self.args.label,
+          args            = self.args,
+          start_date      = datetime.now(),
+          program_version = self.measurement_interface.program_version()
+        ))
+      self.session.add(self.tuning_run)
+
+      self.search_driver = self.search_driver_cls(self.Session(),
+                             self.tuning_run,
+                             self.manipulator,
+                             self.results_wait,
+                             self.args)
+
+      self.measurement_driver = self.measurement_driver_cls(
+                                  self.Session(),
+                                  self.tuning_run,
+                                  self.measurement_interface,
+                                  self.input_manager,
+                                  self.args)
 
   def main(self):
+    self.init()
     try:
+      self.tuning_run.state = 'RUNNING'
+      self.session.commit()
       self.search_driver.main()
       self.tuning_run.state = 'COMPLETE'
     except:
