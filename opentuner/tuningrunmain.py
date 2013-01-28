@@ -10,9 +10,9 @@ from opentuner.measurement.driver import MeasurementDriver
 log = logging.getLogger(__name__)
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--label', default="unnamed", 
+argparser.add_argument('--label',
                        help="name for the TuningRun")
-argparser.add_argument('--database', 
+argparser.add_argument('--database',
                        help=("database to store tuning results in, see: "
   "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
 
@@ -26,9 +26,13 @@ class TuningRunMain(object):
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
 
-    self.args = args
     if not args.database:
       args.database = 'sqlite://' #in memory
+
+    if not args.label:
+      args.label = 'unnamed'
+
+    self.args = args
 
     self.engine, self.Session = resultsdb.connect(args.database)
     self.session = self.Session()
