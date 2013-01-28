@@ -1,5 +1,5 @@
 
-import search, measurement, tuningrunmain
+import search, measurement, tuningrunmain, stats
 
 def argparsers():
   '''
@@ -9,5 +9,6 @@ def argparsers():
       tuningrunmain.argparser,
       search.driver.argparser,
       measurement.driver.argparser,
+      stats.argparser,
     ]
 

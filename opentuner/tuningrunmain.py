@@ -1,13 +1,20 @@
 import logging
 import argparse
 from datetime import datetime
+import time
 
 from opentuner import resultsdb
 from opentuner.search.driver import SearchDriver
 from opentuner.measurement.driver import MeasurementDriver
-import time
 
 log = logging.getLogger(__name__)
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--label', default="unnamed", 
+                       help="name for the TuningRun")
+argparser.add_argument('--database', 
+                       help=("database to store tuning results in, see: "
+  "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
 
 
 class TuningRunMain(object):
@@ -16,7 +23,7 @@ class TuningRunMain(object):
                measurement_interface,
                input_manager,
                args,
-               search_driver_cls = SearchDriver,
+               search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
 
     self.args = args
@@ -26,7 +33,7 @@ class TuningRunMain(object):
     self.engine, self.Session = resultsdb.connect(args.database)
     self.session = self.Session()
     self.tuning_run = None
-    self.search_driver_cls = search_driver_cls
+    self.search_driver_cls = search_driver
     self.measurement_driver_cls = measurement_driver
     self.measurement_interface = measurement_interface
     self.input_manager = input_manager
@@ -58,6 +65,10 @@ class TuningRunMain(object):
                                   self.args)
 
   def main(self):
+    if self.args.stats:
+      import stats
+      return stats.StatsMain(self.measurement_interface, self.args).main()
+
     self.init()
     try:
       self.tuning_run.state = 'RUNNING'
@@ -75,14 +86,6 @@ class TuningRunMain(object):
     '''called by search_driver to wait for results'''
     #single process version:
     self.measurement_driver.process_all()
-
-argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--label', default="unnamed", 
-                       help="name for the TuningRun")
-argparser.add_argument('--database', 
-                       help=("database to store tuning results in, see: "
-                             "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
-
 
 
 

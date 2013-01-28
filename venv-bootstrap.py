@@ -1904,6 +1904,7 @@ pip_install_packages = [
     'pysqlite',
 #   'lxml',
     'virtualenv',
+    'fn',
   ]
 
 import os
