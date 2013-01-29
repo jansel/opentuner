@@ -13,6 +13,11 @@ from opentuner.resultsdb.models import *
 
 log = logging.getLogger(__name__)
 
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--machine-class',
+                       help="name of the machine class being run on")
+
+
 class MeasurementDriver(object):
   def __init__(self,
                session,
@@ -128,10 +133,6 @@ class MeasurementDriver(object):
     for dr in q.all():
       if self.claim_desired_result(dr):
         self.run_desired_result(dr)
-
-argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--machine-class',
-                       help="name of the machine class being run on")
 
 
 def _cputype():

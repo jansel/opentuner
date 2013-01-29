@@ -3,7 +3,7 @@ import re
 import argparse
 import logging
 import subprocess
-import tempfile 
+import tempfile
 import json
 from pprint import pprint
 
@@ -14,8 +14,9 @@ from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
                                          FloatParameter)
 from opentuner.measurement import MeasurementInterface
-from opentuner.measurement.inputmanager import FixedInputManager 
+from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
+from opentuner.stats import StatsMain
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class PetaBricksInterface(MeasurementInterface):
   def __init__(self, args):
     self.program = args.program
     super(PetaBricksInterface, self).__init__()
-  
+
   def run(self, measurement_driver, desired_result, input):
     time, acc = pbrun([args.program,
                        '--time',
@@ -44,13 +45,14 @@ def create_config_manipulator(cfgfile, upper_limit):
   cfg=open(cfgfile).read()
   manipulator = ConfigurationManipulator()
 
-  for m in re.finditer(r" *([a-zA-Z0-9_-]+)[ =]+([0-9e.+-]+) *[#] *([a-z]+).* ([0-9]+) to ([0-9]+)", cfg):
+  for m in re.finditer(r" *([a-zA-Z0-9_-]+)[ =]+([0-9e.+-]+) *"
+                       r"[#] *([a-z]+).* ([0-9]+) to ([0-9]+)", cfg):
     k, v, valtype, minval, maxval =  m.group(1,2,3,4,5)
     if upper_limit:
       maxval = min(maxval, upper_limit)
     assert valtype=='int'
     manipulator.add_parameter(IntegerParameter(k, minval, int(maxval)))
-  
+
   return manipulator
 
 def pbrun(cmd_prefix, cfg):
@@ -79,7 +81,8 @@ def main(args):
   program_settings = json.load(open(args.program_settings))
   log.debug("program_settings: %s", str(program_settings))
   m = TuningRunMain(
-        create_config_manipulator(args.program_cfg_default, program_settings['n']+1),
+        create_config_manipulator(args.program_cfg_default,
+                                  program_settings['n']+1),
         PetaBricksInterface(args),
         FixedInputManager(size=program_settings['n']),
         args)
@@ -92,7 +95,7 @@ if __name__ == '__main__':
   parser.add_argument('program',
                       help='PetaBricks binary program to autotune')
   parser.add_argument('--program-cfg-default',
-                      help="override default program config exemplar file location")
+                      help="override default program config exemplar location")
   parser.add_argument('--program-settings',
                       help="override default program settings file location")
   args = parser.parse_args()
@@ -102,7 +105,7 @@ if __name__ == '__main__':
 
   if not args.program_cfg_default:
     args.program_cfg_default = args.program + '.cfg.default'
-  
+
   if not args.program_settings:
     args.program_settings = args.program + '.settings'
 
