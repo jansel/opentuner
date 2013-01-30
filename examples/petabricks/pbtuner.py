@@ -21,8 +21,9 @@ from opentuner.stats import StatsMain
 log = logging.getLogger(__name__)
 
 class PetaBricksInterface(MeasurementInterface):
-  def __init__(self, args):
+  def __init__(self, args, accuracy_target):
     self.program = args.program
+    self.accuracy_target = accuracy_target
     super(PetaBricksInterface, self).__init__()
 
   def run(self, measurement_driver, desired_result, input):
@@ -36,9 +37,12 @@ class PetaBricksInterface(MeasurementInterface):
     result.accuracy = acc
     return result
 
-
   def program_version(self):
     return self.file_hash(self.program)
+
+  def objective_order_by(self):
+    return ["min(accuracy, %f) desc" % self.accuracy_target,
+            opentuner.resultsdb.models.Result.time]
 
 def create_config_manipulator(cfgfile, upper_limit):
   '''helper to create the configuration manipulator'''
@@ -59,7 +63,6 @@ def pbrun(cmd_prefix, cfg):
   '''
   helper to run a given petabricks configuration and return (time, accuracy)
   '''
-
   with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
     for k,v in cfg.iteritems():
       print >>cfgtmp, k, '=', v
@@ -83,7 +86,7 @@ def main(args):
   m = TuningRunMain(
         create_config_manipulator(args.program_cfg_default,
                                   program_settings['n']+1),
-        PetaBricksInterface(args),
+        PetaBricksInterface(args, program_settings['accuracy']),
         FixedInputManager(size=program_settings['n']),
         args)
   m.main()

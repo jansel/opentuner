@@ -12,7 +12,13 @@ log = logging.getLogger(__name__)
 class SearchDriver(object):
   '''controls the search process'''
 
-  def __init__(self, session, tuning_run, manipulator, results_wait, args):
+  def __init__(self,
+               session,
+               tuning_run,
+               manipulator,
+               results_wait,
+               objective_order_by,
+               args):
     self.session     = session
     self.tuning_run  = tuning_run
     self.manipulator = manipulator
@@ -22,6 +28,7 @@ class SearchDriver(object):
     self.plugins     = plugin.get_enabled(args)
     self.techniques  = technique.get_enabled(args)
     self.wait_for_results = results_wait
+    self.objective_order_by_terms = objective_order_by
     self.pipelining_cooldown = set()
     self.plugins.sort(key = lambda x: x.priority)
     self.techniques.sort(key = lambda x: x.priority)
@@ -57,7 +64,7 @@ class SearchDriver(object):
       else:
         dr.priority -= minp
         dr.priority *= 1.0/(sump-(lenp*minp))
-  
+
   def initialize_desired_result(self, technique, dr):
     '''initialize a DesiredResult created by a SearchTechnique'''
     if dr.priority is not None:
@@ -115,7 +122,7 @@ class SearchDriver(object):
     return q
 
   def order_by_objective(self, q):
-    return q.order_by(Result.time)
+    return q.order_by(*self.objective_order_by_terms)
 
   def run_generation(self):
     self.plugin_proxy.before_generation(self)

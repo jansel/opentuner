@@ -59,6 +59,7 @@ class TuningRunMain(object):
                              self.tuning_run,
                              self.manipulator,
                              self.results_wait,
+                             self.measurement_interface.objective_order_by(),
                              self.args)
 
       self.measurement_driver = self.measurement_driver_cls(
