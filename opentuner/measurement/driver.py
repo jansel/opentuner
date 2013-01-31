@@ -85,14 +85,14 @@ class MeasurementDriver(object):
     desired_result.state = 'COMPLETE'
 
     self.input_manager.after_run(self, desired_result, input)
-    
+
     result.collection_cost = self.lap_timer()
     self.session.flush()#populate result.id
     log.info('Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
              result.id,
              result.configuration.id,
              result.time,
-             result.accuracy,
+             result.accuracy if result.accuracy is not None else float('NaN'),
              result.collection_cost)
     self.session.commit()
 

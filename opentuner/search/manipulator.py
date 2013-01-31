@@ -211,7 +211,7 @@ class IntegerParameter(NumericParameter):
     '''min/max are inclusive'''
     kwargs['value_type']=int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
-  
+
   def randomize(self, config):
     self.set_value(config, random.randint(*self.legal_range(config)))
 
@@ -219,7 +219,7 @@ class FloatParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     '''min/max are inclusive'''
     kwargs['value_type']=float
-    super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
+    super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
   def randomize(self, config):
     self.set_value(config, random.uniform(*self.legal_range(config)))

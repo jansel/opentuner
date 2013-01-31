@@ -1,5 +1,6 @@
 
 import abc
+from fn import _
 from opentuner.resultsdb.models import *
 
 class SearchTechniqueBase(object):
@@ -7,7 +8,7 @@ class SearchTechniqueBase(object):
   abstract base class for search techniques, with minimal interface
   '''
   __metaclass__ = abc.ABCMeta
-  
+
   def is_ready(self, driver, generation):
     '''test if enough data has been gathered to use this technique'''
     return generation > 0
@@ -36,10 +37,14 @@ class SearchTechniqueBase(object):
     return True
 
   @abc.abstractmethod
-  def handle_result(self, result, requestor_name, driver):
-    '''called for each new Result(), regardless of who requested it'''
+  def handle_result(self, result, driver):
+    '''called for each new Result(), requested'''
     pass
-    
+
+  def handle_nonrequested_result(self, result, driver):
+    '''called for each new Result(), requested by other techniques'''
+    pass
+
 class SearchTechnique(SearchTechniqueBase):
   '''
   a search search technique with basic utility functions
@@ -54,7 +59,10 @@ class SearchTechnique(SearchTechniqueBase):
     cfg = self.desired_configuration(manipulator, driver)
     if cfg is None:
       return None
-    config = driver.get_configuration(cfg)
+    if type(cfg) is Configuration:
+      config = cfg
+    else:
+      config = driver.get_configuration(cfg)
     desired = DesiredResult()
     desired.configuration = config
     desired.priority_raw  = 1.0
@@ -119,6 +127,9 @@ def ProceduralSearchTechnique(SearchTechnique):
 
   def is_ready(self, driver, generation):
     return not self.done
+
+  def results_ready(self):
+    return len(self.latest_results)
 
   def get_all_results(self):
     t = self.latest_results

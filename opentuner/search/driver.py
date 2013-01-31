@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 import logging
 
+from fn import _
 from opentuner import resultsdb
 from opentuner.resultsdb.models import *
 import technique
@@ -104,10 +105,15 @@ class SearchDriver(object):
   def result_handlers(self, techniques, generation):
     q = self.results_query(generation = generation)
     for r in q:
+      desired_results = filter(_.tuning_run==self.tuning_run, r.desired_results)
+      requestors = map(_.requestor, desired_results)
       log.debug("calling result handlers result Result %d, requested by %s",
-                r.id, [dr.requestor for dr in r.desired_results])
-      for t in techniques: 
-        t.handle_result(r, self)
+                r.id, str(requestors))
+      for t in techniques:
+        if t.name in requestors:
+          t.handle_result(r, self)
+        else:
+          t.handle_nonrequested_result(r, self)
 
 
   def results_query(self, generation = None, objective_ordered = False):

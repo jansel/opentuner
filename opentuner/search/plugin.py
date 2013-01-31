@@ -39,7 +39,7 @@ class LogDisplayPlugin(SearchPlugin):
     log.info("generation %d, best result time=%.4f, accuracy=%.4f, found in generation %d",
              driver.generation,
              result.time,
-             result.accuracy,
+             result.accuracy if result.accuracy is not None else float('NaN'),
              result.desired_results[0].generation,
              )
 
