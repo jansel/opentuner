@@ -7,17 +7,17 @@ import fn
 from fn import _
 from fn.iters import map, filter, repeat
 from opentuner.resultsdb.models import *
-from .technique import ProceduralSearchTechnique
+from .technique import SequentialSearchTechnique
 from .manipulator import Parameter
 
 log = logging.getLogger(__name__)
 
-class SimplexTechnique(ProceduralSearchTechnique):
+class SimplexTechnique(SequentialSearchTechnique):
   '''
   Nelder-Mead downhill simplex method
   '''
 
-  def __init__(self, alpha=1.0, gamma=2.0, rho=-0.5, sigma=0.5):
+  def __init__(self, alpha=1.0, gamma=4.0, rho=-0.5, sigma=0.5):
     self.alpha = alpha
     self.gamma = gamma
     self.rho   = rho
@@ -35,10 +35,8 @@ class SimplexTechnique(ProceduralSearchTechnique):
                                    self.initial_simplex()))
     log.info("initial points")
     for p in self.simplex_points:
-      if not driver.has_results(p):
-        yield p
-    while not all(map(driver.has_results, self.simplex_points)):
-      yield None # wait until results are ready
+      self.yield_nonblocking(p)
+    yield None # wait until results are ready
 
     while not self.convergence_criterea():
       # next steps assume this ordering
@@ -49,15 +47,11 @@ class SimplexTechnique(ProceduralSearchTechnique):
 
       reflection = self.reflection_point()
       yield reflection
-      while not driver.has_results(reflection):
-        yield None # wait until results are ready
 
       if objective.lt(reflection, self.simplex_points[0]):
         #expansion case
         expansion = self.expansion_point()
         yield expansion
-        while not driver.has_results(expansion):
-          yield None # wait until results are ready
 
         if objective.lt(expansion, reflection):
           log.info("using expansion point")
@@ -74,21 +68,17 @@ class SimplexTechnique(ProceduralSearchTechnique):
         # contraction case
         contraction = self.contraction_point()
         yield contraction
-        while not driver.has_results(contraction):
-          yield None # wait until results are ready
 
         if objective.lt(contraction, self.simplex_points[-1]):
           log.info("using contraction point")
           self.simplex_points[-1] = contraction
         else:
           #reduction case
-          self.perform_reduction()
           log.info("performing reduction")
+          self.perform_reduction()
           for p in self.simplex_points:
-            if not driver.has_results(p):
-              yield p
-          while not all(map(driver.has_results, self.simplex_points)):
-            yield None # wait until results are ready
+            self.yield_nonblocking(p)
+          yield None # wait until results are ready
 
   def reflection_point(self):
     '''
@@ -214,13 +204,6 @@ class RandomSimplex(SimplexTechnique):
     return [p0]+[self.manipulator.random()
                  for p in params
                  if p.is_primative()]
-
-  def is_ready(self, driver, generation):
-    return True
-
-
-
-
 
 
 

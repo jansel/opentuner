@@ -101,16 +101,20 @@ class PureRandomInitializer(PureRandom):
     '''only run this technique in generation 0'''
     return generation==0
 
-class ProceduralSearchTechnique(SearchTechnique):
+class AsyncProceduralSearchTechnique(SearchTechnique):
   def __init__(self):
     self.gen = None
     self.done = False
     self.latest_results = []
-    super(ProceduralSearchTechnique, self).__init__()
+    super(AsyncProceduralSearchTechnique, self).__init__()
+
+  def call_main_generator(self, manipulator, driver):
+    '''passthrough (used in subclasses)'''
+    return self.main_generator(manipulator, driver)
 
   def desired_configuration(self, manipulator, driver):
     if self.gen is None:
-      self.gen = self.main_generator(manipulator, driver)
+      self.gen = self.call_main_generator(manipulator, driver)
     if not self.done:
       try:
         return self.gen.next()
@@ -121,28 +125,54 @@ class ProceduralSearchTechnique(SearchTechnique):
   @abc.abstractmethod
   def main_generator(self, manipulator, driver):
     '''
-    custom procedure to conduct this search, should
-    yield cfg
-    to request tests and call self.get_result() 
+    custom generator to conduct this search, should:
+    yield config
+    to request tests and call driver.get_results() to read the results
+
+    in AsyncProceduralSearchTechnique results are ready at an undefined
+    time (`yield None` to stall and wait for them)
+
+    in SequentialSearchTechnique results are ready after the yield
     '''
     pass
-
-  def handle_result(self, result, driver):
-    self.latest_results.append(result)
 
   def is_ready(self, driver, generation):
     return not self.done
 
-  def results_ready(self):
-    return len(self.latest_results)
+class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
+  def __init__(self):
+    self.pending_tests = []
+    super(SequentialSearchTechnique, self).__init__()
 
-  def get_all_results(self):
-    t = self.latest_results
-    self.latest_results = list()
-    return t
+  def yield_nonblocking(self, cfg):
+    '''
+    within self.main_generator() act like `yield cfg`, but don't wait for the
+    results until the following yield (spawn/sync style)
+    '''
+    if cfg:
+      self.pending_tests.append(cfg)
 
-  def get_one_result(self):
-    return self.latest_results.pop(0)
+  def call_main_generator(self, manipulator, driver):
+    '''insert waits for results after every yielded item'''
+    subgen = self.main_generator(manipulator, driver)
+    while True:
+      try:
+        p = subgen.next()
+        if p:
+          self.pending_tests.append(p)
+      except StopIteration:
+        return
+      finally:
+        for p in self.pending_tests:
+          if not driver.has_results(p):
+            yield p
+
+      # wait for all pending_tests to have results
+      while self.pending_tests:
+        self.pending_tests = filter(lambda x: not driver.has_results(x),
+                                    self.pending_tests)
+        if self.pending_tests:
+          yield None # wait
 
 def get_enabled(args):
   from evolutionarytechniques import GreedyMutation

@@ -24,6 +24,10 @@ parser.add_argument('--dimensions', type=int, default=2,
                     help='dimensions for the Rosenbrock function')
 parser.add_argument('--domain', type=float, default=1000,
                     help='bound for variables in each dimension')
+parser.add_argument('--function', default='rosenbrock',
+                    choices = ('rosenbrock', 'sphere'),
+                    help='function to use')
+
 
 class Rosenbrock(MeasurementInterface):
   def __init__(self, args):
@@ -33,12 +37,27 @@ class Rosenbrock(MeasurementInterface):
   def run(self, measurement_driver, desired_result, input):
     cfg = desired_result.configuration.data
 
-    # the actual rosenbrock function:
     val = 0.0
-    for d in xrange(self.args.dimensions-1):
-      x0 = cfg['x%d'%d]
-      x1 = cfg['x%d'%(d+1)]
-      val += 100.0 * (x1 - x0**2)**2 + (x0 - 1)**2
+    if self.args.function == 'rosenbrock':
+      # the actual rosenbrock function:
+      for d in xrange(self.args.dimensions-1):
+        x0 = cfg['x%d'%d]
+        x1 = cfg['x%d'%(d+1)]
+        val += 100.0 * (x1 - x0**2)**2 + (x0 - 1)**2
+    elif self.args.function == 'sphere':
+      for d in xrange(self.args.dimensions):
+        xi = cfg['x%d'%d]
+        val += xi ** 2
+    elif self.args.function == 'beale':
+      assert self.args.dimensions == 2
+      assert self.args.domain == 4.5
+      x = cfg['x0']
+      y = cfg['x1']
+      val = (
+          (1.5   - x + x * y   )**2 +
+          (2.25  - x + x * y**2)**2 +
+          (2.625 - x + x * y**3)**2
+        )
 
     result = opentuner.resultsdb.models.Result()
     result.time = val
