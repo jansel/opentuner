@@ -12,6 +12,7 @@ import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           IntegerParameter,
                                           FloatParameter)
+from opentuner.search.objective import MinimizeTime
 from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
@@ -56,6 +57,7 @@ def main(args):
   m = TuningRunMain(manipulator,
                     Rosenbrock(args),
                     FixedInputManager(),
+                    MinimizeTime(),
                     args)
   m.main()
 

@@ -99,7 +99,7 @@ class TuningRun(Base):
 class Result(Base):
   #set by MeasurementDriver:
   configuration_id= Column(ForeignKey(Configuration.id))
-  configuration   = relationship(Configuration, backref='results')
+  configuration   = relationship(Configuration)
 
   machine_id      = Column(ForeignKey(Machine.id))
   machine         = relationship(Machine, backref='results')
@@ -124,11 +124,7 @@ class Result(Base):
 class DesiredResult(Base):
   #set by the technique:
   configuration_id = Column(ForeignKey(Configuration.id))
-  configuration    = relationship(Configuration,
-                                  #this causes some unnecessary UPDATEs:
-                                  #backref='desired_results', 
-                                  #cascade_backrefs=False,
-                                  )
+  configuration    = relationship(Configuration)
   priority_raw     = Column(Float)
 
   #set by the search driver

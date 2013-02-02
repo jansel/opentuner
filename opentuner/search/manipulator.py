@@ -1,17 +1,20 @@
 #!/usr/bin/python
-import abc 
-import copy 
+import abc
+import copy
 import itertools
-import logging 
-import math 
+import logging
+import math
 import os
 import random
 import subprocess
 import sys
 import tempfile
-import hashlib 
+import hashlib
+from fn import _
 from pprint import pprint
 from collections import defaultdict
+
+log = logging.getLogger(__name__)
 
 class ConfigurationManipulatorBase(object):
   '''
@@ -22,11 +25,20 @@ class ConfigurationManipulatorBase(object):
 
   def validate(self, config):
     '''is the given config valid???'''
-    return all(map(lambda x: x.validate(config), self.parameters(config)))
+    return all(map(_.validate(config), self.parameters(config)))
 
   def set_search_driver(self, search_driver):
+    '''called exactly once during setup'''
     pass
-  
+
+  def copy(self, config):
+    '''produce copy of config'''
+    return copy.deepcopy(config)
+
+  def parameters_dict(self, config):
+    '''convert self.parameters() to a dictionary by name'''
+    return dict([(p.name, p) for p in self.parameters(config)])
+
   @abc.abstractmethod
   def random(self):
     '''produce a random initial configuration'''
@@ -41,7 +53,6 @@ class ConfigurationManipulatorBase(object):
   def hash_config(self, config):
     '''produce unique hash value for the given config'''
     return
-
 
 class ConfigurationManipulator(ConfigurationManipulatorBase):
   '''
@@ -58,7 +69,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
   def add_parameter(self, p):
     p.set_parent(self)
     self.params.append(p)
-  
+
   def set_search_driver(self, search_driver):
     self.search_driver = search_driver
 
@@ -78,13 +89,18 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
 
   def parameters(self, config):
     '''return a list of Parameter objects'''
+    if type(config) is not self.config_type:
+      log.error("wrong type, expected %s got %s",
+                str(self.config_type),
+                str(type(config)))
+      raise TypeError()
     return self.params
-  
+
   def hash_config(self, config):
     '''produce unique hash value for the given config'''
     m = hashlib.sha256()
     params = list(self.parameters(config))
-    params.sort(key=lambda x: x.name)
+    params.sort(key=_.name)
     for i, p in enumerate(params):
       m.update(p.name)
       m.update(p.hash_value(config))
@@ -110,6 +126,9 @@ class Parameter(object):
     '''is the given config valid???'''
     return True
 
+  def is_primative(self):
+    return isinstance(self, PrimativeParameter)
+
   @abc.abstractmethod
   def randomize(self, config):
     '''randomize this value without taking into account the current position'''
@@ -126,9 +145,14 @@ class Parameter(object):
     pass
 
   @abc.abstractmethod
+  def same_value(self, cfg1, cfg2):
+    '''test if cfg1 and cfg2 have the same value of this parameter'''
+    return
+
+  @abc.abstractmethod
   def hash_value(self, config):
     '''produce unique hash for this value in the config'''
-    return
+    returno
 
 class PrimativeParameter(Parameter):
   '''
@@ -146,7 +170,39 @@ class PrimativeParameter(Parameter):
 
   def copy_value(self, src, dst):
     '''copy the value of this parameter from src to dst config'''
-    self.set_value(dst, self.get_value(src)) 
+    self.set_value(dst, self.get_value(src))
+
+  def same_value(self, cfg1, cfg2):
+    '''test if cfg1 and cfg2 have the same value of this parameter'''
+    return self.get_value(cfg1) == self.get_value(cfg2)
+
+  def is_integer_type(self):
+    '''true if self.value_type can only represent integers'''
+    return self.value_type(0) == self.value_type(0.1)
+
+  def get_unit_value(self, config):
+    '''get_value scaled such that range is between 0.0 and 1.0'''
+    low, high = self.legal_range(config)
+    val = self.get_value(config)
+    if low < high:
+      return float(val-low)/float(high-low)
+    else:
+      if low > high:
+        log.warning('invalid range for parameter %s, %s to %s',
+                    self.name, low, high)
+      # only a single legal value!
+      return 0.0
+
+  def set_unit_value(self, config, unit_value):
+    '''set_value scaled such that range is between 0.0 and 1.0'''
+    assert 0.0 <= unit_value and unit_value <= 1.0
+    low, high = self.legal_range(config)
+    if low < high:
+      val = unit_value*float(high-low) + low
+      if self.is_integer_type():
+        val = round(val)
+      val = max(low, min(val, high))
+      self.set_value(config, self.value_type(val))
 
   @abc.abstractmethod
   def set_value(self, config, value):
@@ -162,7 +218,8 @@ class PrimativeParameter(Parameter):
   def legal_range(self, config):
     '''return the legal range for this parameter, inclusive'''
     return (0, 1)
-  
+
+
 class ComplexParameter(Parameter):
   '''
   a non-cartesian parameter conforming to a maze interface with a variable
@@ -185,8 +242,9 @@ class ComplexParameter(Parameter):
 class NumericParameter(PrimativeParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     '''min/max are inclusive'''
+    assert min_value <= max_value
     super(NumericParameter, self).__init__(name, **kwargs)
-    #second so value_type is initialized
+    #after super call so self.value_type is initialized
     self.min_value = self.value_type(min_value)
     self.max_value = self.value_type(max_value)
 

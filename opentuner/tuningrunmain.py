@@ -22,6 +22,7 @@ class TuningRunMain(object):
                manipulator,
                measurement_interface,
                input_manager,
+               objective,
                args,
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
@@ -42,6 +43,7 @@ class TuningRunMain(object):
     self.measurement_interface = measurement_interface
     self.input_manager = input_manager
     self.manipulator = manipulator
+    self.objective = objective
 
 
   def init(self):
@@ -59,7 +61,7 @@ class TuningRunMain(object):
                              self.tuning_run,
                              self.manipulator,
                              self.results_wait,
-                             self.measurement_interface.objective_order_by(),
+                             self.objective,
                              self.args)
 
       self.measurement_driver = self.measurement_driver_cls(

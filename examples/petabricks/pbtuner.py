@@ -17,13 +17,13 @@ from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.stats import StatsMain
+from opentuner.search.objective import ThresholdAccuracyMinimizeTime
 
 log = logging.getLogger(__name__)
 
 class PetaBricksInterface(MeasurementInterface):
-  def __init__(self, args, accuracy_target):
+  def __init__(self, args):
     self.program = args.program
-    self.accuracy_target = accuracy_target
     super(PetaBricksInterface, self).__init__()
 
   def run(self, measurement_driver, desired_result, input):
@@ -40,10 +40,6 @@ class PetaBricksInterface(MeasurementInterface):
   def program_version(self):
     return self.file_hash(self.program)
 
-  def objective_order_by(self):
-    return ["min(accuracy, %f) desc" % self.accuracy_target,
-            opentuner.resultsdb.models.Result.time]
-
 def create_config_manipulator(cfgfile, upper_limit):
   '''helper to create the configuration manipulator'''
   cfg=open(cfgfile).read()
@@ -52,10 +48,13 @@ def create_config_manipulator(cfgfile, upper_limit):
   for m in re.finditer(r" *([a-zA-Z0-9_-]+)[ =]+([0-9e.+-]+) *"
                        r"[#] *([a-z]+).* ([0-9]+) to ([0-9]+)", cfg):
     k, v, valtype, minval, maxval =  m.group(1,2,3,4,5)
+    minval = float(minval)
+    maxval = float(maxval)
     if upper_limit:
       maxval = min(maxval, upper_limit)
     assert valtype=='int'
-    manipulator.add_parameter(IntegerParameter(k, minval, int(maxval)))
+    #log.debug("param %s %f %f", k, minval, maxval)
+    manipulator.add_parameter(IntegerParameter(k, minval, maxval))
 
   return manipulator
 
@@ -86,8 +85,9 @@ def main(args):
   m = TuningRunMain(
         create_config_manipulator(args.program_cfg_default,
                                   program_settings['n']+1),
-        PetaBricksInterface(args, program_settings['accuracy']),
+        PetaBricksInterface(args),
         FixedInputManager(size=program_settings['n']),
+        ThresholdAccuracyMinimizeTime(program_settings['accuracy']),
         args)
   m.main()
 

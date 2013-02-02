@@ -2,20 +2,21 @@ import abc
 import copy
 import random
 import logging
+from collections import defaultdict
+import fn
 from fn import _
-from fn.iters import map, filter
+from fn.iters import map, filter, repeat
 from opentuner.resultsdb.models import *
-from technique import SearchTechnique
+from .technique import ProceduralSearchTechnique
+from .manipulator import Parameter
 
 log = logging.getLogger(__name__)
-
-def between(a, b, c)
-  return a <= b and b <= c
 
 class SimplexTechnique(ProceduralSearchTechnique):
   '''
   Nelder-Mead downhill simplex method
   '''
+
   def __init__(self, alpha=1.0, gamma=2.0, rho=-0.5, sigma=0.5):
     self.alpha = alpha
     self.gamma = gamma
@@ -25,12 +26,13 @@ class SimplexTechnique(ProceduralSearchTechnique):
     super(SimplexTechnique, self).__init__()
 
   def main_generator(self, manipulator, driver):
-    objective = driver.objective_function
+    objective = driver.objective
     self.manipulator = manipulator
     self.driver = driver
 
     # test the entire initial simplex
-    self.simplex_points = self.initial_simplex(manipulator, driver)
+    self.simplex_points = list(map(driver.get_configuration,
+                                   self.initial_simplex()))
     log.info("initial points")
     for p in self.simplex_points:
       if not driver.has_results(p):
@@ -40,29 +42,31 @@ class SimplexTechnique(ProceduralSearchTechnique):
 
     while not self.convergence_criterea():
       # next steps assume this ordering
-      self.simplex_points.sort(key=objective)
+      self.simplex_points.sort(cmp=objective.compare)
       self.centroid = self.calculate_centroid()
+      if log.isEnabledFor(logging.DEBUG):
+        self.debug_log()
 
       reflection = self.reflection_point()
       yield reflection
       while not driver.has_results(reflection):
         yield None # wait until results are ready
 
-      if objective(reflection) < self.simplex_points[0]:
+      if objective.lt(reflection, self.simplex_points[0]):
         #expansion case
         expansion = self.expansion_point()
         yield expansion
         while not driver.has_results(expansion):
           yield None # wait until results are ready
 
-        if objective(expansion) < objective(reflection):
+        if objective.lt(expansion, reflection):
           log.info("using expansion point")
           self.simplex_points[-1] = expansion
         else:
-          log.info("using reflection point")
+          log.info("using reflection point (considered expansion)")
           self.simplex_points[-1] = reflection
 
-      elif objective(reflection) < self.simplex_points[1]:
+      elif objective.lt(reflection, self.simplex_points[1]):
         #reflection case
         log.info("using reflection point")
         self.simplex_points[-1] = reflection
@@ -73,13 +77,13 @@ class SimplexTechnique(ProceduralSearchTechnique):
         while not driver.has_results(contraction):
           yield None # wait until results are ready
 
-        if objective(contraction) < self.simplex_points[-1]:
+        if objective.lt(contraction, self.simplex_points[-1]):
           log.info("using contraction point")
           self.simplex_points[-1] = contraction
         else:
           #reduction case
           self.perform_reduction()
-          log.info("reduction")
+          log.info("performing reduction")
           for p in self.simplex_points:
             if not driver.has_results(p):
               yield p
@@ -90,19 +94,28 @@ class SimplexTechnique(ProceduralSearchTechnique):
     '''
     reflect worst point across centroid
     '''
-    return self.linear_point(self.centroid, self.simplex_points[-1], self.alpha)
+    return self.driver.get_configuration(
+             self.linear_point(self.centroid,
+                               self.simplex_points[-1].data,
+                               self.alpha))
 
   def expansion_point(self):
     '''
     reflect worst point across centroid more (by default 2x as much)
     '''
-    return self.linear_point(self.centroid, self.simplex_points[-1], self.gamma)
+    return self.driver.get_configuration(
+             self.linear_point(self.centroid,
+                               self.simplex_points[-1].data,
+                               self.gamma))
 
   def contraction_point(self):
     '''
-    reflect worst point across centroid less, (by default goes backward by 1/2)
+    reflect worst point across centroid less
     '''
-    return self.linear_point(self.centroid, self.simplex_points[-1], self.rho)
+    return self.driver.get_configuration(
+             self.linear_point(self.centroid,
+                               self.simplex_points[-1].data,
+                               self.rho))
 
   def perform_reduction(self):
     '''
@@ -110,31 +123,100 @@ class SimplexTechnique(ProceduralSearchTechnique):
     best point
     '''
     for i in xrange(1, len(self.simplex_points)):
-      self.simplex_points[i] = self.linear_point(
-          self.simplex_points[0],
-          self.simplex_points[i],
-          -self.sigma
-        )
+      self.simplex_points[i] = self.driver.get_configuration(
+          self.linear_point(
+            self.simplex_points[0].data,
+            self.simplex_points[i].data,
+            -self.sigma
+        ))
 
   def convergence_criterea(self):
     '''True will cause the simplex method to stop'''
     return False
 
-  @abc.abstractmethod
   def calculate_centroid(self):
-    pass
+    '''
+    average of all the PrimativeParameters in self.simplex_points
+    ComplexParameters are copied from self.simplex_points[0]
+    '''
+    sums   = defaultdict(float)
+    counts = defaultdict(int)
 
-  @abc.abstractmethod
+    for config in self.simplex_points:
+      cfg = config.data
+      for param in self.manipulator.parameters(cfg):
+        if param.is_primative():
+          sums[param.name] += param.get_unit_value(cfg)
+          counts[param.name] += 1
+
+    centroid = self.manipulator.copy(self.simplex_points[0].data)
+    for param in self.manipulator.parameters(centroid):
+      if param.is_primative():
+        param.set_unit_value(centroid,
+                             sums[param.name] / float(counts[param.name]))
+
+    return centroid
+
+  def cfg_to_str(self, cfg):
+    params = list(filter(Parameter.is_primative,
+                         self.manipulator.parameters(cfg)))
+    params.sort(key=_.name)
+    return str(tuple(map(lambda x: x.get_unit_value(cfg), params)))
+
+  def debug_log(self):
+    for i, config in enumerate(self.simplex_points):
+      log.debug("simplex_points[%d] = %s", i, self.cfg_to_str(config.data))
+    log.debug("centroid = %s", self.cfg_to_str(self.centroid))
+
   def linear_point(self, p1, p2, scale):
     '''
     return a point on the line passing between p1 and p2 at position scale
     such that p1 + scale*(p1 - p2)
     '''
-    pass
+    p3 = self.manipulator.copy(p1)
+    p2_params = self.manipulator.parameters_dict(p2)
+    for param1 in self.manipulator.parameters(p1):
+      if param1.is_primative():
+        try:
+          param2 = p2_params[param1.name]
+        except KeyError:
+          # p2 doesn't have this param, must be a dynamic config structure
+          continue
+
+        v1 = param1.get_unit_value(p1)
+        v2 = param2.get_unit_value(p2)
+
+        v3 = v1 + scale*(v1 - v2)
+        v3 = max(0.0, min(v3, 1.0))
+
+        # we can reuse param1 here since p3 is a copy of p1
+        param1.set_unit_value(p3, v3)
+
+    return p3
 
   @abc.abstractmethod
   def initial_simplex(self):
-    pass
+    '''
+    return a initial list of configurations
+    '''
+    return []
+
+
+class RandomSimplex(SimplexTechnique):
+  '''
+  start with random initial simplex
+  '''
+  def initial_simplex(self):
+    # we implicitly assume number of parameters is fixed here, however 
+    # it will work if it isn't (simplex size is undefined)
+    p0 = self.manipulator.random()
+    params = self.manipulator.parameters(p0)
+    return [p0]+[self.manipulator.random()
+                 for p in params
+                 if p.is_primative()]
+
+  def is_ready(self, driver, generation):
+    return True
 
 
 

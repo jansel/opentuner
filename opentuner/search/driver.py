@@ -10,6 +10,12 @@ import plugin
 
 log = logging.getLogger(__name__)
 
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--generations',     type=int, default=400)
+argparser.add_argument('--population-size', type=int, default=10)
+
+
 class SearchDriver(object):
   '''controls the search process'''
 
@@ -18,25 +24,26 @@ class SearchDriver(object):
                tuning_run,
                manipulator,
                results_wait,
-               objective_order_by,
+               objective,
                args):
+    self.args        = args
     self.session     = session
     self.tuning_run  = tuning_run
     self.manipulator = manipulator
-    self.args        = args
     self.generation  = 0
     self.population  = []
     self.plugins     = plugin.get_enabled(args)
     self.techniques  = technique.get_enabled(args)
+    self.objective   = objective
     self.wait_for_results = results_wait
-    self.objective_order_by_terms = objective_order_by
     self.pipelining_cooldown = set()
-    self.plugins.sort(key = lambda x: x.priority)
-    self.techniques.sort(key = lambda x: x.priority)
+    self.plugins.sort(key = _.priority)
+    self.techniques.sort(key = _.priority)
+    self.objective.set_driver(self)
 
   def add_plugin(self, p):
     self.plugins.append(p)
-    self.plugins.sort(key = lambda x: x.priority)
+    self.plugins.sort(key = _.priority)
 
   def convergence_criterea(self):
     '''returns true if the tuning process should stop'''
@@ -54,7 +61,7 @@ class SearchDriver(object):
 
   def rescale_technique_priorities(self, technique, desired_results, budget):
     '''normalize the priorities output by the techniques so they sum to 1.0'''
-    priorities = map(lambda x: x.priority, desired_results)
+    priorities = map(_.priority, desired_results)
     minp = float(min(priorities))
     maxp = float(max(priorities))
     sump = float(sum(priorities))
@@ -115,20 +122,28 @@ class SearchDriver(object):
         else:
           t.handle_nonrequested_result(r, self)
 
+  def has_results(self, config):
+    return self.results_query(config=config).count()>0
 
-  def results_query(self, generation = None, objective_ordered = False):
+  def results_query(self,
+                    generation = None,
+                    objective_ordered = False,
+                    config = None):
     q = self.session.query(Result)
+
+    if config:
+      q = q.filter_by(configuration = config)
+
     subq = (self.session.query(DesiredResult.result_id)
            .filter_by(tuning_run = self.tuning_run))
     if generation is not None:
       subq = subq.filter_by(generation = generation)
     q = q.filter(Result.id.in_(subq.subquery()))
-    if objective_ordered:
-      q = self.order_by_objective(q)
-    return q
 
-  def order_by_objective(self, q):
-    return q.order_by(*self.objective_order_by_terms)
+    if objective_ordered:
+      q = self.objective.result_order_by(q)
+
+    return q
 
   def run_generation(self):
     self.plugin_proxy.before_generation(self)
@@ -180,11 +195,6 @@ class SearchDriver(object):
       self.generation += 1
     self.plugin_proxy.after_main(self)
 
-
-
-argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--generations',     type=int, default=10)
-argparser.add_argument('--population-size', type=int, default=10)
 
 
 

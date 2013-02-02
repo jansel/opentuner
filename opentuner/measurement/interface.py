@@ -24,11 +24,5 @@ class MeasurementInterface(object):
     '''helper used to generate program versions'''
     return hashlib.sha256(open(filename).read()).hexdigest()
 
-  def objective_order_by(self):
-    '''
-    return database columns required to order by the objective, called with
-    query.order_by(*objective_order_by())
-    '''
-    return [resultsdb.models.Result.time]
 
 

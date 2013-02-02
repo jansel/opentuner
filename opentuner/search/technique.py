@@ -13,14 +13,6 @@ class SearchTechniqueBase(object):
     '''test if enough data has been gathered to use this technique'''
     return generation > 0
 
-  @abc.abstractmethod
-  def desired_results(self, manipulator, driver, count):
-    """
-    return at most count resultsdb.models.DesiredResult objects based on past
-    performance
-    """
-    return
-
   @property
   def name(self):
     '''name of this SearchTechnique uses for display/accounting'''
@@ -33,17 +25,30 @@ class SearchTechniqueBase(object):
 
   @property
   def allow_pipelining(self):
-    '''true if technique supports overlapping generations, with delayed results'''
+    '''
+    true if technique supports overlapping generations, with delayed results
+    '''
     return True
+
+  def handle_nonrequested_result(self, result, driver):
+    '''called for each new Result(), requested by other techniques'''
+    pass
+
+  @abc.abstractmethod
+  def desired_results(self, manipulator, driver, count):
+    '''
+    return at most count resultsdb.models.DesiredResult objects based on past
+    performance
+    '''
+    return
 
   @abc.abstractmethod
   def handle_result(self, result, driver):
     '''called for each new Result(), requested'''
     pass
 
-  def handle_nonrequested_result(self, result, driver):
-    '''called for each new Result(), requested by other techniques'''
-    pass
+
+
 
 class SearchTechnique(SearchTechniqueBase):
   '''
@@ -96,7 +101,7 @@ class PureRandomInitializer(PureRandom):
     '''only run this technique in generation 0'''
     return generation==0
 
-def ProceduralSearchTechnique(SearchTechnique):
+class ProceduralSearchTechnique(SearchTechnique):
   def __init__(self):
     self.gen = None
     self.done = False
@@ -141,9 +146,13 @@ def ProceduralSearchTechnique(SearchTechnique):
 
 def get_enabled(args):
   from evolutionarytechniques import GreedyMutation
-  return [PureRandomInitializer(), 
-          PureRandom(),
-          GreedyMutation()]
+  from simplextechniques import RandomSimplex
+  return [
+     #PureRandomInitializer(),
+     #PureRandom(),
+     #GreedyMutation(),
+      RandomSimplex()
+    ]
 
 
 
