@@ -149,18 +149,21 @@ class SearchDriver(object):
     self.plugin_proxy.before_generation(self)
 
     techniques = self.active_techniques()
+    if len(techniques)==0:
+      log.warning("no techniques active, skipping generation %d",
+                  self.generation)
+    else:
+      self.plugin_proxy.before_techniques(self)
+      desired = self.generate_desired_results(techniques)
+      self.plugin_proxy.before_techniques(self)
 
-    self.plugin_proxy.before_techniques(self)
-    desired = self.generate_desired_results(techniques)
-    self.plugin_proxy.before_techniques(self)
+      self.session.commit()
 
-    self.session.commit()
+      self.plugin_proxy.before_result_wait(self)
+      self.wait_for_results(self.generation)
+      self.plugin_proxy.after_result_wait(self)
 
-    self.plugin_proxy.before_result_wait(self)
-    self.wait_for_results(self.generation)
-    self.plugin_proxy.after_result_wait(self)
-
-    self.result_handlers(techniques, self.generation)
+      self.result_handlers(techniques, self.generation)
 
     self.plugin_proxy.after_generation(self)
 

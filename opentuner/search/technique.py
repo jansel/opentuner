@@ -175,13 +175,14 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
           yield None # wait
 
 def get_enabled(args):
-  from evolutionarytechniques import GreedyMutation
-  from simplextechniques import RandomSimplex
+  import evolutionarytechniques
+  import simplextechniques
   return [
      #PureRandomInitializer(),
      #PureRandom(),
-     #GreedyMutation(),
-      RandomSimplex()
+     #evolutionarytechniques.GreedyMutation(),
+     #simplextechniques.RandomNelderMead(),
+     simplextechniques.RandomTorczon(),
     ]
 
 

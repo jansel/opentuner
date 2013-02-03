@@ -49,6 +49,19 @@ class SearchObjective(object):
   def gt(self, a, b):  return self.compare(a, b) >  0
   def gte(self, a, b): return self.compare(a, b) >= 0
 
+  def min(self, l):
+    rv = l[0]
+    for i in l[1:]:
+      if self.lt(i, rv):
+        rv = i
+    return rv
+
+  def max(self, l):
+    rv = l[0]
+    for i in l[1:]:
+      if self.gt(i, rv):
+        rv = i
+    return rv
 
 class MinimizeTime(SearchObjective):
   '''

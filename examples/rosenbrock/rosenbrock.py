@@ -4,6 +4,9 @@
 #
 # http://en.wikipedia.org/wiki/Rosenbrock_function
 #
+# Also supports some other test functions taken from:
+# http://en.wikipedia.org/wiki/Test_functions_for_optimization
+#
 import argparse
 import logging
 
@@ -25,7 +28,7 @@ parser.add_argument('--dimensions', type=int, default=2,
 parser.add_argument('--domain', type=float, default=1000,
                     help='bound for variables in each dimension')
 parser.add_argument('--function', default='rosenbrock',
-                    choices = ('rosenbrock', 'sphere'),
+                    choices = ('rosenbrock', 'sphere', 'beale'),
                     help='function to use')
 
 
@@ -67,6 +70,12 @@ def main(args):
   logging.basicConfig(level=logging.DEBUG)
   if not args.database:
     args.database = 'sqlite:///rosenbrock.db'
+
+
+  if args.function == 'beale':
+    # fixed for this function
+    args.domain = 4.5
+    args.dimensions = 2
 
   manipulator = ConfigurationManipulator()
   for d in xrange(args.dimensions):
