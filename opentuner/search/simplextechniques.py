@@ -17,7 +17,7 @@ class SimplexTechnique(SequentialSearchTechnique):
   Nelder-Mead downhill simplex method
   '''
 
-  def __init__(self, alpha=1.0, gamma=4.0, rho=-0.5, sigma=0.5):
+  def __init__(self, alpha=2.0, gamma=4.0, rho=-0.5, sigma=0.5):
     self.alpha = alpha
     self.gamma = gamma
     self.rho   = rho
