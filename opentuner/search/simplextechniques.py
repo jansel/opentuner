@@ -324,7 +324,7 @@ class Torczon(SimplexTechnique):
 
   def reflected_simplex(self):  return self.scaled_simplex(self.alpha)
   def expanded_simplex(self):   return self.scaled_simplex(self.gamma)
-  def contracted_simplex(self): return self.scaled_simplex(self.beta)
+  def contracted_simplex(self): return self.scaled_simplex(-self.beta)
 
 class RandomNelderMead(RandomInitialSimplexMixin, NelderMead):
   pass
