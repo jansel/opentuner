@@ -1,9 +1,10 @@
 import abc
 import copy
-import random
-import logging
-from collections import defaultdict
 import fn
+import logging
+import math
+import random
+from collections import defaultdict
 from fn import _
 from fn.iters import map, filter, repeat
 from opentuner.resultsdb.models import *
@@ -100,20 +101,90 @@ class SimplexTechnique(SequentialSearchTechnique):
     '''
     return []
 
+  @abc.abstractmethod
+  def initial_simplex_seed(self):
+    '''
+    return a point to base the initial simplex on
+    '''
+    return
 
-class RandomInitialSimplexMixin(object):
+
+class RandomSeedMixin(object):
+  '''start the simplex in a random location'''
+  def initial_simplex_seed(self):
+    return self.manipulator.random()
+
+class RandomInitialMixin(object):
   '''
   start with random initial simplex
   '''
   def initial_simplex(self):
     # we implicitly assume number of parameters is fixed here, however 
     # it will work if it isn't (simplex size is undefined)
-    p0 = self.manipulator.random()
-    params = self.manipulator.parameters(p0)
-    return [p0]+[self.manipulator.random()
+    cfg0 = self.initial_simplex_seed()
+    params = self.manipulator.parameters(cfg0)
+    return [cfg0]+[self.manipulator.random()
                  for p in params
                  if p.is_primative()]
 
+class RightInitialMixin(object):
+  '''
+  start with random initial right triangle like simplex
+  '''
+  def __init__(self, initial_unit_edge_length=0.1, *args, **kwargs):
+    assert initial_unit_edge_length <= 0.5
+    self.initial_unit_edge_length = initial_unit_edge_length
+    super(RightInitialMixin, self).__init__(*args, **kwargs)
+
+  def initial_simplex(self):
+    cfg0 = self.initial_simplex_seed()
+    simplex = [cfg0]
+    params = self.manipulator.parameters(cfg0)
+    params = filter(lambda x: x.is_primative(), params)
+    for p in params:
+      simplex.append(self.manipulator.copy(cfg0))
+      v = p.get_unit_value(simplex[-1])
+      if v <= 0.5:
+        v += self.initial_unit_edge_length
+      else:
+        v -= self.initial_unit_edge_length
+      p.set_unit_value(simplex[-1], v)
+    return simplex
+
+class RegularInitialMixin(object):
+  '''
+  start with random initial regular simplex (all edges equal length)
+  '''
+  def __init__(self, initial_unit_edge_length=0.1, *args, **kwargs):
+    assert initial_unit_edge_length <= 0.5
+    self.initial_unit_edge_length = initial_unit_edge_length
+    super(RegularInitialMixin, self).__init__(*args, **kwargs)
+
+  def initial_simplex(self):
+    cfg0 = self.initial_simplex_seed()
+    simplex = [cfg0]
+    params = self.manipulator.parameters(cfg0)
+    params = list(filter(lambda x: x.is_primative(), params))
+
+
+    q = (((math.sqrt(len(params)+1.0) - 1.0) / (len(params) * math.sqrt(2.0)))
+         * self.initial_unit_edge_length)
+    p = q + ((1.0 / math.sqrt(2.0)) * self.initial_unit_edge_length)
+
+    base = [x.get_unit_value(cfg0) for x in params]
+    for j in xrange(len(base)):
+      if max(p,q) + base[j] > 1.0:
+        #flip this dimension as we would overflow our [0,1] bounds
+        base[j] *= -1.0
+
+
+    for i in xrange(len(params)):
+      simplex.append(self.manipulator.copy(cfg0))
+      params[i].set_unit_value(simplex[-1], abs(base[i]+p))
+      for j in xrange(i+1, len(params)):
+        params[j].set_unit_value(simplex[-1], abs(base[i]+q))
+
+    return simplex
 
 class NelderMead(SimplexTechnique):
   '''
@@ -326,10 +397,10 @@ class Torczon(SimplexTechnique):
   def expanded_simplex(self):   return self.scaled_simplex(self.gamma)
   def contracted_simplex(self): return self.scaled_simplex(-self.beta)
 
-class RandomNelderMead(RandomInitialSimplexMixin, NelderMead):
-  pass
-
-class RandomTorczon(RandomInitialSimplexMixin, Torczon):
-  pass
-
+class RandomNelderMead (RandomInitialMixin,  RandomSeedMixin, NelderMead): pass
+class RightNelderMead  (RightInitialMixin,   RandomSeedMixin, NelderMead): pass
+class RegularNelderMead(RegularInitialMixin, RandomSeedMixin, NelderMead): pass
+class RandomTorczon    (RandomInitialMixin,  RandomSeedMixin, Torczon):    pass
+class RightTorczon     (RightInitialMixin,   RandomSeedMixin, Torczon):    pass
+class RegularTorczon   (RegularInitialMixin, RandomSeedMixin, Torczon):    pass
 

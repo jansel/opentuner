@@ -181,8 +181,13 @@ def get_enabled(args):
      #PureRandomInitializer(),
      #PureRandom(),
      #evolutionarytechniques.GreedyMutation(),
+     #simplextechniques.RandomRightTorczon(),
      #simplextechniques.RandomNelderMead(),
-     simplextechniques.RandomTorczon(),
+     #simplextechniques.RegularNelderMead(),
+     #simplextechniques.RightNelderMead(),
+     #simplextechniques.RandomTorczon(),
+     simplextechniques.RegularTorczon(),
+     #simplextechniques.RightTorczon(),
     ]
 
 
