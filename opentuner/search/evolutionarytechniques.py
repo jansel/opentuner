@@ -1,5 +1,5 @@
 import abc
-import copy 
+import copy
 import random
 from opentuner.resultsdb.models import *
 from technique import SearchTechnique

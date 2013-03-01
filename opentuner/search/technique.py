@@ -90,7 +90,6 @@ class PureRandom(SearchTechnique):
   request configurations completely randomly
   '''
   def desired_configuration(self, manipulator, driver):
-    '''return a (cfg, priority) that we should test'''
     return manipulator.random()
 
 class PureRandomInitializer(PureRandom):
@@ -176,6 +175,7 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
 
 def get_enabled(args):
   import evolutionarytechniques
+  import differentialevolution
   import simplextechniques
   return [
      #PureRandomInitializer(),
@@ -186,8 +186,9 @@ def get_enabled(args):
      #simplextechniques.RegularNelderMead(),
      #simplextechniques.RightNelderMead(),
      #simplextechniques.RandomTorczon(),
-     simplextechniques.RegularTorczon(),
+     #simplextechniques.RegularTorczon(),
      #simplextechniques.RightTorczon(),
+     differentialevolution.DifferentialEvolution(),
     ]
 
 
