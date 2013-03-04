@@ -1,7 +1,17 @@
-
 import abc
+import sys
+import logging
+import argparse
 from fn import _
 from opentuner.resultsdb.models import *
+
+log = logging.getLogger(__name__)
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--technique', action='append',
+                       help="which technique to use")
+argparser.add_argument('--list-techniques', action='store_true',
+                       help="list techniques available and exit")
 
 class SearchTechniqueBase(object):
   '''
@@ -11,7 +21,7 @@ class SearchTechniqueBase(object):
 
   def is_ready(self, driver, generation):
     '''test if enough data has been gathered to use this technique'''
-    return generation > 0
+    return True
 
   @property
   def name(self):
@@ -92,14 +102,6 @@ class PureRandom(SearchTechnique):
   def desired_configuration(self, manipulator, driver):
     return manipulator.random()
 
-class PureRandomInitializer(PureRandom):
-  '''
-  request configurations completely randomly, to form initial population
-  '''
-  def is_ready(self, driver, generation):
-    '''only run this technique in generation 0'''
-    return generation==0
-
 class AsyncProceduralSearchTechnique(SearchTechnique):
   def __init__(self):
     self.gen = None
@@ -173,25 +175,36 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
         if self.pending_tests:
           yield None # wait
 
-def get_enabled(args):
+
+def all_techniques(args):
   import evolutionarytechniques
   import differentialevolution
   import simplextechniques
   return [
-     #PureRandomInitializer(),
-     #PureRandom(),
-     #evolutionarytechniques.GreedyMutation(),
-     #simplextechniques.RandomRightTorczon(),
-     #simplextechniques.RandomNelderMead(),
-     #simplextechniques.RegularNelderMead(),
-     #simplextechniques.RightNelderMead(),
-     #simplextechniques.RandomTorczon(),
-     #simplextechniques.RegularTorczon(),
+     PureRandom(),
+     evolutionarytechniques.GreedyMutation(),
+     simplextechniques.RandomTorczon(),
+     simplextechniques.RandomNelderMead(),
+     simplextechniques.RegularNelderMead(),
+     simplextechniques.RightNelderMead(),
+     simplextechniques.RandomTorczon(),
+     simplextechniques.RegularTorczon(),
      simplextechniques.RightTorczon(),
-     #differentialevolution.DifferentialEvolution(),
+     differentialevolution.DifferentialEvolution(),
     ]
 
+def get_enabled(args):
+  techniques = all_techniques(args)
+  if args.list_techniques:
+    for t in techniques:
+      print t.name
+    sys.exit(0)
 
+  if not args.technique:
+    args.technique = ['DifferentialEvolution']
 
+  for unknown in set(args.technique) - set(map(_.name, techniques)):
+    log.error("unknown technique %s", unknown)
 
+  return [t for t in techniques if t.name in args.technique]
 

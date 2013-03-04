@@ -8,6 +8,7 @@ def argparsers():
   return [
       tuningrunmain.argparser,
       search.driver.argparser,
+      search.technique.argparser,
       measurement.driver.argparser,
       stats.argparser,
     ]

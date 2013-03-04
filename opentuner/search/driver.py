@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--generations',     type=int, default=400)
-argparser.add_argument('--population-size', type=int, default=10)
+argparser.add_argument('--test-limit', type=int, default=5000)
+argparser.add_argument('--parallelism', type=int, default=1)
 
 
 class SearchDriver(object):
@@ -31,7 +31,6 @@ class SearchDriver(object):
     self.tuning_run  = tuning_run
     self.manipulator = manipulator
     self.generation  = 0
-    self.population  = []
     self.plugins     = plugin.get_enabled(args)
     self.techniques  = technique.get_enabled(args)
     self.objective   = objective
@@ -47,7 +46,7 @@ class SearchDriver(object):
 
   def convergence_criterea(self):
     '''returns true if the tuning process should stop'''
-    return self.generation > self.args.generations
+    return self.generation > self.args.test_limit
 
   def active_techniques(self):
     '''returns list of techniques to use in the current generation'''
@@ -57,7 +56,7 @@ class SearchDriver(object):
 
   def technique_budget(self, technique, techniques):
     '''determine budget of tests to allocate to technique'''
-    return self.args.population_size / len(techniques)
+    return self.args.parallelism
 
   def rescale_technique_priorities(self, technique, desired_results, budget):
     '''normalize the priorities output by the techniques so they sum to 1.0'''

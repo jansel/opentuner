@@ -43,15 +43,16 @@ class EvolutionaryTechnique(SearchTechnique):
   def crossover(self, manipulator, driver):
     assert False
 
-  def selection(self, driver):
+  def selection(self, manipulator, driver):
     '''return a list of parent configurations to use'''
     if random.random() < self.crossover_rate:
-      return [self.select(driver), self.select(driver)]
+      return [self.select(manipulator, driver),
+              self.select(manipulator, driver)]
     else:
-      return [self.select(driver)]
+      return [self.select(manipulator, driver)]
 
   @abc.abstractmethod
-  def select(self, driver):
+  def select(self, driver, manipulator):
     '''return a single random parent configuration'''
     return cfg
 
@@ -60,10 +61,15 @@ class GreedySelectionMixin(object):
   EvolutionaryTechnique mixin for greedily selecting the best known
   configuration
   '''
-  def select(self, driver):
+  def select(self, manipulator, driver):
     '''return a single random parent configuration'''
-    best_result = driver.results_query(objective_ordered = True).limit(1).one()
-    return best_result.configuration.data
+    try:
+      best_result = (driver.results_query(objective_ordered = True)
+                           .limit(1)
+                           .one())
+      return best_result.configuration.data
+    except:
+      return manipulator.random()
 
 class GreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):
   pass
