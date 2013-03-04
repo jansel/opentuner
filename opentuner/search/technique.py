@@ -187,8 +187,8 @@ def get_enabled(args):
      #simplextechniques.RightNelderMead(),
      #simplextechniques.RandomTorczon(),
      #simplextechniques.RegularTorczon(),
-     #simplextechniques.RightTorczon(),
-     differentialevolution.DifferentialEvolution(),
+     simplextechniques.RightTorczon(),
+     #differentialevolution.DifferentialEvolution(),
     ]
 
 

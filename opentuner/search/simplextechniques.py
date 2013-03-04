@@ -66,26 +66,7 @@ class SimplexTechnique(SequentialSearchTechnique):
     return a point on the line passing between p1 and p2 at position scale
     such that p1 + scale*(p1 - p2)
     '''
-    p3 = self.manipulator.copy(p1)
-    p2_params = self.manipulator.parameters_dict(p2)
-    for param1 in self.manipulator.parameters(p1):
-      if param1.is_primative():
-        try:
-          param2 = p2_params[param1.name]
-        except KeyError:
-          # p2 doesn't have this param, must be a dynamic config structure
-          continue
-
-        v1 = param1.get_unit_value(p1)
-        v2 = param2.get_unit_value(p2)
-
-        v3 = v1 + scale*(v1 - v2)
-        v3 = max(0.0, min(v3, 1.0))
-
-        # we can reuse param1 here since p3 is a copy of p1
-        param1.set_unit_value(p3, v3)
-
-    return p3
+    return self.manipulator.linear_config(1.0, p1, scale, p1, -scale, p2)
 
   def convergence_criterea(self):
     '''True will cause the simplex method to stop'''

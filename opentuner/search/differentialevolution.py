@@ -56,6 +56,7 @@ class DifferentialEvolution(SearchTechnique):
     return a cfg that we should test,
     '''
     if not self.population:
+      # first time called
       self.initial_population(manipulator, driver)
 
     # make sure initial population is completely submitted
@@ -66,45 +67,32 @@ class DifferentialEvolution(SearchTechnique):
           log.info("initial population testing done")
         return p.config
 
-
     # pp is member of population to be replaced
     pp = self.oldest_pop_member()
-    if not pp:
-      return None
+    if not pp: return None
     cfg = manipulator.copy(pp.config.data)
-    cfg_params = manipulator.parameters_dict(cfg)
+    cfg_params = manipulator.proxy(cfg)
 
     # pick 3 random parents, not pp
     shuffled_pop = list(set(self.population) - set([pp]))
     random.shuffle(shuffled_pop)
     x1, x2, x3 = map(_.config.data, shuffled_pop[0:3])
-    x1_params  = manipulator.parameters_dict(x1)
-    x2_params  = manipulator.parameters_dict(x2)
-    x3_params  = manipulator.parameters_dict(x3)
-  
+
     use_f = random.random()/2.0 + 0.5
 
-    params = list(set(cfg_params.keys())
-                & set(x1_params.keys())
-                & set(x2_params.keys())
-                & set(x3_params.keys()))
+    params = manipulator.param_names(cfg, x1, x2, x3)
     random.shuffle(params)
-    for i,k in enumerate(params):
-      if i<self.n_cross or random.random() < self.cr and cfg_params[k].is_primative():
-        v1 = x1_params[k].get_unit_value(x1)
-        v2 = x2_params[k].get_unit_value(x2)
-        v3 = x3_params[k].get_unit_value(x3)
-
-        vn = v1 + use_f*(v2 - v3)
-        vn = max(0.0, min(vn, 1.0))
-
-        cfg_params[k].set_unit_value(cfg, vn)
+    for i, k in enumerate(params):
+      if i<self.n_cross or random.random() < self.cr:
+        # cfg = x1 + use_f*(x2 - x3)
+        cfg_params[k].set_linear(1.0, x1, use_f, x2, -use_f, x3)
 
     pp.touch() # move to back of the line for next replacement
     pp.candidate_replacement = driver.get_configuration(cfg)
     return pp.candidate_replacement
 
   def handle_result(self, result, driver):
+    '''called when new results are added'''
     for p in self.population:
       if p.candidate_replacement == result.configuration:
         if driver.objective.lt(p.candidate_replacement, p.config):

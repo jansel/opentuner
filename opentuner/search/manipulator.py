@@ -39,6 +39,23 @@ class ConfigurationManipulatorBase(object):
     '''convert self.parameters() to a dictionary by name'''
     return dict([(p.name, p) for p in self.parameters(config)])
 
+  def param_names(self, *args):
+    '''return union of parameter names in args'''
+    return sorted(reduce(set.union,
+                  [set(map(_.name, self.parameters(cfg)))
+                   for cfg in args]))
+
+  def linear_config(self, a, cfg_a, b, cfg_b, c, cfg_c):
+    '''return a configuration that is a linear combination of 3 other configs'''
+    dst = self.copy(cfg_a)
+    dst_params = self.proxy(dst)
+    for k in self.param_names(dst, cfg_a, cfg_b, cfg_c):
+      dst_params[k].set_linear(a, cfg_a, b, cfg_b, c, cfg_c)
+    return dst
+
+  def proxy(self, cfg):
+    return ManipulatorProxy(self, cfg)
+
   @abc.abstractmethod
   def random(self):
     '''produce a random initial configuration'''
@@ -126,7 +143,7 @@ class Parameter(object):
     '''is the given config valid???'''
     return True
 
-  def is_primative(self):
+  def is_primative(self, ignored = None):
     return isinstance(self, PrimativeParameter)
 
   @abc.abstractmethod
@@ -152,7 +169,12 @@ class Parameter(object):
   @abc.abstractmethod
   def hash_value(self, config):
     '''produce unique hash for this value in the config'''
-    returno
+    return
+
+  @abc.abstractmethod
+  def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
+    '''set this value to a*cfg_a + b*cfg_b, + c*cfg_c'''
+    pass
 
 class PrimativeParameter(Parameter):
   '''
@@ -203,6 +225,17 @@ class PrimativeParameter(Parameter):
         val = round(val)
       val = max(low, min(val, high))
       self.set_value(config, self.value_type(val))
+
+  def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
+    '''set this value to a*cfg_a + b*cfg_b, + c*cfg_c'''
+    va = self.get_unit_value(cfg_a)
+    vb = self.get_unit_value(cfg_b)
+    vc = self.get_unit_value(cfg_c)
+
+    v = a*va + b*vb + c*vc
+    v = max(0.0, min(v, 1.0))
+
+    self.set_unit_value(cfg_dst, v)
 
   @abc.abstractmethod
   def set_value(self, config, value):
@@ -283,9 +316,40 @@ class FloatParameter(NumericParameter):
     self.set_value(config, random.uniform(*self.legal_range(config)))
 
 
+class ManipulatorProxy(object):
+  '''
+  wrapper around configuration manipulator and config pair
+  '''
+  def __init__(self, manipulator, cfg):
+    self.cfg = cfg
+    self.manipulator = manipulator
+    self.params = manipulator.parameters_dict(self.cfg)
 
+  def keys(self):
+    return self.params.keys()
 
+  def __getitem__(self, k):
+    return ParameterProxy(self.params[k], self.cfg)
 
+class ParameterProxy(object):
+  '''
+  wrapper around parameter and config pair, adds config
+  as first argument to all method calls to parameter
+  '''
+  def __init__(self, param, cfg):
+    self.cfg = cfg
+    self.param = param
+
+  def __getattr__(self, key):
+    '''equivalent of self.param.key(self.cfg, ...)'''
+    member = getattr(self.param, key)
+    def param_method_proxy(*args, **kwargs):
+      return member(self.cfg, *args, **kwargs)
+    if callable(member):
+      return param_method_proxy
+    else:
+      # we should only hit this for key == 'name'
+      return member
 
 
 
