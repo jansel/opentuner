@@ -23,8 +23,8 @@ class SearchDriver(object):
                session,
                tuning_run,
                manipulator,
-               results_wait,
                objective,
+               tuning_run_main,
                args):
     self.args        = args
     self.session     = session
@@ -34,10 +34,11 @@ class SearchDriver(object):
     self.plugins     = plugin.get_enabled(args)
     self.techniques  = technique.get_enabled(args)
     self.objective   = objective
-    self.wait_for_results = results_wait
+    self.wait_for_results = tuning_run_main.results_wait
     self.pipelining_cooldown = set()
     self.plugins.sort(key = _.priority)
     self.techniques.sort(key = _.priority)
+    self.commit = tuning_run_main.commit
     self.objective.set_driver(self)
 
   def add_plugin(self, p):
@@ -156,7 +157,7 @@ class SearchDriver(object):
       desired = self.generate_desired_results(techniques)
       self.plugin_proxy.before_techniques(self)
 
-      self.session.commit()
+      self.commit()
 
       self.plugin_proxy.before_result_wait(self)
       self.wait_for_results(self.generation)

@@ -67,7 +67,7 @@ class Rosenbrock(MeasurementInterface):
     return result
 
 def main(args):
-  logging.basicConfig(level=logging.DEBUG)
+  logging.basicConfig(level=logging.INFO)
   if not args.database:
     args.database = 'sqlite:///rosenbrock.db'
 

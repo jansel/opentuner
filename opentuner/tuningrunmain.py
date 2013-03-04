@@ -33,6 +33,8 @@ class TuningRunMain(object):
     if not args.label:
       args.label = 'unnamed'
 
+    self.fake_commit = ('sqlite' in args.database)
+
     self.args = args
 
     self.engine, self.Session = resultsdb.connect(args.database)
@@ -57,19 +59,26 @@ class TuningRunMain(object):
         ))
       self.session.add(self.tuning_run)
 
-      self.search_driver = self.search_driver_cls(self.Session(),
+      self.search_driver = self.search_driver_cls(self.session,
                              self.tuning_run,
                              self.manipulator,
-                             self.results_wait,
                              self.objective,
+                             self,
                              self.args)
 
       self.measurement_driver = self.measurement_driver_cls(
-                                  self.Session(),
+                                  self.session,
                                   self.tuning_run,
                                   self.measurement_interface,
                                   self.input_manager,
+                                  self,
                                   self.args)
+
+  def commit(self, force = False):
+    if force or not self.fake_commit:
+      self.session.commit()
+    else:
+      self.session.flush()
 
   def main(self):
     if self.args.stats:
@@ -79,7 +88,7 @@ class TuningRunMain(object):
     self.init()
     try:
       self.tuning_run.state = 'RUNNING'
-      self.session.commit()
+      self.commit(force=True)
       self.search_driver.main()
       self.tuning_run.state = 'COMPLETE'
     except:
@@ -87,7 +96,7 @@ class TuningRunMain(object):
       raise
     finally:
       self.tuning_run.end_date = datetime.now()
-      self.session.commit()
+      self.commit(force=True)
 
   def results_wait(self, generation):
     '''called by search_driver to wait for results'''

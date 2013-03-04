@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, \
-    Float, PickleType, ForeignKey, Text, func
+    Float, PickleType, ForeignKey, Text, func, Index
 import sqlalchemy
 import re
 
@@ -14,12 +14,12 @@ class Base(object):
     '''convert camel case to underscores'''
     return re.sub(r'([a-z])([A-Z])', r'\1_\2', cls.__name__).lower()
 
-  id = Column(Integer, primary_key=True)
+  id = Column(Integer, primary_key=True, index=True)
 
 Base = declarative_base(cls=Base)
 
 class Configuration(Base):
-  hash = Column(String(64))
+  hash = Column(String(64), index=True)
   data = Column(PickleType)
 
   @classmethod
@@ -32,7 +32,7 @@ class Configuration(Base):
       t.hash = hashv
       t.data = datav
       session.add(t)
-      return t 
+      return t
 
 class MachineClass(Base):
   name          = Column(String(128))
@@ -107,7 +107,7 @@ class Result(Base):
   input_id        = Column(ForeignKey(Input.id))
   input           = relationship(Input, backref='results')
 
-  tuning_run_id   = Column(ForeignKey(TuningRun.id))
+  tuning_run_id   = Column(ForeignKey(TuningRun.id), index=True)
   tuning_run      = relationship(TuningRun, backref='results')
 
   collection_date = Column(DateTime, default=func.now())
@@ -138,12 +138,15 @@ class DesiredResult(Base):
   #set by the measurement driver
   state            = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED'),
                             default = 'REQUESTED')
-  result_id        = Column(ForeignKey(Result.id))
+  result_id        = Column(ForeignKey(Result.id), index=True)
   result           = relationship(Result, backref='desired_results')
   start_date       = Column(DateTime)
 
+Index('desired_result_index1', DesiredResult.tuning_run_id,
+                               DesiredResult.generation)
+
 class TechniqueAccounting(Base):
-  tuning_run_id    = Column(ForeignKey(TuningRun.id))
+  tuning_run_id    = Column(ForeignKey(TuningRun.id), index=True)
   tuning_run       = relationship(TuningRun, backref='accounting') 
   generation       = Column(Integer)
   budget           = Column(Integer)

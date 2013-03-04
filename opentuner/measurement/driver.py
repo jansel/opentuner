@@ -24,6 +24,7 @@ class MeasurementDriver(object):
                tuning_run,
                measurement_interface,
                input_manager,
+               tuning_run_main,
                args):
 
     if not args.machine_class:
@@ -36,6 +37,7 @@ class MeasurementDriver(object):
     self.input_manager = input_manager
     self.laptime = time.time()
     self.machine = self.get_machine()
+    self.commit = tuning_run_main.commit
     super(MeasurementDriver, self).__init__()
 
   def get_machine(self):
@@ -46,8 +48,8 @@ class MeasurementDriver(object):
     try:
       self.session.flush()
       return self.session.query(Machine).filter_by(name=hostname).one()
-    except sqlalchemy.orm.exc.NoResultFound: 
-      m = Machine(name          = hostname,  
+    except sqlalchemy.orm.exc.NoResultFound:
+      m = Machine(name          = hostname,
                   cpu           = _cputype(),
                   cores         = _cpucount(),
                   memory_gb     = _memorysize()/(1024.0**3),
@@ -88,13 +90,13 @@ class MeasurementDriver(object):
 
     result.collection_cost = self.lap_timer()
     self.session.flush()#populate result.id
-    log.info('Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
+    log.debug('Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
              result.id,
              result.configuration.id,
              result.time,
              result.accuracy if result.accuracy is not None else float('NaN'),
              result.collection_cost)
-    self.session.commit()
+    self.commit()
 
   def lap_timer(self):
     '''return the time elapsed since the last call to lap_timer'''
@@ -108,13 +110,13 @@ class MeasurementDriver(object):
     claim a desired result by changing its state to running
     return True if the result was claimed for this process
     '''
-    self.session.commit()
+    self.commit()
     try:
       self.session.refresh(desired_result)
       if desired_result.state == 'REQUESTED':
         desired_result.state = 'RUNNING'
         desired_result.start_date = datetime.now()
-        self.session.commit()
+        self.commit()
         return True
     except SQLAlchemyError: 
       self.session.rollback()
