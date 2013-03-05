@@ -142,8 +142,9 @@ class DesiredResult(Base):
   result           = relationship(Result, backref='desired_results')
   start_date       = Column(DateTime)
 
-Index('desired_result_index1', DesiredResult.tuning_run_id,
-                               DesiredResult.generation)
+Index('ix_desired_result_custom1', DesiredResult.tuning_run_id,
+                                   DesiredResult.generation)
+
 
 class TechniqueAccounting(Base):
   tuning_run_id    = Column(ForeignKey(TuningRun.id), index=True)

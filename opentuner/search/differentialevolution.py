@@ -8,6 +8,7 @@ from opentuner.resultsdb.models import *
 from technique import SearchTechnique
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
 
 class PopulationMember(object):
   def __init__(self, config, submitted = True):
