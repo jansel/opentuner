@@ -125,6 +125,8 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
       m.update("|")
     return m.hexdigest()
 
+#####
+
 class Parameter(object):
   '''
   abstract base class for parameters in a ConfigurationManipulator
@@ -252,26 +254,6 @@ class PrimativeParameter(Parameter):
     '''return the legal range for this parameter, inclusive'''
     return (0, 1)
 
-
-class ComplexParameter(Parameter):
-  '''
-  a non-cartesian parameter conforming to a maze interface with a variable
-  number of directions that can be taken from any given point
-  '''
-  __metaclass__ = abc.ABCMeta
-  @abc.abstractmethod
-  def possible_directions(self, config):
-    '''number legal directions that can be taken from the current position'''
-    return 1
-
-  @abc.abstractmethod
-  def step(self, config, direction, magnitute=0.5):
-    '''
-    change the given configuration by taking a step in the given direction
-    magnitude ranges between 0 and 1 and 0.5 should be a reasonable step size
-    '''
-    pass
-
 class NumericParameter(PrimativeParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     '''min/max are inclusive'''
@@ -300,7 +282,7 @@ class NumericParameter(PrimativeParameter):
 class IntegerParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     '''min/max are inclusive'''
-    kwargs['value_type']=int
+    kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
   def randomize(self, config):
@@ -315,6 +297,135 @@ class FloatParameter(NumericParameter):
   def randomize(self, config):
     self.set_value(config, random.uniform(*self.legal_range(config)))
 
+##################
+
+class ComplexParameter(Parameter):
+  '''
+  a non-cartesian parameter that can't be manipulated directly, but has a set
+  of user defined manipulation functions
+  '''
+
+  def _to_storage_type(self, val):
+    '''hook to support transformation applied while stored'''
+    return val
+
+  def _from_storage_type(self, sval):
+    '''hook to support transformation applied while stored'''
+    return sval
+
+  def _get(self, config):
+    '''hook to support different storage structures'''
+    return self._from_storage_type(config[self.name])
+
+  def _set(self, config, v):
+    '''hook to support different storage structures'''
+    config[self.name] = self._to_storage_type(v)
+
+  def copy_value(self, src, dst):
+    '''copy the value of this parameter from src to dst config'''
+    self._set(dst, copy.deepcopy(self._get(src)))
+
+  def same_value(self, cfg1, cfg2):
+    '''test if cfg1 and cfg2 have the same value of this parameter'''
+    return self._get(cfg1) == self._get(cfg2)
+
+  def hash_value(self, config):
+    '''produce unique hash for this value in the config'''
+    return hashlib.sha256(repr(self._get(config))).hexdigest()
+
+  def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
+    '''
+    set this value to a*cfg_a + b*cfg_b + c*cfg_c
+
+    this operation is not possible in general with complex parameters but
+    we make an attempt to "fake" it for common use cases
+    '''
+    # attempt to normalize order, we prefer a==1.0
+    if a != 1.0 and b == 1.0: # swap a and b
+      a, cfg_a, b, cfg_b = b, cfg_b, a, cfg_a
+    if a != 1.0 and c == 1.0: # swap a and c
+      a, cfg_a, c, cfg_c = c, cfg_c, a, cfg_a
+
+    # attempt to normalize order, we prefer b==-c
+    if b < c: # swap b and c
+      b, cfg_b, c, cfg_c = c, cfg_c, b, cfg_b
+    if b != -c and a == -c: # swap a and c
+      a, cfg_a, c, cfg_c = c, cfg_c, a, cfg_a
+
+    if a == 1.0 and b == -c:
+      self.copy_value(cfg_a, cfg_dst)
+      self.add_difference(cfg_dst, b, cfg_b, cfg_c)
+    else:
+      # TODO: should handle more cases
+      self.randomize()
+
+  def add_difference(self, cfg_dst, scale, cfg_b, cfg_c):
+    '''
+    add the difference cfg_b-cfg_c to cfg_dst
+
+    this is the key operation used in differential evolution
+    and some simplex techniques
+
+    this operation is not possible in general with complex parameters but
+    we make an attempt to "fake" it
+    '''
+    if not self.same_value(cfg_b, cfg_c):
+      self.randomize()
+
+  def manipulators(self, config):
+    '''
+    a list of manipulator functions to change this valid in the config
+    manipulators must be functions that take a config and change it in place
+
+    default implementation just has randomize as only operation
+    '''
+    return [self.randomize]
+
+  @abc.abstractmethod
+  def randomize(self, config):
+    '''randomize this value without taking into account the current position'''
+    pass
+
+  @abc.abstractmethod
+  def seed_value(self):
+    '''some legal value of this parameter (for creating initial configs)'''
+    return
+
+
+class SwitchParameter(ComplexParameter):
+  '''
+  a switch parameter is an unordered collection of options with no implied
+  correlation between the choices, choices are range(option_count)
+  '''
+  def __init__(self, name, option_count):
+    self.option_count = option_count
+    super(SwitchParameter, self).__init__(name)
+
+  def randomize(self, config):
+    self._set(config, self.seed_value())
+
+  def seed_value(self):
+    return random.randrange(self.option_count)
+
+
+class EnumParameter(SwitchParameter):
+  '''
+  same as a SwitchParameter but choices are taken from an arbitrarily typed list
+  '''
+  def __init__(self, name, options):
+    self.int_to_opt = list(options)
+    self.opt_to_int = dict([(v, idx) for idx, v in enumerate(options)])
+    assert len(self.int_to_opt) == len(self.opt_to_int) #duplicate options?
+    super(EnumParameter, self).__init__(name, option_count=len(options))
+
+  def _to_storage_type(self, val):
+    return super(EnumParameter)._to_storage_type(self.int_to_opt[val])
+
+  def _from_storage_type(self, sval):
+    return self.opt_to_int[super(EnumParameter)._from_storage_type(sval)]
+
+
+##################
 
 class ManipulatorProxy(object):
   '''

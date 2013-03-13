@@ -12,7 +12,9 @@ from deps import etree
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
-                                         FloatParameter)
+                                         FloatParameter,
+                                         SwitchParameter,
+                                         )
 from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
@@ -54,7 +56,10 @@ def create_config_manipulator(cfgfile, upper_limit):
       maxval = min(maxval, upper_limit)
     assert valtype=='int'
     #log.debug("param %s %f %f", k, minval, maxval)
-    manipulator.add_parameter(IntegerParameter(k, minval, maxval))
+    if minval == 0 and maxval < 64:
+      manipulator.add_parameter(SwitchParameter(k, maxval+1))
+    else:
+      manipulator.add_parameter(IntegerParameter(k, minval, maxval))
 
   return manipulator
 
