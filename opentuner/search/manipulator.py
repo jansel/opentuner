@@ -145,8 +145,8 @@ class Parameter(object):
     '''is the given config valid???'''
     return True
 
-  def is_primative(self, ignored = None):
-    return isinstance(self, PrimativeParameter)
+  def is_primitive(self, ignored = None):
+    return isinstance(self, PrimitiveParameter)
 
   @abc.abstractmethod
   def randomize(self, config):
@@ -178,7 +178,7 @@ class Parameter(object):
     '''set this value to a*cfg_a + b*cfg_b, + c*cfg_c'''
     pass
 
-class PrimativeParameter(Parameter):
+class PrimitiveParameter(Parameter):
   '''
   a single dimension in a cartesian space, with a minimum and a maximum value
   '''
@@ -186,7 +186,7 @@ class PrimativeParameter(Parameter):
 
   def __init__(self, name, value_type=int, **kwargs):
     self.value_type = value_type
-    super(PrimativeParameter, self).__init__(name, **kwargs)
+    super(PrimitiveParameter, self).__init__(name, **kwargs)
 
   def hash_value(self, config):
     '''produce unique hash for this value in the config'''
@@ -254,7 +254,7 @@ class PrimativeParameter(Parameter):
     '''return the legal range for this parameter, inclusive'''
     return (0, 1)
 
-class NumericParameter(PrimativeParameter):
+class NumericParameter(PrimitiveParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     '''min/max are inclusive'''
     assert min_value <= max_value

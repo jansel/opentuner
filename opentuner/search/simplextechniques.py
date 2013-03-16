@@ -28,7 +28,7 @@ class SimplexTechnique(SequentialSearchTechnique):
 
   def calculate_centroid(self):
     '''
-    average of all the PrimativeParameters in self.simplex_points
+    average of all the PrimitiveParameters in self.simplex_points
     ComplexParameters are copied from self.simplex_points[0]
     '''
     sums   = defaultdict(float)
@@ -37,20 +37,20 @@ class SimplexTechnique(SequentialSearchTechnique):
     for config in self.simplex_points:
       cfg = config.data
       for param in self.manipulator.parameters(cfg):
-        if param.is_primative():
+        if param.is_primitive():
           sums[param.name] += param.get_unit_value(cfg)
           counts[param.name] += 1
 
     centroid = self.manipulator.copy(self.simplex_points[0].data)
     for param in self.manipulator.parameters(centroid):
-      if param.is_primative():
+      if param.is_primitive():
         param.set_unit_value(centroid,
                              sums[param.name] / float(counts[param.name]))
 
     return centroid
 
   def cfg_to_str(self, cfg):
-    params = list(filter(Parameter.is_primative,
+    params = list(filter(Parameter.is_primitive,
                          self.manipulator.parameters(cfg)))
     params.sort(key=_.name)
     return str(tuple(map(lambda x: x.get_unit_value(cfg), params)))
@@ -106,7 +106,7 @@ class RandomInitialMixin(object):
     params = self.manipulator.parameters(cfg0)
     return [cfg0]+[self.manipulator.random()
                  for p in params
-                 if p.is_primative()]
+                 if p.is_primitive()]
 
 class RightInitialMixin(object):
   '''
@@ -121,7 +121,7 @@ class RightInitialMixin(object):
     cfg0 = self.initial_simplex_seed()
     simplex = [cfg0]
     params = self.manipulator.parameters(cfg0)
-    params = filter(lambda x: x.is_primative(), params)
+    params = filter(lambda x: x.is_primitive(), params)
     for p in params:
       simplex.append(self.manipulator.copy(cfg0))
       v = p.get_unit_value(simplex[-1])
@@ -145,7 +145,7 @@ class RegularInitialMixin(object):
     cfg0 = self.initial_simplex_seed()
     simplex = [cfg0]
     params = self.manipulator.parameters(cfg0)
-    params = list(filter(lambda x: x.is_primative(), params))
+    params = list(filter(lambda x: x.is_primitive(), params))
 
 
     q = (((math.sqrt(len(params)+1.0) - 1.0) / (len(params) * math.sqrt(2.0)))
