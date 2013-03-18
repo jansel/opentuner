@@ -33,7 +33,8 @@ class TuningRunMain(object):
     if not args.label:
       args.label = 'unnamed'
 
-    self.fake_commit = ('sqlite' in args.database)
+    #self.fake_commit = ('sqlite' in args.database)
+    self.fake_commit = True
 
     self.args = args
 

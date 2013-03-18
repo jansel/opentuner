@@ -64,6 +64,33 @@ class MeasurementDriver(object):
     '''
     return MachineClass.get(self.session, name=self.args.machine_class)
 
+  def results_query(self,
+                    generation = None,
+                    objective_ordered = False):
+    q = self.session.query(Result)
+
+    subq = (self.session.query(DesiredResult.result_id)
+           .filter_by(tuning_run = self.tuning_run))
+    if generation is not None:
+      subq = subq.filter_by(generation = generation)
+    q = q.filter(Result.id.in_(subq.subquery()))
+
+    if objective_ordered:
+      q = self.objective.result_order_by(q)
+
+    return q
+
+  def run_time_limit(self, scale=1.0, offset=0.0):
+    '''return a time limit to apply to a test run (in seconds)'''
+    try:
+      best = self.results_query(objective_ordered = True).limit(1).one()
+    except:
+      return 3600.0 * 24 * 365 * 10 # 10 years
+    
+    return scale*best.time + offset
+
+
+
   def run_desired_result(self, desired_result):
     '''
     create a new Result using input manager and measurment interface

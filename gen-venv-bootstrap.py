@@ -10,6 +10,7 @@ pip_install_packages = [
 #   'lxml',
     'virtualenv',
     'fn',
+    'psycopg2',
   ]
 
 import os

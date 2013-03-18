@@ -73,7 +73,7 @@ class InputClass(Base):
 
 class Input(Base):
   #state          = Column(Enum('ANY_MACHINE', 'SINGLE_MACHINE', 'DELETED'),
-  #                        default='ANY_MACHINE')
+  #                        default='ANY_MACHINE', name='t_input_state')
 
   input_class_id = Column(ForeignKey(InputClass.id))
   input_class    = relationship(InputClass, backref='inputs')
@@ -91,7 +91,7 @@ class TuningRun(Base):
   program_version = Column(String(128), default='unknown')
   args            = Column(PickleType)
 
-  state            = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED'),
+  state            = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED', name='t_tr_state'),
                             default = 'QUEUED')
   start_date      = Column(DateTime, default=func.now())
   end_date        = Column(DateTime)
@@ -114,7 +114,9 @@ class Result(Base):
   collection_cost = Column(Float)
 
   #set by MeasurementInterface:
-  state           = Column(Enum('OK', 'TIMEOUT', 'ERROR'), default='OK')
+  state           = Column(Enum('OK', 'TIMEOUT', 'ERROR',
+                                name='t_result_state'),
+                           default='OK')
   time            = Column(Float)
   accuracy        = Column(Float)
   confidence      = Column(Float)
@@ -136,7 +138,8 @@ class DesiredResult(Base):
   request_date     = Column(DateTime, default=func.now())
 
   #set by the measurement driver
-  state            = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED'),
+  state            = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED',
+                                 name="t_dr_state"),
                             default = 'REQUESTED')
   result_id        = Column(ForeignKey(Result.id), index=True)
   result           = relationship(Result, backref='desired_results')
