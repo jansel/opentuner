@@ -2,6 +2,8 @@ import abc
 import logging
 
 from fn import _
+
+import opentuner
 from opentuner.resultsdb.models import *
 
 log = logging.getLogger(__name__)

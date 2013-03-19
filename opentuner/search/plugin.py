@@ -1,6 +1,7 @@
 import logging
 import time
 from fn import _
+from sqlalchemy.orm.exc import NoResultFound
 
 log = logging.getLogger(__name__)
 
@@ -48,8 +49,7 @@ class LogDisplayPlugin(SearchPlugin):
     count = driver.results_query().count()
     try:
       best = driver.results_query(objective_ordered = True).limit(1).one()
-    except KeyboardInterrupt: raise
-    except:
+    except NoResultFound:
       log.warning("no results yet")
       return
     requestor = ','.join(map(_.requestor, best.desired_results))

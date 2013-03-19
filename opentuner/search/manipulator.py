@@ -370,7 +370,7 @@ class ComplexParameter(Parameter):
     we make an attempt to "fake" it
     '''
     if not self.same_value(cfg_b, cfg_c):
-      self.randomize()
+      self.randomize(cfg_dst)
 
   def manipulators(self, config):
     '''

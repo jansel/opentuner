@@ -32,7 +32,7 @@ class PetaBricksInterface(MeasurementInterface):
     time, acc = pbrun([args.program,
                        '--time',
                        '--accuracy',
-                       '--max-sec=%.8f' % measurement_driver.run_time_limit(1.0),
+                       '--max-sec=%.8f' % measurement_driver.run_time_limit(2.0),
                        '-n=%d' % input.input_class.size],
                       desired_result.configuration.data)
     result = opentuner.resultsdb.models.Result()
@@ -58,7 +58,7 @@ def create_config_manipulator(cfgfile, upper_limit):
     assert valtype=='int'
     #log.debug("param %s %f %f", k, minval, maxval)
     if minval == 0 and maxval < 64:
-      manipulator.add_parameter(SwitchParameter(k, maxval+1))
+      manipulator.add_parameter(SwitchParameter(k, maxval))
     else:
       manipulator.add_parameter(IntegerParameter(k, minval, maxval))
 

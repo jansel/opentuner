@@ -2,10 +2,11 @@ import argparse
 import logging
 import time
 import socket
-import os 
+import os
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.exc import NoResultFound
 import sqlalchemy
 
 from opentuner import resultsdb
@@ -24,6 +25,7 @@ class MeasurementDriver(object):
                tuning_run,
                measurement_interface,
                input_manager,
+               objective,
                tuning_run_main,
                args):
 
@@ -37,6 +39,7 @@ class MeasurementDriver(object):
     self.input_manager = input_manager
     self.laptime = time.time()
     self.machine = self.get_machine()
+    self.objective = objective
     self.commit = tuning_run_main.commit
     super(MeasurementDriver, self).__init__()
 
@@ -84,9 +87,9 @@ class MeasurementDriver(object):
     '''return a time limit to apply to a test run (in seconds)'''
     try:
       best = self.results_query(objective_ordered = True).limit(1).one()
-    except:
+    except NoResultFound:
       return 3600.0 * 24 * 365 * 10 # 10 years
-    
+
     return scale*best.time + offset
 
 

@@ -72,6 +72,7 @@ class TuningRunMain(object):
                                   self.tuning_run,
                                   self.measurement_interface,
                                   self.input_manager,
+                                  self.objective,
                                   self,
                                   self.args)
 
