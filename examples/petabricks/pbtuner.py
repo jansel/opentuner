@@ -12,7 +12,9 @@ from deps import etree
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
+                                         LogIntegerParameter,
                                          FloatParameter,
+                                         LogFloatParameter,
                                          SwitchParameter,
                                          )
 from opentuner.measurement import MeasurementInterface
@@ -60,7 +62,7 @@ def create_config_manipulator(cfgfile, upper_limit):
     if minval == 0 and maxval < 64:
       manipulator.add_parameter(SwitchParameter(k, maxval))
     else:
-      manipulator.add_parameter(IntegerParameter(k, minval, maxval))
+      manipulator.add_parameter(LogIntegerParameter(k, minval, maxval))
 
   return manipulator
 
@@ -98,7 +100,7 @@ def main(args):
   m.main()
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.DEBUG)
+  logging.basicConfig(level=logging.INFO)
   #logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.INFO)
   parser = argparse.ArgumentParser(parents=opentuner.argparsers())
   parser.add_argument('program',

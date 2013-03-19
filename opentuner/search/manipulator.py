@@ -138,6 +138,22 @@ class Parameter(object):
     self.parent = None
     super(Parameter, self).__init__()
 
+  def _to_storage_type(self, val):
+    '''hook to support transformation applied while stored'''
+    return val
+
+  def _from_storage_type(self, sval):
+    '''hook to support transformation applied while stored'''
+    return sval
+
+  def _get(self, config):
+    '''hook to support different storage structures'''
+    return self._from_storage_type(config[self.name])
+
+  def _set(self, config, v):
+    '''hook to support different storage structures'''
+    config[self.name] = self._to_storage_type(v)
+
   def set_parent(self, manipulator):
     self.parent = manipulator
 
@@ -270,14 +286,13 @@ class NumericParameter(PrimitiveParameter):
   def set_value(self, config, value):
     assert value >= self.min_value
     assert value <= self.max_value
-    config[self.name] = self.value_type(value)
+    self._set(config, self.value_type(value))
 
   def get_value(self, config):
-    return config[self.name]
+    return self._get(config)
 
   def legal_range(self, config):
     return (self.min_value, self.max_value)
-
 
 class IntegerParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -297,6 +312,49 @@ class FloatParameter(NumericParameter):
   def randomize(self, config):
     self.set_value(config, random.uniform(*self.legal_range(config)))
 
+class ScaledNumericParameter(NumericParameter):
+  @abc.abstractmethod
+  def _scale(self, v):
+    return v
+
+  @abc.abstractmethod
+  def _unscale(self, v):
+    return v
+
+  def set_value(self, config, value):
+    NumericParameter.set_value(self, config, self._unscale(value))
+
+  def get_value(self, config):
+    return self._scale(NumericParameter.get_value(self, config))
+
+  def legal_range(self, config):
+    return map(self._scale, NumericParameter.legal_range(self, config))
+
+  def randomize(self, config):
+    self.set_value(config, random.uniform(*self.legal_range(config)))
+
+class LogScaledNumericParameter(ScaledNumericParameter):
+  '''
+  a numeric parameter that is searched on a log scale, but stored without
+  scaling
+  '''
+  def _scale(self, v):
+    return math.log(v + 1.0 - self.min_value)
+
+  def _unscale(self, v):
+    return math.exp(v) - 1.0 + self.min_value
+
+class LogIntegerParameter(LogScaledNumericParameter):
+  def __init__(self, name, min_value, max_value, **kwargs):
+    kwargs['value_type'] = int
+    super(LogIntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
+
+class LogFloatParameter(LogScaledNumericParameter):
+  def __init__(self, name, min_value, max_value, **kwargs):
+    kwargs['value_type'] = float
+    super(LogFloatParameter, self).__init__(name, min_value, max_value, **kwargs)
+
+
 ##################
 
 class ComplexParameter(Parameter):
@@ -304,22 +362,6 @@ class ComplexParameter(Parameter):
   a non-cartesian parameter that can't be manipulated directly, but has a set
   of user defined manipulation functions
   '''
-
-  def _to_storage_type(self, val):
-    '''hook to support transformation applied while stored'''
-    return val
-
-  def _from_storage_type(self, sval):
-    '''hook to support transformation applied while stored'''
-    return sval
-
-  def _get(self, config):
-    '''hook to support different storage structures'''
-    return self._from_storage_type(config[self.name])
-
-  def _set(self, config, v):
-    '''hook to support different storage structures'''
-    config[self.name] = self._to_storage_type(v)
 
   def copy_value(self, src, dst):
     '''copy the value of this parameter from src to dst config'''
