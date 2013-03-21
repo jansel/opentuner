@@ -85,7 +85,7 @@ def pbrun(cmd_prefix, cfg):
     return time, acc
   except:
     log.exception("run failed: stderr=%s // stdout=%s", out, err)
-    raise
+    return float("inf"), -float("inf")
 
 def main(args):
   program_settings = json.load(open(args.program_settings))

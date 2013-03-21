@@ -91,7 +91,8 @@ class TuningRun(Base):
   program_version = Column(String(128), default='unknown')
   args            = Column(PickleType)
 
-  state            = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED', name='t_tr_state'),
+  state            = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED',
+                                 name='t_tr_state'),
                             default = 'QUEUED')
   start_date      = Column(DateTime, default=func.now())
   end_date        = Column(DateTime)
