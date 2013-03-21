@@ -98,6 +98,7 @@ class GnuplotDisplayPlugin(DisplayPlugin):
     #self.out = tempfile.NamedTemporaryFile(suffix=".dat")
     #log.info("gnuplot data file %s", self.out.name)
     self.out = open("/tmp/livedisplay.dat", "w")
+    self.details = open("/tmp/livedisplaydetails.dat", "w")
 
   def display(self, driver, t=None):
     q = driver.results_query()
@@ -112,10 +113,15 @@ class GnuplotDisplayPlugin(DisplayPlugin):
             (result.collection_date - self.start_date).total_seconds(), \
             result.time
         self.out.flush()
+      else:
+        print >>self.details, \
+            (result.collection_date - self.start_date).total_seconds(), \
+            result.time
+        self.details.flush()
 
 def get_enabled(args):
   return [GnuplotDisplayPlugin(),
-          LogDisplayPlugin()]
+          LogDisplayPlugin(1)]
 
 
 
