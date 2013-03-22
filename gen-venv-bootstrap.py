@@ -4,14 +4,7 @@ extra = '''
 
 default_target_dir = 'venv'
 
-pip_install_packages = [
-    'sqlalchemy',
-    'pysqlite',
-#   'lxml',
-    'virtualenv',
-    'fn',
-    'psycopg2',
-  ]
+pip_install_packages = filter(len, open('python-packages').readlines())
 
 import os
 import subprocess

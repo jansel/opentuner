@@ -1,0 +1,6 @@
+fn
+mysql-python
+psycopg2
+pysqlite
+sqlalchemy
+virtualenv
