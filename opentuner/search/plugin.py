@@ -1,8 +1,10 @@
-import logging
-import time
-import tempfile
-import sys
 import abc
+import argparse
+import logging
+import sys
+import tempfile
+import time
+
 from datetime import datetime
 from fn import _
 from sqlalchemy.orm.exc import NoResultFound
@@ -10,6 +12,16 @@ from sqlalchemy.orm.exc import NoResultFound
 from opentuner.resultsdb.models import Result
 
 log = logging.getLogger(__name__)
+display_log = logging.getLogger(__name__ + ".DisplayPlugin")
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--results-log',
+    help="file to store log of the best configuration times")
+argparser.add_argument('--results-log-details',
+    help="file to store log of the non-best configuration times")
+argparser.add_argument('--quiet', action='store_true',
+    help="print less information")
+
 
 class SearchPlugin(object):
   @property
@@ -39,6 +51,12 @@ class SearchPlugin(object):
     pass
 
   def after_result_wait(self, driver):
+    pass
+
+  def before_result_handlers(self, driver, result, desired_results):
+    pass
+
+  def after_result_handlers(self, driver, result, desired_results):
     pass
 
 
@@ -74,31 +92,28 @@ class LogDisplayPlugin(DisplayPlugin):
     except NoResultFound:
       log.warning("no results yet")
       return
-   #requestor = ','.join(map(_.requestor, best.desired_results))
-   #log.info("[%6.0f] tests=%d, best time=%.4f acc=%.4f, found by %s",
-   #         t-self.start,
-   #         count,
-   #         best.time,
-   #         best.accuracy if best.accuracy is not None else float('NaN'),
-   #         requestor,
-   #         )
-    log.info("[%6.0f] tests=%d, best time=%.4f acc=%.4f",
-             t-self.start,
-             count,
-             best.time,
-             best.accuracy if best.accuracy is not None else float('NaN'),
-             )
+    requestor = ','.join(map(_.requestor, best.desired_results))
+    display_log.info("[%6.0f] tests=%d, best time=%.4f acc=%.4f, found by %s",
+                     t-self.start,
+                     count,
+                     best.time,
+                     best.accuracy if best.accuracy is not None else float('NaN'),
+                     requestor,
+                     )
 
-class GnuplotDisplayPlugin(DisplayPlugin):
-  def __init__(self, *args, **kwargs):
-    super(GnuplotDisplayPlugin, self).__init__(*args, **kwargs)
+class FileDisplayPlugin(DisplayPlugin):
+  def __init__(self, out, details,  *args, **kwargs):
+    super(FileDisplayPlugin, self).__init__(*args, **kwargs)
     self.last_result_date = None
     self.last_best = float('inf')
     self.start_date = datetime.now()
-    #self.out = tempfile.NamedTemporaryFile(suffix=".dat")
-    #log.info("gnuplot data file %s", self.out.name)
-    self.out = open("/tmp/livedisplay.dat", "w")
-    self.details = open("/tmp/livedisplaydetails.dat", "w")
+    self.out = open(log, "w")
+    if out == details:
+      self.details = self.out
+    elif details:
+      self.details = open(details, "w")
+    else:
+      self.details = None
 
   def display(self, driver, t=None):
     q = driver.results_query()
@@ -113,15 +128,19 @@ class GnuplotDisplayPlugin(DisplayPlugin):
             (result.collection_date - self.start_date).total_seconds(), \
             result.time
         self.out.flush()
-      else:
+      elif self.details:
         print >>self.details, \
             (result.collection_date - self.start_date).total_seconds(), \
             result.time
         self.details.flush()
 
 def get_enabled(args):
-  return [GnuplotDisplayPlugin(),
-          LogDisplayPlugin(1)]
+  plugins = []
+  if not args.quiet:
+    plugins.append(LogDisplayPlugin())
+  if args.results_log:
+    plugins.append(FileDisplayPlugin(args.results_log, args.results_log_details))
+  return plugins
 
 
 

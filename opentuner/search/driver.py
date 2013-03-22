@@ -35,7 +35,6 @@ class SearchDriver(object):
     self.techniques  = technique.get_enabled(args)
     self.objective   = objective
     self.wait_for_results = tuning_run_main.results_wait
-    self.pipelining_cooldown = set()
     self.plugins.sort(key = _.priority)
     self.techniques.sort(key = _.priority)
     self.commit = tuning_run_main.commit
@@ -52,8 +51,7 @@ class SearchDriver(object):
   def active_techniques(self):
     '''returns list of techniques to use in the current generation'''
     return [t for t in self.techniques
-            if t.is_ready(self, self.generation)
-            and t not in self.pipelining_cooldown]
+            if t.is_ready(self, self.generation)]
 
   def technique_budget(self, technique, techniques):
     '''determine budget of tests to allocate to technique'''
@@ -116,11 +114,14 @@ class SearchDriver(object):
       requestors = map(_.requestor, desired_results)
       log.debug("calling result handlers result Result %d, requested by %s",
                 r.id, str(requestors))
+      
+      self.plugin_proxy.before_result_handlers(self, r, desired_results)
       for t in techniques:
         if t.name in requestors:
           t.handle_result(r, self)
         else:
           t.handle_nonrequested_result(r, self)
+      self.plugin_proxy.after_result_handlers(self, r, desired_results)
 
   def has_results(self, config):
     return self.results_query(config=config).count()>0

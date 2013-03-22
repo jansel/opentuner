@@ -12,7 +12,7 @@ parser.add_argument('--details', default='/tmp/livedisplaydetails.dat')
 parser.add_argument('--xrange', type=float, default=300)
 parser.add_argument('--yrange', type=float, default=.05)
 parser.add_argument('--yrange2', type=float, default=1.0)
-parser.add_argument('--remote', default="kleptocracy.csail.mit.edu")
+parser.add_argument('--remote')
 args = parser.parse_args()
 
 if args.remote:
