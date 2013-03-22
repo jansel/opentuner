@@ -60,21 +60,19 @@ class TuningRunMain(object):
         ))
       self.session.add(self.tuning_run)
 
-      self.search_driver = self.search_driver_cls(self.session,
-                             self.tuning_run,
-                             self.manipulator,
-                             self.objective,
-                             self,
-                             self.args)
+      driver_kwargs = {
+          'args'                  : self.args,
+          'input_manager'         : self.input_manager,
+          'manipulator'           : self.manipulator,
+          'measurement_interface' : self.measurement_interface,
+          'objective'             : self.objective,
+          'session'               : self.session,
+          'tuning_run_main'       : self,
+          'tuning_run'            : self.tuning_run,
+        }
 
-      self.measurement_driver = self.measurement_driver_cls(
-                                  self.session,
-                                  self.tuning_run,
-                                  self.measurement_interface,
-                                  self.input_manager,
-                                  self.objective,
-                                  self,
-                                  self.args)
+      self.search_driver = self.search_driver_cls(**driver_kwargs)
+      self.measurement_driver = self.measurement_driver_cls(**driver_kwargs)
 
   def commit(self, force = False):
     if force or not self.fake_commit:

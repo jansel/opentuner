@@ -10,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import sqlalchemy
 
 from opentuner import resultsdb
+from opentuner.driverbase import DriverBase
 from opentuner.resultsdb.models import *
 
 log = logging.getLogger(__name__)
@@ -19,29 +20,26 @@ argparser.add_argument('--machine-class',
                        help="name of the machine class being run on")
 
 
-class MeasurementDriver(object):
+class MeasurementDriver(DriverBase):
+  '''
+  manages the measurement process, reading DesiredResults and creating Results
+  '''
+
   def __init__(self,
-               session,
-               tuning_run,
                measurement_interface,
                input_manager,
-               objective,
-               tuning_run_main,
-               args):
+               **kwargs):
+    super(MeasurementDriver, self).__init__(**kwargs)
 
-    if not args.machine_class:
-      args.machine_class = 'default'
+    if not self.args.machine_class:
+      self.args.machine_class = 'default'
 
-    self.session = session
-    self.tuning_run = tuning_run
-    self.args = args
-    self.interface = measurement_interface
+    self.interface     = measurement_interface
     self.input_manager = input_manager
+    self.commit        = self.tuning_run_main.commit
+
     self.laptime = time.time()
     self.machine = self.get_machine()
-    self.objective = objective
-    self.commit = tuning_run_main.commit
-    super(MeasurementDriver, self).__init__()
 
   def get_machine(self):
     '''

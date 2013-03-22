@@ -3,8 +3,10 @@ from datetime import datetime
 import logging
 
 from fn import _
+
 from opentuner import resultsdb
 from opentuner.resultsdb.models import *
+from opentuner.driverbase import DriverBase
 import technique
 import plugin
 
@@ -16,29 +18,27 @@ argparser.add_argument('--test-limit', type=int, default=5000)
 argparser.add_argument('--parallelism', type=int, default=1)
 
 
-class SearchDriver(object):
-  '''controls the search process'''
+class SearchDriver(DriverBase):
+  '''
+  controls the search process managing techniques and creating DesiredResults
+  '''
 
   def __init__(self,
-               session,
-               tuning_run,
                manipulator,
-               objective,
-               tuning_run_main,
-               args):
-    self.args        = args
-    self.session     = session
-    self.tuning_run  = tuning_run
+               **kwargs):
+    super(SearchDriver, self).__init__(**kwargs)
+
     self.manipulator = manipulator
+    self.wait_for_results = self.tuning_run_main.results_wait
+    self.commit = self.tuning_run_main.commit
+
     self.generation  = 0
-    self.plugins     = plugin.get_enabled(args)
-    self.techniques  = technique.get_enabled(args)
-    self.objective   = objective
-    self.wait_for_results = tuning_run_main.results_wait
+    self.plugins     = plugin.get_enabled(self.args)
+    self.techniques  = technique.get_enabled(self.args)
     self.plugins.sort(key = _.priority)
     self.techniques.sort(key = _.priority)
-    self.commit = tuning_run_main.commit
     self.objective.set_driver(self)
+
 
   def add_plugin(self, p):
     self.plugins.append(p)
@@ -122,29 +122,9 @@ class SearchDriver(object):
         else:
           t.handle_nonrequested_result(r, self)
       self.plugin_proxy.after_result_handlers(self, r, desired_results)
-
+  
   def has_results(self, config):
     return self.results_query(config=config).count()>0
-
-  def results_query(self,
-                    generation = None,
-                    objective_ordered = False,
-                    config = None):
-    q = self.session.query(Result)
-
-    if config:
-      q = q.filter_by(configuration = config)
-
-    subq = (self.session.query(DesiredResult.result_id)
-           .filter_by(tuning_run = self.tuning_run))
-    if generation is not None:
-      subq = subq.filter_by(generation = generation)
-    q = q.filter(Result.id.in_(subq.subquery()))
-
-    if objective_ordered:
-      q = self.objective.result_order_by(q)
-
-    return q
 
   def run_generation(self):
     self.plugin_proxy.before_generation(self)
