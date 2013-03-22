@@ -16,8 +16,22 @@ class MeasurementInterface(object):
     '''
     return opentuner.resultdb.models.Result()
 
-  def program_version(self):
+  def db_program_version(self, session):
     '''return a version identifier for the program being tuned'''
+    return resultsdb.models.ProgramVersion.get(
+        session = session,
+        project = self.project_name(),
+        name    = self.program_name(),
+        version = self.program_version(),
+      )
+
+  def project_name(self):
+    return 'unknown'
+
+  def program_name(self):
+    return 'unknown'
+
+  def program_version(self):
     return 'unknown'
 
   def file_hash(self, filename):

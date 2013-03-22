@@ -51,12 +51,15 @@ class TuningRunMain(object):
 
   def init(self):
     if self.tuning_run is None:
+      program_version = (self.measurement_interface
+                            .db_program_version(self.session))
+      self.session.flush()
       self.tuning_run  = (
         resultsdb.models.TuningRun(
           name            = self.args.label,
           args            = self.args,
           start_date      = datetime.now(),
-          program_version = self.measurement_interface.program_version()
+          program_version = program_version,
         ))
       self.session.add(self.tuning_run)
 

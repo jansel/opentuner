@@ -37,6 +37,8 @@ class MeasurementDriver(DriverBase):
     self.interface     = measurement_interface
     self.input_manager = input_manager
     self.commit        = self.tuning_run_main.commit
+    self.upper_limit_multiplier = 10.0
+    self.default_limit_multiplier = 2.0
 
     self.laptime = time.time()
     self.machine = self.get_machine()
@@ -65,32 +67,20 @@ class MeasurementDriver(DriverBase):
     '''
     return MachineClass.get(self.session, name=self.args.machine_class)
 
-  def results_query(self,
-                    generation = None,
-                    objective_ordered = False):
-    q = self.session.query(Result)
-
-    subq = (self.session.query(DesiredResult.result_id)
-           .filter_by(tuning_run = self.tuning_run))
-    if generation is not None:
-      subq = subq.filter_by(generation = generation)
-    q = q.filter(Result.id.in_(subq.subquery()))
-
-    if objective_ordered:
-      q = self.objective.result_order_by(q)
-
-    return q
-
-  def run_time_limit(self, scale=1.0, offset=0.0):
+  def run_time_limit(self, desired_result, default = 3600.0*24*365*10):
     '''return a time limit to apply to a test run (in seconds)'''
     try:
       best = self.results_query(objective_ordered = True).limit(1).one()
     except NoResultFound:
-      return 3600.0 * 24 * 365 * 10 # 10 years
+      if desired_result.limit:
+        return desired_result.limit
+      else:
+        return default
 
-    return scale*best.time + offset
-
-
+    if desired_result.limit:
+      return min(desired_result.limit, self.upper_limit_multiplier*best)
+    else:
+      return self.default_limit_multiplier*best.time
 
   def run_desired_result(self, desired_result):
     '''

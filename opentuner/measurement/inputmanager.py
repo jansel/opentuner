@@ -33,8 +33,8 @@ class FixedInputManager(InputManager):
                path  = None,
                extra = None):
     self.input_class_name = input_class_name
-    self.size  = size 
-    self.path  = path 
+    self.size  = size
+    self.path  = path
     self.extra = extra
     self.the_input = None
     super(FixedInputManager, self).__init__()
@@ -42,8 +42,9 @@ class FixedInputManager(InputManager):
   def create_input(self, driver, desired_result):
     '''create the fixed input database object, result will be cached'''
     input_class = InputClass.get(driver.session,
-                                name=self.input_class_name,
-                                size=self.size)
+                                 driver.tuning_run.program,
+                                 name=self.input_class_name,
+                                 size=self.size)
     return Input(input_class = input_class,
                  path  = self.path,
                  extra = self.extra)
@@ -55,5 +56,5 @@ class FixedInputManager(InputManager):
 
 
 
-  
+
 

@@ -57,17 +57,57 @@ class Machine(Base):
   machine_class_id = Column(ForeignKey(MachineClass.id))
   machine_class    = relationship(MachineClass, backref='machines')
 
-class InputClass(Base):
-  name = Column(String(128))
-  size = Column(Integer)
+class Program(Base):
+  name    = Column(String(128))
+  project = Column(String(128))
 
   @classmethod
-  def get(cls, session, name='default', size=-1):
+  def get(cls, session, project, name):
     try:
       session.flush()
-      return session.query(InputClass).filter_by(name=name, size=size).one()
+      return session.query(Program).filter_by(project=project, name=name).one()
     except sqlalchemy.orm.exc.NoResultFound:
-      t = InputClass(name=name, size=size)
+      t = Program(project=project, name=name)
+      session.add(t)
+      return t
+
+class ProgramVersion(Base):
+  program_id = Column(ForeignKey(Program.id))
+  program    = relationship(Program, backref='versions')
+  version    = Column(String(128))
+
+  @property
+  def name(self):
+    return program.name
+
+  @classmethod
+  def get(cls, session, project, name, version):
+    program = Program.get(session, project, name)
+    try:
+      session.flush()
+      return session.query(ProgramVersion).filter_by(program=program,
+                                                     version=version).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+      t = ProgramVersion(program=program, version=version)
+      session.add(t)
+      return t
+
+class InputClass(Base):
+  program_id = Column(ForeignKey(Program.id))
+  program    = relationship(Program, backref='inputs')
+
+  name       = Column(String(128))
+  size       = Column(Integer)
+
+  @classmethod
+  def get(cls, session, program, name='default', size=-1):
+    try:
+      session.flush()
+      return session.query(InputClass).filter_by(program=program,
+                                                 name=name,
+                                                 size=size).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+      t = InputClass(program=program, name=name, size=size)
       session.add(t)
       return t
 
@@ -87,15 +127,21 @@ class Input(Base):
   extra          = Column(PickleType)
 
 class TuningRun(Base):
-  name            = Column(String(128), default='unnamed')
-  program_version = Column(String(128), default='unknown')
-  args            = Column(PickleType)
+  program_version_id = Column(ForeignKey(ProgramVersion.id))
+  program_version    = relationship(ProgramVersion, backref='tuning_runs')
 
-  state            = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED',
+  name       = Column(String(128), default='unnamed')
+  args       = Column(PickleType)
+
+  state      = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED',
                                  name='t_tr_state'),
                             default = 'QUEUED')
-  start_date      = Column(DateTime, default=func.now())
-  end_date        = Column(DateTime)
+  start_date = Column(DateTime, default=func.now())
+  end_date   = Column(DateTime)
+
+  @property
+  def program(self):
+    return self.program_version.program
 
 class Result(Base):
   #set by MeasurementDriver:
@@ -129,11 +175,12 @@ class DesiredResult(Base):
   configuration_id = Column(ForeignKey(Configuration.id))
   configuration    = relationship(Configuration)
   priority_raw     = Column(Float)
+  limit            = Column(Float)
 
   #set by the search driver
   priority         = Column(Float)
   tuning_run_id    = Column(ForeignKey(TuningRun.id))
-  tuning_run       = relationship(TuningRun, backref='desired_results') 
+  tuning_run       = relationship(TuningRun, backref='desired_results')
   generation       = Column(Integer)
   requestor        = Column(String(128))
   request_date     = Column(DateTime, default=func.now())

@@ -34,13 +34,20 @@ class PetaBricksInterface(MeasurementInterface):
     time, acc = pbrun([args.program,
                        '--time',
                        '--accuracy',
-                       '--max-sec=%.8f' % measurement_driver.run_time_limit(2.0),
+                       '--max-sec=%.8f' %
+                          measurement_driver.run_time_limit(desired_result),
                        '-n=%d' % input.input_class.size],
                       desired_result.configuration.data)
     result = opentuner.resultsdb.models.Result()
     result.time = time
     result.accuracy = acc
     return result
+
+  def project_name(self):
+    return "PetaBricks"
+
+  def program_name(self):
+    return self.program
 
   def program_version(self):
     return self.file_hash(self.program)
