@@ -16,6 +16,7 @@ class DriverBase(object):
     self.session         = session
     self.tuning_run_main = tuning_run_main
     self.tuning_run      = tuning_run
+    self.program         = tuning_run.program
 
   def results_query(self,
                     generation = None,

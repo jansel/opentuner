@@ -90,6 +90,7 @@ class DifferentialEvolution(SearchTechnique):
 
     pp.touch() # move to back of the line for next replacement
     pp.candidate_replacement = driver.get_configuration(cfg)
+    self.limit = driver.objective.limit_from_config(pp.config)
     return pp.candidate_replacement
 
   def handle_result(self, result, driver):

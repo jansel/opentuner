@@ -78,7 +78,7 @@ class MeasurementDriver(DriverBase):
         return default
 
     if desired_result.limit:
-      return min(desired_result.limit, self.upper_limit_multiplier*best)
+      return min(desired_result.limit, self.upper_limit_multiplier*best.time)
     else:
       return self.default_limit_multiplier*best.time
 

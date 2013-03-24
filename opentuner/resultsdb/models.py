@@ -18,48 +18,9 @@ class Base(object):
 
 Base = declarative_base(cls=Base)
 
-class Configuration(Base):
-  hash = Column(String(64), index=True)
-  data = Column(PickleType)
-
-  @classmethod
-  def get(cls, session, hashv, datav):
-    try:
-      session.flush()
-      return session.query(Configuration).filter_by(hash=hashv).one()
-    except sqlalchemy.orm.exc.NoResultFound:
-      t = Configuration()
-      t.hash = hashv
-      t.data = datav
-      session.add(t)
-      return t
-
-class MachineClass(Base):
-  name          = Column(String(128))
-
-  @classmethod
-  def get(cls, session, name):
-    try:
-      session.flush()
-      return session.query(MachineClass).filter_by(name=name).one()
-    except sqlalchemy.orm.exc.NoResultFound:
-      t = MachineClass(name=name)
-      session.add(t)
-      return t
-
-class Machine(Base):
-  name             = Column(String(128))
-
-  cpu              = Column(String(128))
-  cores            = Column(Integer)
-  memory_gb        = Column(Float)
-
-  machine_class_id = Column(ForeignKey(MachineClass.id))
-  machine_class    = relationship(MachineClass, backref='machines')
-
 class Program(Base):
-  name    = Column(String(128))
   project = Column(String(128))
+  name    = Column(String(128))
 
   @classmethod
   def get(cls, session, project, name):
@@ -91,6 +52,49 @@ class ProgramVersion(Base):
       t = ProgramVersion(program=program, version=version)
       session.add(t)
       return t
+
+class Configuration(Base):
+  program_id = Column(ForeignKey(Program.id))
+  program    = relationship(Program)
+  hash = Column(String(64), index=True)
+  data = Column(PickleType)
+
+  @classmethod
+  def get(cls, session, program, hashv, datav):
+    try:
+      session.flush()
+      return (session
+                .query(Configuration)
+                .filter_by(hash=hashv, program=program)
+                .one())
+    except sqlalchemy.orm.exc.NoResultFound:
+      t = Configuration(program=program, hash=hashv, data=datav)
+      session.add(t)
+      return t
+
+class MachineClass(Base):
+  name          = Column(String(128))
+
+  @classmethod
+  def get(cls, session, name):
+    try:
+      session.flush()
+      return session.query(MachineClass).filter_by(name=name).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+      t = MachineClass(name=name)
+      session.add(t)
+      return t
+
+class Machine(Base):
+  name             = Column(String(128))
+
+  cpu              = Column(String(128))
+  cores            = Column(Integer)
+  memory_gb        = Column(Float)
+
+  machine_class_id = Column(ForeignKey(MachineClass.id))
+  machine_class    = relationship(MachineClass, backref='machines')
+
 
 class InputClass(Base):
   program_id = Column(ForeignKey(Program.id))
@@ -166,8 +170,10 @@ class Result(Base):
                            default='OK')
   time            = Column(Float)
   accuracy        = Column(Float)
+  energy          = Column(Float)
   confidence      = Column(Float)
-  extra           = Column(PickleType)
+  limit           = Column(Float)
+  #extra           = Column(PickleType)
 
 
 class DesiredResult(Base):

@@ -65,6 +65,12 @@ class SearchObjective(object):
         rv = i
     return rv
 
+  def limit_from_config(self, config):
+    '''
+    a time limit to kill a result after such that it can be compared to config
+    '''
+    return max(map(_.time, self.driver.results_query(config=config)))
+
 class MinimizeTime(SearchObjective):
   '''
   minimize Result().time
@@ -92,8 +98,9 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     maximize accuracy
   '''
 
-  def __init__(self, accuracy_target):
+  def __init__(self, accuracy_target, low_accuracy_limit_multiplier=10.0):
     self.accuracy_target = accuracy_target
+    self.low_accuracy_limit_multiplier = low_accuracy_limit_multiplier
     super(ThresholdAccuracyMinimizeTime, self).__init__()
 
   def result_order_by_terms(self):
@@ -111,6 +118,17 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     return self.result_compare(
         self.driver.results_query(config=config1, objective_ordered=True)[0],
         self.driver.results_query(config=config2, objective_ordered=True)[0])
+
+  def limit_from_config(self, config):
+    '''
+    a time limit to kill a result after such that it can be compared to config
+    '''
+    results = self.driver.results_query(config=config)
+    if self.accuracy_target > min(map(_.accuracy, results)):
+      m = self.low_accuracy_limit_multiplier
+    else:
+      m = 1.0
+    return m*max(map(_.time, results))
 
 
 

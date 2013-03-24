@@ -168,7 +168,7 @@ class SearchDriver(DriverBase):
   def get_configuration(self, cfg):
     '''called by SearchTechniques to create Configuration objects'''
     hashv = self.manipulator.hash_config(cfg)
-    config = Configuration.get(self.session, hashv, cfg)
+    config = Configuration.get(self.session, self.program, hashv, cfg)
     assert config.data == cfg 
     return config
 

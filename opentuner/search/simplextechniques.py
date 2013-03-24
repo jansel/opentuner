@@ -213,6 +213,8 @@ class NelderMead(SimplexTechnique):
     while not self.convergence_criterea():
       # next steps assume this ordering
       self.simplex_points.sort(cmp=objective.compare)
+      # set limit from worst point
+      self.limit = objective.limit_from_config(self.simplex_points[-1])
       self.centroid = self.calculate_centroid()
       if log.isEnabledFor(logging.DEBUG):
         self.debug_log()

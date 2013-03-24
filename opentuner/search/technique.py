@@ -32,14 +32,7 @@ class SearchTechniqueBase(object):
   def priority(self):
     '''control order the technique gets run in, lower runs first'''
     return 0
-
-  @property
-  def allow_pipelining(self):
-    '''
-    true if technique supports overlapping generations, with delayed results
-    '''
-    return True
-
+  
   def handle_nonrequested_result(self, result, driver):
     '''called for each new Result(), requested by other techniques'''
     pass
@@ -81,6 +74,8 @@ class SearchTechnique(SearchTechniqueBase):
     desired = DesiredResult()
     desired.configuration = config
     desired.priority_raw  = 1.0
+    if hasattr(self, 'limit'):
+      desired.limit = self.limit
     return desired
 
   @abc.abstractmethod
