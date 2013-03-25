@@ -14,9 +14,12 @@ log = logging.getLogger(__name__)
 
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--test-limit', type=int, default=5000)
-argparser.add_argument('--parallelism', type=int, default=1)
-
+argparser.add_argument('--test-limit', type=int, default=5000,
+    help='stop tuning after given tests count')
+argparser.add_argument('--stop-after', type=float,
+    help='stop tuning after given seconds')
+argparser.add_argument('--parallelism', type=int, default=1, 
+    help='how many tests to support at once')
 
 class SearchDriver(DriverBase):
   '''
@@ -46,6 +49,9 @@ class SearchDriver(DriverBase):
 
   def convergence_criterea(self):
     '''returns true if the tuning process should stop'''
+    if self.args.stop_after:
+      elapsed = (datetime.now()-self.tuning_run.start_date).total_seconds()
+      return elapsed > self.args.stop_after
     return self.generation > self.args.test_limit
 
   def active_techniques(self):
