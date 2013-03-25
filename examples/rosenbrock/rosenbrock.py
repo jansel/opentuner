@@ -36,7 +36,6 @@ class Rosenbrock(MeasurementInterface):
   def __init__(self, args):
     super(Rosenbrock, self).__init__(
         args    = args,
-        project = 'rosenbrock',
         program = args.function,
         version = str((args.dimensions, args.domain)),
       )

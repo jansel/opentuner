@@ -1,7 +1,9 @@
 import abc
 import hashlib
+import re
 
 from opentuner import resultsdb
+
 
 class MeasurementInterface(object):
   '''
@@ -9,7 +11,11 @@ class MeasurementInterface(object):
   '''
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, args = None, project='unknown', program='unknown', version='unknown'):
+  def __init__(self,
+               args    = None,
+               project = None,
+               program = 'unknown',
+               version = 'unknown'):
     self.args = args
     self._project = project
     self._program = program
@@ -37,7 +43,13 @@ class MeasurementInterface(object):
     self.driver = measurement_driver
 
   def project_name(self):
-    return self._project
+    if self._project is not None:
+      return self._project
+    autoname = re.sub('(Measurement?)Interface$', '', self.__class__.__name__)
+    if autoname:
+      return autoname
+    else:
+      return 'unknown'
 
   def program_name(self):
     return self._program
