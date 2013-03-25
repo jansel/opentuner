@@ -35,9 +35,10 @@ class DifferentialEvolution(SearchTechnique):
     self.population = None
     super(DifferentialEvolution, self).__init__()
 
-  def initial_population(self, manipulator, driver):
+  def initial_population(self):
     self.population = [
-        PopulationMember(driver.get_configuration(manipulator.random()),
+        PopulationMember(self.driver.get_configuration(
+                                            self.manipulator.random()),
                          submitted = False)
         for z in xrange(self.population_size)
       ]
@@ -52,13 +53,15 @@ class DifferentialEvolution(SearchTechnique):
     pop_without_replacements.sort(key = _.timestamp)
     return pop_without_replacements[0]
 
-  def desired_configuration(self, manipulator, driver):
+  def desired_configuration(self):
     '''
     return a cfg that we should test,
     '''
+    manipulator = self.manipulator
+
     if not self.population:
       # first time called
-      self.initial_population(manipulator, driver)
+      self.initial_population()
 
     # make sure initial population is completely submitted
     for p in self.population:
@@ -89,20 +92,17 @@ class DifferentialEvolution(SearchTechnique):
         cfg_params[k].set_linear(1.0, x1, use_f, x2, -use_f, x3)
 
     pp.touch() # move to back of the line for next replacement
-    pp.candidate_replacement = driver.get_configuration(cfg)
-    self.limit = driver.objective.limit_from_config(pp.config)
+    pp.candidate_replacement = self.driver.get_configuration(cfg)
+    self.limit = self.driver.objective.limit_from_config(pp.config)
     return pp.candidate_replacement
 
-  def handle_result(self, result, driver):
+  def handle_result(self, result):
     '''called when new results are added'''
     for p in self.population:
       if p.candidate_replacement == result.configuration:
-        if driver.objective.lt(p.candidate_replacement, p.config):
+        if self.objective.lt(p.candidate_replacement, p.config):
           # candidate replacement was better, replace it!
           p.config = p.candidate_replacement
           log.info("better point")
         p.candidate_replacement = None
-
-  def is_ready(self, driver, generation):
-    return True
 

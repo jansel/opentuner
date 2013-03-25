@@ -34,12 +34,15 @@ parser.add_argument('--function', default='rosenbrock',
 
 class Rosenbrock(MeasurementInterface):
   def __init__(self, args):
-    self.args = args
-    super(Rosenbrock, self).__init__()
+    super(Rosenbrock, self).__init__(
+        args    = args,
+        project = 'rosenbrock',
+        program = args.function,
+        version = str((args.dimensions, args.domain)),
+      )
 
-  def run(self, measurement_driver, desired_result, input):
+  def run(self, desired_result, input, limit):
     cfg = desired_result.configuration.data
-
     val = 0.0
     if self.args.function == 'rosenbrock':
       # the actual rosenbrock function:
@@ -61,10 +64,7 @@ class Rosenbrock(MeasurementInterface):
           (2.25  - x + x * y**2)**2 +
           (2.625 - x + x * y**3)**2
         )
-
-    result = opentuner.resultsdb.models.Result()
-    result.time = val
-    return result
+    return opentuner.resultsdb.models.Result(time=val)
 
 def main(args):
   logging.basicConfig(level=logging.INFO)

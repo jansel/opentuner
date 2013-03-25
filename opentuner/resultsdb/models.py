@@ -56,8 +56,8 @@ class ProgramVersion(Base):
 class Configuration(Base):
   program_id = Column(ForeignKey(Program.id))
   program    = relationship(Program)
-  hash = Column(String(64), index=True)
-  data = Column(PickleType)
+  hash       = Column(String(64))
+  data       = Column(PickleType)
 
   @classmethod
   def get(cls, session, program, hashv, datav):
@@ -65,12 +65,14 @@ class Configuration(Base):
       session.flush()
       return (session
                 .query(Configuration)
-                .filter_by(hash=hashv, program=program)
+                .filter_by(program=program, hash=hashv)
                 .one())
     except sqlalchemy.orm.exc.NoResultFound:
       t = Configuration(program=program, hash=hashv, data=datav)
       session.add(t)
       return t
+
+Index('ix_configuration_custom1', Configuration.program_id, Configuration.hash)
 
 class MachineClass(Base):
   name          = Column(String(128))
@@ -172,7 +174,7 @@ class Result(Base):
   accuracy        = Column(Float)
   energy          = Column(Float)
   confidence      = Column(Float)
-  limit           = Column(Float)
+  limit           = Column(Float)#TODO: delete
   #extra           = Column(PickleType)
 
 
@@ -192,6 +194,9 @@ class DesiredResult(Base):
   request_date     = Column(DateTime, default=func.now())
 
   #set by the measurement driver
+  #TODO: add these
+  #input_id        = Column(ForeignKey(Input.id))
+  #input           = relationship(Input, backref='desired_results')
   state            = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED',
                                  name="t_dr_state"),
                             default = 'REQUESTED')
@@ -204,6 +209,7 @@ Index('ix_desired_result_custom1', DesiredResult.tuning_run_id,
 
 
 class TechniqueAccounting(Base):
+  #TODO: refactor / rework this table
   tuning_run_id    = Column(ForeignKey(TuningRun.id), index=True)
   tuning_run       = relationship(TuningRun, backref='accounting') 
   generation       = Column(Integer)

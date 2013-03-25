@@ -29,36 +29,30 @@ class SearchPlugin(object):
     '''control order the plugin hooks gets run in, lower runs first'''
     return 0
 
-  def before_main(self, driver):
-    pass
+  def set_driver(self, driver):
+    '''called before all other methods'''
+    self.driver = driver
 
-  def after_main(self, driver):
-    pass
+  def before_main(self): pass
+  def after_main(self):  pass
 
-  def before_generation(self, driver):
-    pass
+  def before_techniques(self): pass
+  def after_techniques(self):  pass
 
-  def after_generation(self, driver):
-    pass
+  def before_results_wait(self): pass
+  def after_results_wait(self):  pass
 
-  def before_techniques(self, driver):
-    pass
+  def on_result(self, result):
+    '''
+    called once for each new result
+    '''
 
-  def after_techniques(self, driver):
+  def on_result_for_technique(self, result, technique):
+    '''
+    called right before a result is given to a technique
+    (result may be requested by multiple techniques)
+    '''
     pass
-
-  def before_result_wait(self, driver):
-    pass
-
-  def after_result_wait(self, driver):
-    pass
-
-  def before_result_handlers(self, driver, result, desired_results):
-    pass
-
-  def after_result_handlers(self, driver, result, desired_results):
-    pass
-
 
 class DisplayPlugin(SearchPlugin):
   __metaclass__ = abc.ABCMeta
@@ -68,27 +62,27 @@ class DisplayPlugin(SearchPlugin):
     self.start = time.time()
     self.display_period = display_period
 
-  def after_generation(self, driver):
+  def after_results_wait(self):
     t = time.time()
     if t - self.display_period > self.last:
-      # call display every 10 seconds
+      # call display every 5 seconds
       self.last = t
-      self.display(driver, t)
+      self.display(t)
 
-  def after_main(self, driver):
+  def after_main(self):
     self.display(driver)
 
   @abc.abstractmethod
-  def display(self, driver, t=None):
+  def display(self, t=None):
     pass
 
 class LogDisplayPlugin(DisplayPlugin):
-  def display(self, driver, t=None):
+  def display(self, t=None):
     if not t:
       t = time.time()
-    count = driver.results_query().count()
+    count = self.driver.results_query().count()
     try:
-      best = driver.results_query(objective_ordered = True).limit(1).one()
+      best = self.driver.results_query(objective_ordered = True).limit(1).one()
     except NoResultFound:
       log.warning("no results yet")
       return
@@ -101,13 +95,12 @@ class LogDisplayPlugin(DisplayPlugin):
                      requestor,
                      )
 
-class FileDisplayPlugin(DisplayPlugin):
+class FileDisplayPlugin(SearchPlugin):
   def __init__(self, out, details,  *args, **kwargs):
     super(FileDisplayPlugin, self).__init__(*args, **kwargs)
-    self.last_result_date = None
     self.last_best = float('inf')
     self.start_date = datetime.now()
-    self.out = open(log, "w")
+    self.out = open(out, "w")
     if out == details:
       self.details = self.out
     elif details:
@@ -115,24 +108,18 @@ class FileDisplayPlugin(DisplayPlugin):
     else:
       self.details = None
 
-  def display(self, driver, t=None):
-    q = driver.results_query()
-    if self.last_result_date:
-      q = q.filter(Result.collection_date > self.last_result_date)
-    q = q.order_by(Result.collection_date)
-    for result in q:
-      self.last_result_date = result.collection_date
-      if result.time < self.last_best:
-        self.last_best = result.time
-        print >>self.out, \
-            (result.collection_date - self.start_date).total_seconds(), \
-            result.time
-        self.out.flush()
-      elif self.details:
-        print >>self.details, \
-            (result.collection_date - self.start_date).total_seconds(), \
-            result.time
-        self.details.flush()
+  def on_result(self, result):
+    if result.time < self.last_best:
+      self.last_best = result.time
+      print >>self.out, \
+          (result.collection_date - self.start_date).total_seconds(), \
+          result.time
+      self.out.flush()
+    elif self.details:
+      print >>self.details, \
+          (result.collection_date - self.start_date).total_seconds(), \
+          result.time
+      self.details.flush()
 
 def get_enabled(args):
   plugins = []

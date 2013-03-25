@@ -19,7 +19,7 @@ class SearchTechniqueBase(object):
   '''
   __metaclass__ = abc.ABCMeta
 
-  def is_ready(self, driver, generation):
+  def is_ready(self):
     '''test if enough data has been gathered to use this technique'''
     return True
 
@@ -32,45 +32,53 @@ class SearchTechniqueBase(object):
   def priority(self):
     '''control order the technique gets run in, lower runs first'''
     return 0
-  
-  def handle_nonrequested_result(self, result, driver):
+
+  def handle_result(self, result):
+    '''called for each new Result(), requested'''
+    pass
+
+  def handle_nonrequested_result(self, result):
     '''called for each new Result(), requested by other techniques'''
     pass
 
   @abc.abstractmethod
-  def desired_results(self, manipulator, driver, count):
+  def set_driver(self, driver):
+    '''called at start of tuning process'''
+    return
+
+  @abc.abstractmethod
+  def desired_result(self):
     '''
     return at most count resultsdb.models.DesiredResult objects based on past
     performance
     '''
     return
 
-  @abc.abstractmethod
-  def handle_result(self, result, driver):
-    '''called for each new Result(), requested'''
-    pass
-
-
-
-
 class SearchTechnique(SearchTechniqueBase):
   '''
   a search search technique with basic utility functions
   '''
-  def desired_results(self, manipulator, driver, count):
-    '''call search_suggestion() count times'''
-    return filter(lambda x: x is not None,
-                  [self.desired_result(manipulator, driver) for i in xrange(count)])
 
-  def desired_result(self, manipulator, driver):
+  def __init__(self):
+    super(SearchTechnique, self).__init__()
+    self.driver      = None
+    self.manipulator = None
+    self.objective   = None
+
+  def set_driver(self, driver):
+    self.driver      = driver
+    self.manipulator = driver.manipulator
+    self.objective   = driver.objective
+
+  def desired_result(self):
     '''create and return a resultsdb.models.DesiredResult'''
-    cfg = self.desired_configuration(manipulator, driver)
+    cfg = self.desired_configuration()
     if cfg is None:
       return None
     if type(cfg) is Configuration:
       config = cfg
     else:
-      config = driver.get_configuration(cfg)
+      config = self.driver.get_configuration(cfg)
     desired = DesiredResult()
     desired.configuration = config
     desired.priority_raw  = 1.0
@@ -79,14 +87,14 @@ class SearchTechnique(SearchTechniqueBase):
     return desired
 
   @abc.abstractmethod
-  def desired_configuration(self, manipulator, driver):
+  def desired_configuration(self):
     '''
     return a cfg that we should test
     given a ConfigurationManipulator and SearchDriver
     '''
     return dict()
 
-  def handle_result(self, result, driver):
+  def handle_result(self, result):
     '''called for each new Result(), regardless of who requested it'''
     pass
 
@@ -94,8 +102,8 @@ class PureRandom(SearchTechnique):
   '''
   request configurations completely randomly
   '''
-  def desired_configuration(self, manipulator, driver):
-    return manipulator.random()
+  def desired_configuration(self):
+    return self.manipulator.random()
 
 class AsyncProceduralSearchTechnique(SearchTechnique):
   def __init__(self):
@@ -104,13 +112,13 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     self.latest_results = []
     super(AsyncProceduralSearchTechnique, self).__init__()
 
-  def call_main_generator(self, manipulator, driver):
+  def call_main_generator(self):
     '''passthrough (used in subclasses)'''
-    return self.main_generator(manipulator, driver)
+    return self.main_generator()
 
-  def desired_configuration(self, manipulator, driver):
+  def desired_configuration(self):
     if self.gen is None:
-      self.gen = self.call_main_generator(manipulator, driver)
+      self.gen = self.call_main_generator()
     if not self.done:
       try:
         return self.gen.next()
@@ -119,7 +127,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     return None
 
   @abc.abstractmethod
-  def main_generator(self, manipulator, driver):
+  def main_generator(self):
     '''
     custom generator to conduct this search, should:
     yield config
@@ -132,7 +140,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     '''
     pass
 
-  def is_ready(self, driver, generation):
+  def is_ready(self):
     return not self.done
 
 class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
@@ -148,9 +156,9 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
     if cfg:
       self.pending_tests.append(cfg)
 
-  def call_main_generator(self, manipulator, driver):
+  def call_main_generator(self):
     '''insert waits for results after every yielded item'''
-    subgen = self.main_generator(manipulator, driver)
+    subgen = self.main_generator()
     while True:
       try:
         p = subgen.next()
@@ -160,12 +168,12 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
         return
       finally:
         for p in self.pending_tests:
-          if not driver.has_results(p):
+          if not self.driver.has_results(p):
             yield p
 
       # wait for all pending_tests to have results
       while self.pending_tests:
-        self.pending_tests = filter(lambda x: not driver.has_results(x),
+        self.pending_tests = filter(lambda x: not self.driver.has_results(x),
                                     self.pending_tests)
         if self.pending_tests:
           yield None # wait

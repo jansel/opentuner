@@ -42,6 +42,9 @@ class SearchDriver(DriverBase):
     self.techniques.sort(key = _.priority)
     self.objective.set_driver(self)
 
+    for t in self.techniques:
+      t.set_driver(self)
+
 
   def add_plugin(self, p):
     self.plugins.append(p)
@@ -56,26 +59,11 @@ class SearchDriver(DriverBase):
 
   def active_techniques(self):
     '''returns list of techniques to use in the current generation'''
-    return [t for t in self.techniques
-            if t.is_ready(self, self.generation)]
+    return [t for t in self.techniques if t.is_ready()]
 
   def technique_budget(self, technique, techniques):
     '''determine budget of tests to allocate to technique'''
     return self.args.parallelism
-
-  def rescale_technique_priorities(self, technique, desired_results, budget):
-    '''normalize the priorities output by the techniques so they sum to 1.0'''
-    priorities = map(_.priority, desired_results)
-    minp = float(min(priorities))
-    maxp = float(max(priorities))
-    sump = float(sum(priorities))
-    lenp = float(len(priorities))
-    for dr in desired_results:
-      if minp==maxp:
-        dr.priority = 1.0/lenp
-      else:
-        dr.priority -= minp
-        dr.priority *= 1.0/(sump-(lenp*minp))
 
   def initialize_desired_result(self, technique, dr):
     '''initialize a DesiredResult created by a SearchTechnique'''
@@ -98,10 +86,9 @@ class SearchDriver(DriverBase):
           name = t.name,
           start_date = datetime.now(),
         )
-      tdesired = t.desired_results(self.manipulator, self, accounting.budget)
+      tdesired = [t.desired_result() for z in xrange(accounting.budget)]
       for d in tdesired:
         self.initialize_desired_result(t, d)
-      self.rescale_technique_priorities(t, tdesired, accounting.budget)
       desired.extend(tdesired)
       self.session.add_all(tdesired)
 
@@ -120,39 +107,35 @@ class SearchDriver(DriverBase):
       requestors = map(_.requestor, desired_results)
       log.debug("calling result handlers result Result %d, requested by %s",
                 r.id, str(requestors))
-      
-      self.plugin_proxy.before_result_handlers(self, r, desired_results)
+
+      self.plugin_proxy.on_result(r)
       for t in techniques:
         if t.name in requestors:
-          t.handle_result(r, self)
+          self.plugin_proxy.on_result_for_technique(r, t)
+          t.handle_result(r)
         else:
-          t.handle_nonrequested_result(r, self)
-      self.plugin_proxy.after_result_handlers(self, r, desired_results)
-  
+          t.handle_nonrequested_result(r)
+
   def has_results(self, config):
     return self.results_query(config=config).count()>0
 
   def run_generation(self):
-    self.plugin_proxy.before_generation(self)
-
     techniques = self.active_techniques()
     if len(techniques)==0:
       log.warning("no techniques active, skipping generation %d",
                   self.generation)
     else:
-      self.plugin_proxy.before_techniques(self)
+      self.plugin_proxy.before_techniques()
       desired = self.generate_desired_results(techniques)
-      self.plugin_proxy.before_techniques(self)
+      self.plugin_proxy.after_techniques()
 
       self.commit()
 
-      self.plugin_proxy.before_result_wait(self)
+      self.plugin_proxy.before_results_wait()
       self.wait_for_results(self.generation)
-      self.plugin_proxy.after_result_wait(self)
+      self.plugin_proxy.after_results_wait()
 
       self.result_handlers(techniques, self.generation)
-
-    self.plugin_proxy.after_generation(self)
 
   @property
   def plugin_proxy(self):
@@ -179,11 +162,12 @@ class SearchDriver(DriverBase):
     return config
 
   def main(self):
-    self.plugin_proxy.before_main(self)
+    self.plugin_proxy.set_driver(self)
+    self.plugin_proxy.before_main()
     while not self.convergence_criterea():
       self.run_generation()
       self.generation += 1
-    self.plugin_proxy.after_main(self)
+    self.plugin_proxy.after_main()
 
 
 

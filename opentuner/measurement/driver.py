@@ -86,15 +86,17 @@ class MeasurementDriver(DriverBase):
     '''
     create a new Result using input manager and measurment interface
     '''
-    input = self.input_manager.select_input(self, desired_result)
+    desired_result.limit = self.run_time_limit(desired_result)
+
+    input = self.input_manager.select_input(desired_result)
     self.session.add(input)
     self.session.flush()
 
     log.debug('running desired result %s on input %s', desired_result.id, input.id)
 
-    self.input_manager.before_run(self, desired_result, input)
+    self.input_manager.before_run(desired_result, input)
 
-    result = self.interface.run(self, desired_result, input)
+    result = self.interface.run(desired_result, input, desired_result.limit)
     result.configuration    = desired_result.configuration
     result.input            = input
     result.machine          = self.machine
@@ -104,7 +106,7 @@ class MeasurementDriver(DriverBase):
     desired_result.result = result
     desired_result.state = 'COMPLETE'
 
-    self.input_manager.after_run(self, desired_result, input)
+    self.input_manager.after_run(desired_result, input)
 
     result.collection_cost = self.lap_timer()
     self.session.flush()#populate result.id

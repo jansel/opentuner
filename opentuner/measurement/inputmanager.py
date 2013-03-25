@@ -7,19 +7,24 @@ class InputManager(object):
   '''
   __metaclass__ = abc.ABCMeta
 
+  def set_driver(self, measurement_driver):
+    self.driver = measurement_driver
+    self.session = measurement_driver.session
+    self.program = measurement_driver.tuning_run.program
+
   @abc.abstractmethod
-  def select_input(self, measurement_driver, desired_result):
+  def select_input(self, desired_result):
     '''
     select the input to be used to test desired_result
     '''
     return opentuner.resultsdb.models.Input()
 
 
-  def before_run(self, measurement_driver, desired_result, input):
+  def before_run(self, desired_result, input):
     '''hook called before an input is used'''
     pass
 
-  def after_run(self, measurement_driver, desired_result, input):
+  def after_run(self, desired_result, input):
     '''hook called after an input is used'''
     pass
 
@@ -39,19 +44,19 @@ class FixedInputManager(InputManager):
     self.the_input = None
     super(FixedInputManager, self).__init__()
 
-  def create_input(self, driver, desired_result):
+  def create_input(self, desired_result):
     '''create the fixed input database object, result will be cached'''
-    input_class = InputClass.get(driver.session,
-                                 driver.tuning_run.program,
-                                 name=self.input_class_name,
-                                 size=self.size)
+    input_class = InputClass.get(self.session,
+                                 program = self.program,
+                                 name    = self.input_class_name,
+                                 size    = self.size)
     return Input(input_class = input_class,
-                 path  = self.path,
-                 extra = self.extra)
+                 path        = self.path,
+                 extra       = self.extra)
 
-  def select_input(self, driver, desired_result):
+  def select_input(self, desired_result):
     if self.the_input is None:
-      self.the_input = self.create_input(driver, desired_result)
+      self.the_input = self.create_input(desired_result)
     return self.the_input
 
 

@@ -26,31 +26,39 @@ from opentuner.search.objective import ThresholdAccuracyMinimizeTime
 log = logging.getLogger(__name__)
 
 class PetaBricksInterface(MeasurementInterface):
-  def __init__(self, args):
-    self.program = args.program
-    super(PetaBricksInterface, self).__init__()
+  def program_name(self):    return self.args.program
+  def program_version(self): return self.file_hash(self.args.program)
 
-  def run(self, measurement_driver, desired_result, input):
-    time, acc = pbrun([args.program,
-                       '--time',
-                       '--accuracy',
-                       '--max-sec=%.8f' %
-                          measurement_driver.run_time_limit(desired_result),
-                       '-n=%d' % input.input_class.size],
-                      desired_result.configuration.data)
+  def run(self, desired_result, input, limit):
+    with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
+      for k,v in desired_result.configuration.data.iteritems():
+        print >>cfgtmp, k, '=', v
+      cfgtmp.flush()
+      cmd = [args.program,
+             '--time',
+             '--accuracy',
+             '--max-sec=%.8f' % limit,
+             '-n=%d' % input.input_class.size,
+             '--config', cfgtmp.name]
+      p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      out, err = p.communicate()
+
     result = opentuner.resultsdb.models.Result()
-    result.time = time
-    result.accuracy = acc
+    try:
+      root = etree.XML(out)
+      result.time     = float(root.find('stats/timing').get('average'))
+      result.accuracy = float(root.find('stats/accuracy').get('average'))
+      if result.time < limit + 3600:
+        result.status = 'OK'
+      else:
+        #time will be 2**31 if timeout
+        result.status = 'TIMEOUT'
+    except:
+      result.status   = 'ERROR'
+      result.time     = float('inf')
+      result.accuracy = float('-inf')
     return result
 
-  def project_name(self):
-    return "PetaBricks"
-
-  def program_name(self):
-    return self.program
-
-  def program_version(self):
-    return self.file_hash(self.program)
 
 def create_config_manipulator(cfgfile, upper_limit):
   '''helper to create the configuration manipulator'''
@@ -72,27 +80,6 @@ def create_config_manipulator(cfgfile, upper_limit):
       manipulator.add_parameter(LogIntegerParameter(k, minval, maxval))
 
   return manipulator
-
-def pbrun(cmd_prefix, cfg):
-  '''
-  helper to run a given petabricks configuration and return (time, accuracy)
-  '''
-  with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
-    for k,v in cfg.iteritems():
-      print >>cfgtmp, k, '=', v
-    cfgtmp.flush()
-    cmd = cmd_prefix + ['--config', cfgtmp.name]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = p.communicate()
-
-  try:
-    root = etree.XML(out)
-    time = float(root.find('stats/timing').get('average'))
-    acc  = float(root.find('stats/accuracy').get('average'))
-    return time, acc
-  except:
-    log.exception("run failed: stderr=%s // stdout=%s", out, err)
-    return float("inf"), -float("inf")
 
 def main(args):
   program_settings = json.load(open(args.program_settings))

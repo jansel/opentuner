@@ -197,15 +197,15 @@ class NelderMead(SimplexTechnique):
     self.sigma = sigma
     super(NelderMead, self).__init__(*args, **kwargs)
 
-  def main_generator(self, manipulator, driver):
-    objective = driver.objective
-    self.manipulator = manipulator
-    self.driver = driver
+  def main_generator(self):
+    objective   = self.objective
+    driver      = self.driver
+    manipulator = self.manipulator
 
     # test the entire initial simplex
     self.simplex_points = list(map(driver.get_configuration,
                                    self.initial_simplex()))
-    log.info("initial points")
+    log.debug("initial points")
     for p in self.simplex_points:
       self.yield_nonblocking(p)
     yield None # wait until results are ready
@@ -228,15 +228,15 @@ class NelderMead(SimplexTechnique):
         yield expansion
 
         if objective.lt(expansion, reflection):
-          log.info("using expansion point")
+          log.debug("using expansion point")
           self.simplex_points[-1] = expansion
         else:
-          log.info("using reflection point (considered expansion)")
+          log.debug("using reflection point (considered expansion)")
           self.simplex_points[-1] = reflection
 
       elif objective.lt(reflection, self.simplex_points[1]):
         #reflection case
-        log.info("using reflection point")
+        log.debug("using reflection point")
         self.simplex_points[-1] = reflection
       else:
         # contraction case
@@ -251,11 +251,11 @@ class NelderMead(SimplexTechnique):
         yield contraction
 
         if objective.lte(contraction, contract_base):
-          log.info("using contraction point")
+          log.debug("using contraction point")
           self.simplex_points[-1] = contraction
         else:
           #reduction case
-          log.info("performing shrink reduction")
+          log.debug("performing shrink reduction")
           self.perform_shrink_reduction()
           for p in self.simplex_points:
             self.yield_nonblocking(p)
@@ -320,15 +320,15 @@ class Torczon(SimplexTechnique):
     self.beta  = beta
     super(Torczon, self).__init__(*args, **kwargs)
 
-  def main_generator(self, manipulator, driver):
-    objective = driver.objective
-    self.manipulator = manipulator
-    self.driver = driver
+  def main_generator(self):
+    objective   = self.objective
+    driver      = self.driver
+    manipulator = self.manipulator
 
     # test the entire initial simplex
     self.simplex_points = list(map(driver.get_configuration,
                                    self.initial_simplex()))
-    log.info("initial points")
+    log.debug("initial points")
     for p in self.simplex_points:
       self.yield_nonblocking(p)
     yield None # wait until results are ready
@@ -350,17 +350,17 @@ class Torczon(SimplexTechnique):
         expanded.sort(cmp=objective.compare)
 
         if objective.lt(expanded[0], reflected[0]):
-          log.info("expansion performed")
+          log.debug("expansion performed")
           self.simplex_points = expanded
         else:
-          log.info("reflection performed")
+          log.debug("reflection performed")
           self.simplex_points = reflected
       else:
         contracted = self.contracted_simplex()
         yield None # wait until results are ready
         contracted.sort(cmp=objective.compare)
 
-        log.info("contraction performed")
+        log.debug("contraction performed")
         self.simplex_points = contracted
 
   def scaled_simplex(self, scale):

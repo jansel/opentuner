@@ -75,7 +75,10 @@ class TuningRunMain(object):
         }
 
       self.search_driver = self.search_driver_cls(**driver_kwargs)
+
       self.measurement_driver = self.measurement_driver_cls(**driver_kwargs)
+      self.measurement_interface.set_driver(self.measurement_driver)
+      self.input_manager.set_driver(self.measurement_driver)
 
   def commit(self, force = False):
     if force or not self.fake_commit:

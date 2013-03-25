@@ -9,10 +9,18 @@ class MeasurementInterface(object):
   '''
   __metaclass__ = abc.ABCMeta
 
+  def __init__(self, args = None, project='unknown', program='unknown', version='unknown'):
+    self.args = args
+    self._project = project
+    self._program = program
+    self._version = version
+
+
   @abc.abstractmethod
-  def run(self, measurement_driver, desired_result, input):
+  def run(self, desired_result, input, limit):
     '''
-    run the given desired_result on input and produce a Result()
+    run the given desired_result on input and produce a Result(),
+    abort early if limit (in seconds) is reached
     '''
     return opentuner.resultdb.models.Result()
 
@@ -25,14 +33,17 @@ class MeasurementInterface(object):
         version = self.program_version(),
       )
 
+  def set_driver(self, measurement_driver):
+    self.driver = measurement_driver
+
   def project_name(self):
-    return 'unknown'
+    return self._project
 
   def program_name(self):
-    return 'unknown'
+    return self._program
 
   def program_version(self):
-    return 'unknown'
+    return self._version
 
   def file_hash(self, filename):
     '''helper used to generate program versions'''
