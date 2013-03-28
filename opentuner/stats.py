@@ -16,10 +16,16 @@ log = logging.getLogger(__name__)
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--stats', action='store_true',
                        help="run in stats mode")
-argparser.add_argument('--stats-quanta', type=float, default=10,
+argparser.add_argument('--stats-quanta', type=float, default=60,
                        help="step size in seconds for binning with --stats")
 
 def mean(vals): return sum(vals)/float(len(vals))
+
+def median(vals):
+  vals = sorted(vals)
+  a = (len(vals))/2
+  b = (len(vals)+1)/2
+  return (vals[a]+vals[b])/2.0
 
 def variance(vals):
   avg = mean(vals)
@@ -58,7 +64,7 @@ class StatsMain(object):
       runs[run_name(tr)].append(tr)
 
     for k, runs in runs.iteritems():
-      log.info('%s has %d runs', k, len(runs))
+      log.info('%s has %d runs %s', k, len(runs), runs[0].args.technique)
       self.combined_stats_over_time(runs, _.result.time, min)
 
   def combined_stats_over_time(self,
@@ -74,9 +80,10 @@ class StatsMain(object):
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
     by_quanta = zip(*by_run_streams[:])
-    print '#sec', 'mean', 'stddev', 'min', 'max'
+    print '#sec', 'median', 'mean', 'stddev', 'min', 'max'
     for quanta, values in enumerate(by_quanta):
-      print quanta*self.args.stats_quanta, mean(values),\
+
+      print quanta*self.args.stats_quanta, median(values), mean(values),\
             stddev(values), min(values), max(values)
 
 

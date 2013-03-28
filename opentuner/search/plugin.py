@@ -70,7 +70,7 @@ class DisplayPlugin(SearchPlugin):
       self.display(t)
 
   def after_main(self):
-    self.display(driver)
+    self.display()
 
   @abc.abstractmethod
   def display(self, t=None):

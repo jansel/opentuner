@@ -194,6 +194,7 @@ def all_techniques(args):
      simplextechniques.RegularTorczon(),
      simplextechniques.RightTorczon(),
      differentialevolution.DifferentialEvolution(),
+     differentialevolution.DifferentialEvolutionAlt(),
     ]
 
 def get_enabled(args):

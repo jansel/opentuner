@@ -106,3 +106,8 @@ class DifferentialEvolution(SearchTechnique):
           log.info("better point")
         p.candidate_replacement = None
 
+class DifferentialEvolutionAlt(DifferentialEvolution):
+  def __init__(self, cr=0.2, **kwargs):
+    kwargs['cr'] = cr
+    super(DifferentialEvolutionAlt, self).__init__(**kwargs)
+
