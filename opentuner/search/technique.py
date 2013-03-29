@@ -1,9 +1,11 @@
 import abc
 import sys
 import logging
+from datetime import datetime
 import argparse
 from fn import _
 from opentuner.resultsdb.models import *
+from plugin import SearchPlugin
 
 log = logging.getLogger(__name__)
 
@@ -28,17 +30,8 @@ class SearchTechniqueBase(object):
     '''name of this SearchTechnique uses for display/accounting'''
     return self.__class__.__name__
 
-  @property
-  def priority(self):
-    '''control order the technique gets run in, lower runs first'''
-    return 0
-
-  def handle_result(self, result):
-    '''called for each new Result(), requested'''
-    pass
-
-  def handle_nonrequested_result(self, result):
-    '''called for each new Result(), requested by other techniques'''
+  def handle_requested_result(self, result):
+    '''called for each new Result(), requested by this technique'''
     pass
 
   @abc.abstractmethod
@@ -54,7 +47,7 @@ class SearchTechniqueBase(object):
     '''
     return
 
-class SearchTechnique(SearchTechniqueBase):
+class SearchTechnique(SearchPlugin, SearchTechniqueBase):
   '''
   a search search technique with basic utility functions
   '''
@@ -66,9 +59,10 @@ class SearchTechnique(SearchTechniqueBase):
     self.objective   = None
 
   def set_driver(self, driver):
-    self.driver      = driver
+    super(SearchTechnique, self).set_driver(driver)
     self.manipulator = driver.manipulator
     self.objective   = driver.objective
+    driver.add_plugin(self)
 
   def desired_result(self):
     '''create and return a resultsdb.models.DesiredResult'''
@@ -79,11 +73,16 @@ class SearchTechnique(SearchTechniqueBase):
       config = cfg
     else:
       config = self.driver.get_configuration(cfg)
-    desired = DesiredResult()
-    desired.configuration = config
-    desired.priority_raw  = 1.0
+    desired = DesiredResult(
+                  configuration = config,
+                  requestor     = self.name,
+                  generation    = self.driver.generation,
+                  request_date  = datetime.now(),
+                  tuning_run    = self.driver.tuning_run,
+                )
     if hasattr(self, 'limit'):
       desired.limit = self.limit
+    self.driver.register_result_callback(desired, self.handle_requested_result)
     return desired
 
   @abc.abstractmethod
@@ -94,9 +93,41 @@ class SearchTechnique(SearchTechniqueBase):
     '''
     return dict()
 
-  def handle_result(self, result):
+  def handle_requested_result(self, result):
     '''called for each new Result(), regardless of who requested it'''
     pass
+
+class MetaSearchTechnique(SearchTechniqueBase):
+  '''
+  a technique made up of a collection of other techniques
+  '''
+  def __init__(self, techniques):
+    super(MetaSearchTechnique, self).__init__()
+    self.techniques = techniques
+
+  def set_driver(self, driver):
+    super(MetaSearchTechnique, self).set_driver(driver)
+    for t in self.techniques:
+      t.set_driver(driver)
+
+  def desired_result(self):
+    return self.select_technique().desired_result()
+
+  @abc.abstractmethod
+  def select_technique(self):
+    '''select the next technique to use'''
+    pass
+
+class RoundRobinMetaSearchTechnique(MetaSearchTechnique):
+  '''evenly switch between all source techniques'''
+  def __init__(self, techniques):
+    super(RoundRobinMetaSearchTechnique, self).__init__(techniques)
+    self.idx = 0
+
+  def select_technique(self):
+    i = self.idx
+    self.idx = (i+1) % len(self.techniques)
+    return self.techniques[i]
 
 class PureRandom(SearchTechnique):
   '''
@@ -211,4 +242,7 @@ def get_enabled(args):
     log.error("unknown technique %s", unknown)
 
   return [t for t in techniques if t.name in args.technique]
+
+def get_root(args):
+  return RoundRobinMetaSearchTechnique(get_enabled(args))
 
