@@ -181,7 +181,6 @@ class DesiredResult(Base):
   #set by the technique:
   configuration_id = Column(ForeignKey(Configuration.id))
   configuration    = relationship(Configuration)
-  priority_raw     = Column(Float)
   limit            = Column(Float)
 
   #set by the search driver
@@ -193,9 +192,10 @@ class DesiredResult(Base):
   request_date     = Column(DateTime, default=func.now())
 
   #set by the measurement driver
-  state            = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED',
+  state            = Column(Enum('UNKNOWN', 'REQUESTED', 'RUNNING',
+                                 'COMPLETE', 'ABORTED',
                                  name="t_dr_state"),
-                            default = 'REQUESTED')
+                            default = 'UNKNOWN')
   result_id        = Column(ForeignKey(Result.id), index=True)
   result           = relationship(Result, backref='desired_results')
   start_date       = Column(DateTime)

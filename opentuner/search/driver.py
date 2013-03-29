@@ -35,17 +35,19 @@ class SearchDriver(DriverBase):
     self.wait_for_results = self.tuning_run_main.results_wait
     self.commit = self.tuning_run_main.commit
 
-    self.generation  = 0
+    self.generation = 0
     self.test_count = 0
     self.plugins = plugin.get_enabled(self.args)
     self.pending_result_callbacks = list() # (DesiredResult, function) tuples
     self.root_technique = technique.get_root(self.args)
-    self.plugins.sort(key = _.priority)
     self.objective.set_driver(self)
+    self.pending_config_ids = set()
 
     for t in self.plugins:
       t.set_driver(self)
     self.root_technique.set_driver(self)
+
+    self.plugins.sort(key = _.priority)
 
   def add_plugin(self, p):
     if p in self.plugins:
@@ -61,18 +63,13 @@ class SearchDriver(DriverBase):
       return elapsed > self.args.stop_after
     return self.test_count > self.args.test_limit
 
-  def technique_budget(self, technique, techniques):
-    '''determine budget of tests to allocate to technique'''
-    return self.args.parallelism
-
-  def deduplicate_desired_results(self, desired_results):
-    #TODO
-    pass
-
   def register_result_callback(self, desired_result, callback):
-    self.pending_result_callbacks.append((desired_result, callback))
+    if desired_result.result is not None:
+      callback(desired_result.result)
+    else:
+      self.pending_result_callbacks.append((desired_result, callback))
 
-  def result_handlers(self):
+  def result_callbacks(self):
     pending = self.pending_result_callbacks
     self.pending_result_callbacks = list()
     for dr, callback in pending:
@@ -81,6 +78,9 @@ class SearchDriver(DriverBase):
       else:
         # try again later
         self.pending_result_callbacks.append((dr, callback))
+    if len(self.pending_result_callbacks):
+      log.warning("%d result callbacks still pending",
+                  len(self.pending_result_callbacks))
 
     #q = self.results_query(generation = generation)
     #for r in q:
@@ -100,10 +100,27 @@ class SearchDriver(DriverBase):
   def run_generation(self):
     self.plugin_proxy.before_techniques()
     for z in xrange(self.args.parallelism):
-      d = self.root_technique.desired_result()
-      if d is None:
+      dr = self.root_technique.desired_result()
+
+      if dr is None:
         break
-      self.session.add(d)
+
+      self.session.flush() # populate configuration_id
+      duplicates = list(self.session.query(DesiredResult)
+                            .filter_by(tuning_run=self.tuning_run,
+                                       configuration_id=dr.configuration_id)
+                            .filter(DesiredResult.id != dr.id).limit(1))
+      if len(duplicates):
+        log.warning("duplicate configuration request %d %s", self.test_count, str(duplicates[0].result))
+        def callback(result):
+          dr.result     = result
+          dr.state      = 'COMPLETE'
+          dr.start_date = datetime.now()
+        self.register_result_callback(duplicates[0], callback)
+      else:
+        dr.state = 'REQUESTED'
+      self.session.add(dr)
+      self.session.flush()
       self.test_count += 1
     self.plugin_proxy.after_techniques()
 
@@ -113,7 +130,7 @@ class SearchDriver(DriverBase):
     self.wait_for_results(self.generation)
     self.plugin_proxy.after_results_wait()
 
-    self.result_handlers()
+    self.result_callbacks()
 
   @property
   def plugin_proxy(self):

@@ -97,7 +97,7 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
     '''called for each new Result(), regardless of who requested it'''
     pass
 
-class MetaSearchTechnique(SearchTechnique):
+class MetaSearchTechnique(SearchTechniqueBase):
   '''
   a technique made up of a collection of other techniques
   '''
@@ -118,7 +118,7 @@ class MetaSearchTechnique(SearchTechnique):
     '''select the next technique to use'''
     pass
 
-class RoundRobinMetaSearchTechnique(SearchTechnique):
+class RoundRobinMetaSearchTechnique(MetaSearchTechnique):
   '''evenly switch between all source techniques'''
   def __init__(self, techniques):
     super(RoundRobinMetaSearchTechnique, self).__init__(techniques)
