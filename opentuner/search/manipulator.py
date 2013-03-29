@@ -77,10 +77,11 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
   configs in a dict-like object
   '''
 
-  def __init__(self, params=[], config_type=dict, **kwargs):
+  def __init__(self, params=[], config_type=dict, seed_config=None, **kwargs):
     self.params = list(params)
     self.config_type = config_type
     self.search_driver = None
+    self.seed_config = seed_config
     super(ConfigurationManipulator, self).__init__(**kwargs)
 
   def add_parameter(self, p):
@@ -92,7 +93,10 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
 
   def seed_config(self):
     '''produce a fixed seed configuration'''
-    cfg = self.config_type()
+    if self.seed_config:
+      cfg = copy.deepcopy(self.seed_config)
+    else:
+      cfg = self.config_type()
     for p in self.params:
       cfg[p.name] = p.seed_value()
     return cfg
