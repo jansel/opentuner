@@ -97,8 +97,8 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
       cfg = copy.deepcopy(self._seed_config)
     else:
       cfg = self.config_type()
-    for p in self.params:
-      cfg[p.name] = p.seed_value()
+      for p in self.params:
+        cfg[p.name] = p.seed_value()
     return cfg
 
   def random(self):
