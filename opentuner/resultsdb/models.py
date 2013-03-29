@@ -174,7 +174,6 @@ class Result(Base):
   accuracy        = Column(Float)
   energy          = Column(Float)
   confidence      = Column(Float)
-  limit           = Column(Float)#TODO: delete
   #extra           = Column(PickleType)
 
 
@@ -194,9 +193,6 @@ class DesiredResult(Base):
   request_date     = Column(DateTime, default=func.now())
 
   #set by the measurement driver
-  #TODO: add these
-  #input_id        = Column(ForeignKey(Input.id))
-  #input           = relationship(Input, backref='desired_results')
   state            = Column(Enum('REQUESTED', 'RUNNING', 'COMPLETE', 'ABORTED',
                                  name="t_dr_state"),
                             default = 'REQUESTED')
@@ -204,19 +200,12 @@ class DesiredResult(Base):
   result           = relationship(Result, backref='desired_results')
   start_date       = Column(DateTime)
 
+ #input_id        = Column(ForeignKey(Input.id))
+ #input           = relationship(Input, backref='desired_results')
+
 Index('ix_desired_result_custom1', DesiredResult.tuning_run_id,
                                    DesiredResult.generation)
 
-
-class TechniqueAccounting(Base):
-  #TODO: refactor / rework this table
-  tuning_run_id    = Column(ForeignKey(TuningRun.id), index=True)
-  tuning_run       = relationship(TuningRun, backref='accounting') 
-  generation       = Column(Integer)
-  budget           = Column(Integer)
-  name             = Column(String(128))
-  start_date       = Column(DateTime, default=func.now())
-  end_date         = Column(DateTime)
 
 if __name__ == '__main__':
   #test:

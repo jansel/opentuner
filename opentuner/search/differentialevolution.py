@@ -96,7 +96,7 @@ class DifferentialEvolution(SearchTechnique):
     self.limit = self.driver.objective.limit_from_config(pp.config)
     return pp.candidate_replacement
 
-  def handle_result(self, result):
+  def handle_requested_result(self, result):
     '''called when new results are added'''
     for p in self.population:
       if p.candidate_replacement == result.configuration:

@@ -44,8 +44,9 @@ class SearchPlugin(object):
 
   def on_result(self, result):
     '''
-    called once for each new result
+    called once for every new result
     '''
+    pass
 
   def on_result_for_technique(self, result, technique):
     '''
@@ -75,6 +76,7 @@ class DisplayPlugin(SearchPlugin):
   @abc.abstractmethod
   def display(self, t=None):
     pass
+
 
 class LogDisplayPlugin(DisplayPlugin):
   def display(self, t=None):
