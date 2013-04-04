@@ -55,6 +55,12 @@ class SearchPlugin(object):
     '''
     pass
 
+  def on_new_best_result(self, result):
+    '''
+    called whenever the global best result changes
+    '''
+    pass
+
 class DisplayPlugin(SearchPlugin):
   __metaclass__ = abc.ABCMeta
   def __init__(self, display_period=5):

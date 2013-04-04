@@ -23,15 +23,16 @@ class DriverBase(object):
                     objective_ordered = False,
                     config = None):
     q = self.session.query(Result)
+    q = q.filter_by(tuning_run = self.tuning_run)
 
     if config:
       q = q.filter_by(configuration = config)
 
-    subq = (self.session.query(DesiredResult.result_id)
-           .filter_by(tuning_run = self.tuning_run))
     if generation is not None:
-      subq = subq.filter_by(generation = generation)
-    q = q.filter(Result.id.in_(subq.subquery()))
+      subq = (self.session.query(DesiredResult.result_id)
+             .filter_by(tuning_run = self.tuning_run,
+                        generation = generation))
+      q = q.filter(Result.id.in_(subq.subquery()))
 
     if objective_ordered:
       q = self.objective.result_order_by(q)

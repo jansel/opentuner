@@ -3,8 +3,10 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, \
+from sqlalchemy import (
+    Column, Integer, String, DateTime, Boolean, Enum,
     Float, PickleType, ForeignKey, Text, func, Index
+  )
 import sqlalchemy
 import re
 
@@ -40,6 +42,10 @@ class ProgramVersion(Base):
   @property
   def name(self):
     return program.name
+
+  @property
+  def project(self):
+    return program.project
 
   @classmethod
   def get(cls, session, project, name, version):
@@ -176,6 +182,10 @@ class Result(Base):
   confidence      = Column(Float)
   #extra           = Column(PickleType)
 
+  #set by SearchDriver
+  was_new_best    = Column(Boolean)
+
+Index('ix_result_custom1', Result.tuning_run_id, Result.was_new_best)
 
 class DesiredResult(Base):
   #set by the technique:

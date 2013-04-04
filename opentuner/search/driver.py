@@ -42,6 +42,7 @@ class SearchDriver(DriverBase):
     self.root_technique = technique.get_root(self.args)
     self.objective.set_driver(self)
     self.pending_config_ids = set()
+    self.best_result = None
 
     for t in self.plugins:
       t.set_driver(self)
@@ -82,18 +83,6 @@ class SearchDriver(DriverBase):
       log.warning("%d result callbacks still pending",
                   len(self.pending_result_callbacks))
 
-    #q = self.results_query(generation = generation)
-    #for r in q:
-    #  desired_results = filter(_.tuning_run==self.tuning_run, r.desired_results)
-    #  requestors = map(_.requestor, desired_results)
-    #  log.debug("calling result handlers result Result %d, requested by %s",
-    #            r.id, str(requestors))
-    #  self.plugin_proxy.on_result(r)
-    #  for t in techniques:
-    #    if t.name in requestors:
-    #      self.plugin_proxy.on_result_for_technique(r, t)
-    #      t.handle_requested_result(r)
-
   def has_results(self, config):
     return self.results_query(config=config).count()>0
 
@@ -101,17 +90,17 @@ class SearchDriver(DriverBase):
     self.plugin_proxy.before_techniques()
     for z in xrange(self.args.parallelism):
       dr = self.root_technique.desired_result()
-
       if dr is None:
         break
-
       self.session.flush() # populate configuration_id
       duplicates = list(self.session.query(DesiredResult)
                             .filter_by(tuning_run=self.tuning_run,
                                        configuration_id=dr.configuration_id)
                             .filter(DesiredResult.id != dr.id).limit(1))
       if len(duplicates):
-        log.warning("duplicate configuration request %d %s", self.test_count, str(duplicates[0].result))
+        log.warning("duplicate configuration request %d %s",
+                    self.test_count,
+                    str(duplicates[0].result))
         def callback(result):
           dr.result     = result
           dr.state      = 'COMPLETE'
@@ -129,6 +118,20 @@ class SearchDriver(DriverBase):
     self.plugin_proxy.before_results_wait()
     self.wait_for_results(self.generation)
     self.plugin_proxy.after_results_wait()
+
+    for result in (self.results_query()
+                  .filter_by(was_new_best = None)
+                  .order_by(Result.collection_date)):
+      if self.best_result is None:
+        self.best_result = result
+        result.was_new_best = True
+      elif self.objective.lt(result, self.best_result):
+        self.best_result = result
+        result.was_new_best = True
+        self.plugin_proxy.on_new_best_result(result)
+      else:
+        result.was_new_best = False
+      self.session.add(result)
 
     self.result_callbacks()
 

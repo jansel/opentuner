@@ -37,7 +37,7 @@ class Rosenbrock(MeasurementInterface):
     super(Rosenbrock, self).__init__(
         args    = args,
         program = args.function,
-        version = str((args.dimensions, args.domain)),
+        version = "%dx%d" % (args.dimensions, args.domain)
       )
 
   def run(self, desired_result, input, limit):
