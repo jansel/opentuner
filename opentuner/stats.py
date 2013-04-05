@@ -1,6 +1,8 @@
 import argparse
+import csv
 import hashlib
 import logging
+import subprocess
 import math
 import os
 
@@ -23,6 +25,8 @@ argparser.add_argument('--stats-quanta', type=float, default=60,
                        help="step size in seconds for binning with --stats")
 argparser.add_argument('--stats-dir', default='stats',
                        help="directory to output --stats to")
+
+PCTSTEPS = map(_/20.0, xrange(21))
 
 def mean(vals):
   return sum(vals)/float(len(vals))
@@ -106,10 +110,6 @@ class StatsMain(object):
     '''
 
     log.info("writing stats for %s to %s", label, output_dir)
-    details     = open(os.path.join(output_dir, label+"_details.dat"), 'w')
-    percentiles = open(os.path.join(output_dir, label+"_percentiles.dat"), 'w')
-    means       = open(os.path.join(output_dir, label+"_mean.dat"), 'w')
-
     by_run = [self.stats_over_time(run, extract_fn, combine_fn, no_data)
               for run in runs]
     max_len = max(map(len, by_run))
@@ -117,22 +117,71 @@ class StatsMain(object):
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
     by_quanta = zip(*by_run_streams[:])
-    pctsteps = map(_/20.0, xrange(21))
-    print >>means,       '#sec', 'mean', 'stddev'
-    print >>percentiles, '#sec', ' '.join(map(str, pctsteps))
-    print >>details,     '#sec', 'runs...'
-    for quanta, values in enumerate(by_quanta):
-      sec = quanta*self.args.stats_quanta
-      print >>means,       sec, mean(values), stddev(values)
-      print >>details,     sec, ' '.join(map(str, values))
 
+    def data_file(suffix, headers, value_function):
+      with open(os.path.join(output_dir, label+suffix), 'w') as fd:
+        out = csv.writer(fd, delimiter=' ', lineterminator='\n')
+        out.writerow(['#sec'] + headers)
+        for quanta, values in enumerate(by_quanta):
+          sec = quanta*self.args.stats_quanta
+          out.writerow([sec] + value_function(values))
+
+    data_file('_details.dat',
+              map(lambda x: 'run%d'%x, xrange(max_len)),
+              list)
+    self.gnuplot_file(output_dir,
+                      label+'_details',
+                      [('"'+label+'_details.dat"'
+                        ' using 1:%d'%i +
+                        ' with lines'
+                        ' title "Run %d"'%i)
+                       for i in xrange(max_len)])
+
+    data_file('_mean.dat',
+              ['#sec', 'mean', 'stddev'],
+              lambda values: [mean(values), stddev(values)])
+    self.gnuplot_file(output_dir,
+                      label+'_mean',
+                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
+
+    def extract_percentiles(values):
       values = sorted(values)
-      idxs = map(F() << int << round << (_ * (len(values)-1)),  pctsteps)
-      print >>percentiles, sec, ' '.join([str(values[i]) for i in idxs])
+      return [values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
+    data_file("_percentiles.dat", PCTSTEPS, extract_percentiles)
+    self.gnuplot_file(output_dir,
+                      label+'_percentiles',
+                      reversed([
+                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
+                        '""                          using 1:3  with lines title "5%"',
+                        '""                          using 1:4  with lines title "10%"',
+                        '""                          using 1:5  with lines title "25%"',
+                        '""                          using 1:6  with lines title "20%"',
+                        '""                          using 1:7  with lines title "35%"',
+                        '""                          using 1:8  with lines title "30%"',
+                        '""                          using 1:9  with lines title "45%"',
+                        '""                          using 1:10 with lines title "40%"',
+                        '""                          using 1:11 with lines title "55%"',
+                        '""                          using 1:12 with lines title "50%"',
+                        '""                          using 1:13 with lines title "65%"',
+                        '""                          using 1:14 with lines title "70%"',
+                        '""                          using 1:15 with lines title "75%"',
+                        '""                          using 1:16 with lines title "80%"',
+                        '""                          using 1:17 with lines title "85%"',
+                        '""                          using 1:18 with lines title "90%"',
+                        '""                          using 1:19 with lines title "95%"',
+                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
+                       ]))
 
-    details    .close()
-    percentiles.close()
-    means      .close()
+  def gnuplot_file(self, output_dir, prefix, plotcmd):
+    with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
+      print >>fd, 'set terminal postscript eps enhanced color'
+      print >>fd, 'set output "%s"' % (prefix+'.pdf')
+      print >>fd, 'set ylabel "Execution Time (seconds)"'
+      print >>fd, 'set xlabel "Autotuning Time (seconds)"'
+      print >>fd, 'plot', ','.join(plotcmd)
+    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir)
+
+
 
   def stats_over_time(self,
                       run,

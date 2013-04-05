@@ -86,7 +86,8 @@ class SearchDriver(DriverBase):
   def has_results(self, config):
     return self.results_query(config=config).count()>0
 
-  def run_generation(self):
+  def run_generation_techniques(self):
+    tests_this_generation = 0
     self.plugin_proxy.before_techniques()
     for z in xrange(self.args.parallelism):
       dr = self.root_technique.desired_result()
@@ -111,12 +112,14 @@ class SearchDriver(DriverBase):
       self.session.add(dr)
       self.session.flush()
       self.test_count += 1
+      tests_this_generation += 1
     self.plugin_proxy.after_techniques()
+    return tests_this_generation
 
+  def run_generation_results(self, offset = 0):
     self.commit()
-
     self.plugin_proxy.before_results_wait()
-    self.wait_for_results(self.generation)
+    self.wait_for_results(self.generation + offset)
     self.plugin_proxy.after_results_wait()
 
     for result in (self.results_query()
@@ -134,6 +137,7 @@ class SearchDriver(DriverBase):
       self.session.add(result)
 
     self.result_callbacks()
+
 
   @property
   def plugin_proxy(self):
@@ -159,12 +163,27 @@ class SearchDriver(DriverBase):
     assert config.data == cfg 
     return config
 
-  def main(self):
+  def main(self, pipelining = 0, bail_threshold = 3):
     self.plugin_proxy.set_driver(self)
     self.plugin_proxy.before_main()
-    while not self.convergence_criterea():
-      self.run_generation()
+
+    no_tests_generations = 0
+
+    # prime pipeline with tests
+    for z in xrange(pipelining):
+      self.run_generation_techniques()
       self.generation += 1
+
+    while not self.convergence_criterea():
+      if self.run_generation_techniques() > 0:
+        no_tests_generations = 0
+      elif no_tests_generations <= bail_threshold:
+        no_tests_generations += 1
+      else:
+        break
+      self.run_generation_results(offset = -pipelining)
+      self.generation += 1
+
     self.plugin_proxy.after_main()
 
 
