@@ -97,20 +97,25 @@ class SearchDriver(DriverBase):
       duplicates = list(self.session.query(DesiredResult)
                             .filter_by(tuning_run=self.tuning_run,
                                        configuration_id=dr.configuration_id)
-                            .filter(DesiredResult.id != dr.id).limit(1))
+                            .filter(DesiredResult.id != dr.id)
+                            .order_by('request_date')
+                            .limit(1))
+      self.session.add(dr)
       if len(duplicates):
         log.warning("duplicate configuration request %d %s",
                     self.test_count,
                     str(duplicates[0].result))
+        self.session.flush()
+        desired_result_id = dr.id
         def callback(result):
+          dr = (self.session.query(DesiredResult)
+               .filter_by(id=desired_result_id).one())
           dr.result     = result
           dr.state      = 'COMPLETE'
           dr.start_date = datetime.now()
         self.register_result_callback(duplicates[0], callback)
       else:
         dr.state = 'REQUESTED'
-      self.session.add(dr)
-      self.session.flush()
       self.test_count += 1
       tests_this_generation += 1
     self.plugin_proxy.after_techniques()

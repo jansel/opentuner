@@ -5,9 +5,13 @@ from opentuner.resultsdb.models import *
 from technique import SearchTechnique
 
 class EvolutionaryTechnique(SearchTechnique):
-  def __init__(self, mutation_rate = 0.1, crossover_rate = 0.0):
+  def __init__(self,
+               mutation_rate = 0.1,
+               crossover_rate = 0.0,
+               must_mutate_count = 1):
     self.mutation_rate = mutation_rate
     self.crossover_rate = crossover_rate
+    self.must_mutate_count = must_mutate_count
     super(EvolutionaryTechnique, self).__init__()
 
   def desired_configuration(self):
@@ -15,22 +19,32 @@ class EvolutionaryTechnique(SearchTechnique):
     return a (cfg, priority) that we should test,
     through random mutation and crossover
     '''
+    #TODO: set limit value
+
     parents = self.selection()
     parents = map(copy.deepcopy, parents)
+    parent_hashes = map(self.manipulator.hash_config, parents)
 
     if len(parents) > 1:
       cfg = self.crossover(parents)
     else:
       cfg = parents[0]
 
-    self.mutation(cfg)
-    return cfg
+    for z in xrange(10): #retries
+      self.mutation(cfg)
+      if self.manipulator.hash_config(cfg) in parent_hashes:
+        continue # try again
+      return cfg
 
   def mutation(self, cfg):
     '''
     mutate cfg in place
     '''
-    for param in self.manipulator.parameters(cfg):
+    params = self.manipulator.parameters(cfg)
+    random.shuffle(params)
+    for param in params[:self.must_mutate_count]:
+      self.mutate_param(cfg, param)
+    for param in params[self.must_mutate_count:]:
       if random.random() < self.mutation_rate:
         self.mutate_param(cfg, param)
 

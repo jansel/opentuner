@@ -216,6 +216,8 @@ class DesiredResult(Base):
 Index('ix_desired_result_custom1', DesiredResult.tuning_run_id,
                                    DesiredResult.generation)
 
+Index('ix_desired_result_custom2', DesiredResult.tuning_run_id,
+                                   DesiredResult.configuration_id)
 
 if __name__ == '__main__':
   #test:
