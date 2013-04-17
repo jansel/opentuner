@@ -30,6 +30,7 @@ class PetaBricksInterface(MeasurementInterface):
   def program_version(self): return self.file_hash(self.args.program)
 
   def run(self, desired_result, input, limit):
+    limit = min(limit, self.args.upper_limit)
     with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
       for k,v in desired_result.configuration.data.iteritems():
         print >>cfgtmp, k, '=', v
@@ -103,6 +104,8 @@ if __name__ == '__main__':
                       help="override default program config exemplar location")
   parser.add_argument('--program-settings',
                       help="override default program settings file location")
+  parser.add_argument('--upper-limit', type=float, default=30,
+                      help="time limit to apply to initial test")
   args = parser.parse_args()
 
   if not args.database:
