@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--stats', action='store_true',
                        help="run in stats mode")
-argparser.add_argument('--stats-quanta', type=float, default=60,
+argparser.add_argument('--stats-quanta', type=float, default=10,
                        help="step size in seconds for binning with --stats")
 argparser.add_argument('--stats-dir', default='stats',
                        help="directory to output --stats to")
@@ -48,8 +48,9 @@ def hash_args(x):
   return hashlib.sha256(str(sorted(vars(x).items()))).hexdigest()[:20]
 
 def run_label(tr):
+  techniques = ','.join(tr.args.technique)
   if not tr.name or tr.name=='unnamed':
-    return hash_args(tr.args)
+    return "%s_%s" % (techniques, hash_args(tr.args)[:6])
   else:
     return tr.label
 
@@ -65,7 +66,7 @@ def run_dir(base, tr):
   return os.path.join(base,
                       tr.program.project,
                       tr.program.name,
-                      tr.program_version.version)
+                      tr.program_version.version[:16])
 
 class StatsMain(object):
   def __init__(self, measurement_interface, session, args):
@@ -87,16 +88,76 @@ class StatsMain(object):
     for tr in q:
       runs[run_name(tr)].append(tr)
 
+    dir_to_plots = defaultdict(list)
     for k, runs in runs.iteritems():
       log.info('%s has %d runs %s', k, len(runs), runs[0].args.technique)
       d = run_dir(self.args.stats_dir, runs[0])
       if not os.path.isdir(d):
         os.makedirs(d)
-      self.combined_stats_over_time(d,
-                                    run_label(runs[0]),
-                                    runs,
-                                    _.result.time,
-                                    min)
+      label = run_label(runs[0])
+      dir_to_plots[d].append(label)
+      self.combined_stats_over_time(d, label, runs, _.result.time, min)
+
+    for d, labels in dir_to_plots.iteritems():
+      self.gnuplot_file(d,
+                        "medianperfe",
+                        ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "meanperfe",
+                        ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "medianperfl",
+                        ['"%s_percentiles.dat" using 1:12 with lines title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "meanperfl",
+                        ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
+
+      print
+      print "10% Scores"
+      pprint(self.technique_scores(d, labels, '0.1'))
+      print
+      print "90% Scores"
+      pprint(self.technique_scores(d, labels, '0.9'))
+      print
+      print "Mean Scores"
+      pprint(self.technique_scores(d, labels, 'mean'))
+      print
+      print "Median Scores"
+      pprint(self.technique_scores(d, labels, '0.5'))
+
+
+  def technique_scores(self, directory, labels, ykey, xkey='#sec', factor=10.0):
+    max_duration = None
+    min_value = float('inf')
+    for label in labels:
+      try:
+        dr = csv.DictReader(open(os.path.join(directory,label+"_percentiles.dat")), delimiter=' ', lineterminator='\n')
+        lastrow = list(dr)[-1]
+        max_duration = max(max_duration, float(lastrow[xkey]))
+        min_value = min(min_value, float(lastrow[ykey]))
+      except:
+        log.exception("failed computing score")
+
+    scores = list()
+
+    for label in labels:
+      try:
+        dr = csv.DictReader(open(os.path.join(directory,label+"_percentiles.dat")), delimiter=' ', lineterminator='\n')
+        score = 0.0
+        lastsec = 0.0
+        value = float('inf')
+        for row in dr:
+          duration = float(row[xkey]) - lastsec
+          lastsec = float(row[xkey])
+          value = float(row[ykey])
+          score += duration * (value - min_value)
+        score += (factor*max_duration - lastsec) * (value - min_value)
+        scores.append((score, label))
+      except:
+        log.exception("failed computing score")
+
+    return sorted(scores)
+
 
   def combined_stats_over_time(self,
                                output_dir,
@@ -126,16 +187,16 @@ class StatsMain(object):
           sec = quanta*self.args.stats_quanta
           out.writerow([sec] + value_function(values))
 
-    data_file('_details.dat',
-              map(lambda x: 'run%d'%x, xrange(max_len)),
-              list)
-    self.gnuplot_file(output_dir,
-                      label+'_details',
-                      [('"'+label+'_details.dat"'
-                        ' using 1:%d'%i +
-                        ' with lines'
-                        ' title "Run %d"'%i)
-                       for i in xrange(max_len)])
+   #data_file('_details.dat',
+   #          map(lambda x: 'run%d'%x, xrange(max_len)),
+   #          list)
+   #self.gnuplot_file(output_dir,
+   #                  label+'_details',
+   #                  [('"'+label+'_details.dat"'
+   #                    ' using 1:%d'%i +
+   #                    ' with lines'
+   #                    ' title "Run %d"'%i)
+   #                   for i in xrange(max_len)])
 
     data_file('_mean.dat',
               ['#sec', 'mean', 'stddev'],
@@ -146,8 +207,9 @@ class StatsMain(object):
 
     def extract_percentiles(values):
       values = sorted(values)
-      return [values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
-    data_file("_percentiles.dat", PCTSTEPS, extract_percentiles)
+      return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
+             + [mean(values)])
+    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
     self.gnuplot_file(output_dir,
                       label+'_percentiles',
                       reversed([
@@ -178,7 +240,7 @@ class StatsMain(object):
       print >>fd, 'set output "%s"' % (prefix+'.pdf')
       print >>fd, 'set ylabel "Execution Time (seconds)"'
       print >>fd, 'set xlabel "Autotuning Time (seconds)"'
-      print >>fd, 'plot', ','.join(plotcmd)
+      print >>fd, 'plot', ',\\\n'.join(plotcmd)
     subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir)
 
 
