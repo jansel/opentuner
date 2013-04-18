@@ -108,9 +108,6 @@ if __name__ == '__main__':
                       help="time limit to apply to initial test")
   args = parser.parse_args()
 
-  if not args.database:
-    args.database = 'sqlite:///' + args.program + '.db'
-
   if not args.program_cfg_default:
     args.program_cfg_default = args.program + '.cfg.default'
 

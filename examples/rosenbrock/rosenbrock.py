@@ -67,9 +67,6 @@ class Rosenbrock(MeasurementInterface):
 
 def main(args):
   logging.basicConfig(level=logging.INFO)
-  if not args.database:
-    args.database = 'sqlite:///rosenbrock.db'
-
 
   if args.function == 'beale':
     # fixed for this function

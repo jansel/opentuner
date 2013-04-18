@@ -1,3 +1,4 @@
+argparse
 fn
 mysql-python
 psycopg2

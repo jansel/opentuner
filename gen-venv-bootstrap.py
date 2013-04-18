@@ -17,9 +17,9 @@ def adjust_options(options, args):
 def after_install(options, home_dir):
   from os.path import join
   pip = join(home_dir, 'bin', 'pip')
-  subprocess.call([pip, 'install'] + pip_install_packages)
-# for prog in pip_install_packages:
-#   subprocess.call([pip, 'install', prog])
+  #subprocess.call([pip, 'install'] + pip_install_packages)
+  for prog in pip_install_packages:
+    subprocess.call([pip, 'install', prog])
 
 '''
 

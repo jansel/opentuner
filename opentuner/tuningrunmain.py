@@ -1,7 +1,9 @@
-import logging
 import argparse
-from datetime import datetime
+import logging
+import os
+import socket
 import time
+from datetime import datetime
 
 from opentuner import resultsdb
 from opentuner.search.driver import SearchDriver
@@ -28,7 +30,10 @@ class TuningRunMain(object):
                measurement_driver = MeasurementDriver):
 
     if not args.database:
-      args.database = 'sqlite://' #in memory
+      #args.database = 'sqlite://' #in memory
+      if not os.path.isdir('opentuner.db'):
+        os.mkdir('opentuner.db')
+      args.database = 'sqlite:///'+os.path.join('opentuner.db', socket.gethostname())
 
     if not args.label:
       args.label = 'unnamed'
