@@ -77,12 +77,10 @@ class GreedySelectionMixin(object):
   '''
   def select(self):
     '''return a single random parent configuration'''
-    try:
-      best_result = (self.driver.results_query(objective_ordered = True)
-                                .limit(1)
-                                .one())
+    best_result = self.driver.results_query(objective_ordered = True).first()
+    if best_result is not None:
       return best_result.configuration.data
-    except:
+    else:
       return self.manipulator.random()
 
 class GreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):

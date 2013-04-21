@@ -69,9 +69,8 @@ class MeasurementDriver(DriverBase):
 
   def run_time_limit(self, desired_result, default = 3600.0*24*365*10):
     '''return a time limit to apply to a test run (in seconds)'''
-    try:
-      best = self.results_query(objective_ordered = True).limit(1).one()
-    except NoResultFound:
+    best = self.results_query(objective_ordered = True).first()
+    if best is None:
       if desired_result.limit:
         return desired_result.limit
       else:
@@ -138,7 +137,7 @@ class MeasurementDriver(DriverBase):
         desired_result.start_date = datetime.now()
         self.commit()
         return True
-    except SQLAlchemyError: 
+    except SQLAlchemyError:
       self.session.rollback()
     return False
 

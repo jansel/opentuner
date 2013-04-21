@@ -28,6 +28,9 @@ class InputManager(object):
     '''hook called after an input is used'''
     pass
 
+  def get_input_class(self):
+    return None
+
 class FixedInputManager(InputManager):
   '''
   an input manage that produces a single input for all tests
@@ -44,13 +47,16 @@ class FixedInputManager(InputManager):
     self.the_input = None
     super(FixedInputManager, self).__init__()
 
+
+  def get_input_class(self):
+    return InputClass.get(self.session,
+                          program = self.program,
+                          name    = self.input_class_name,
+                          size    = self.size)
+
   def create_input(self, desired_result):
     '''create the fixed input database object, result will be cached'''
-    input_class = InputClass.get(self.session,
-                                 program = self.program,
-                                 name    = self.input_class_name,
-                                 size    = self.size)
-    return Input(input_class = input_class,
+    return Input(input_class = self.get_input_class(),
                  path        = self.path,
                  extra       = self.extra)
 
@@ -58,6 +64,7 @@ class FixedInputManager(InputManager):
     if self.the_input is None:
       self.the_input = self.create_input(desired_result)
     return self.the_input
+
 
 
 

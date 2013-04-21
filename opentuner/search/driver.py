@@ -94,12 +94,13 @@ class SearchDriver(DriverBase):
       if dr is None:
         break
       self.session.flush() # populate configuration_id
-      duplicates = list(self.session.query(DesiredResult)
+      duplicates = (self.session.query(DesiredResult)
                             .filter_by(tuning_run=self.tuning_run,
                                        configuration_id=dr.configuration_id)
                             .filter(DesiredResult.id != dr.id)
                             .order_by('request_date')
-                            .limit(1))
+                            .limit(1)
+                            .all())
       self.session.add(dr)
       if len(duplicates):
         log.warning("duplicate configuration request %d %s",
@@ -108,8 +109,7 @@ class SearchDriver(DriverBase):
         self.session.flush()
         desired_result_id = dr.id
         def callback(result):
-          dr = (self.session.query(DesiredResult)
-               .filter_by(id=desired_result_id).one())
+          dr = self.session.query(DesiredResult).get(desired_result_id)
           dr.result     = result
           dr.state      = 'COMPLETE'
           dr.start_date = datetime.now()
@@ -139,7 +139,6 @@ class SearchDriver(DriverBase):
         self.plugin_proxy.on_new_best_result(result)
       else:
         result.was_new_best = False
-      self.session.add(result)
 
     self.result_callbacks()
 

@@ -139,8 +139,16 @@ class Input(Base):
   extra          = Column(PickleType)
 
 class TuningRun(Base):
+  uuid = Column(String(32), index=True, unique=True)
+
   program_version_id = Column(ForeignKey(ProgramVersion.id))
   program_version    = relationship(ProgramVersion, backref='tuning_runs')
+
+  machine_class_id = Column(ForeignKey(MachineClass.id))
+  machine_class    = relationship(MachineClass, backref='tuning_runs')
+
+  input_class_id = Column(ForeignKey(InputClass.id))
+  input_class    = relationship(InputClass, backref='tuning_runs')
 
   name       = Column(String(128), default='unnamed')
   args       = Column(PickleType)
@@ -150,6 +158,8 @@ class TuningRun(Base):
                             default = 'QUEUED')
   start_date = Column(DateTime, default=func.now())
   end_date   = Column(DateTime)
+
+  #__mapper_args__ = {'primary_key': uuid}
 
   @property
   def program(self):

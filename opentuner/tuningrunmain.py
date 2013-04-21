@@ -3,6 +3,7 @@ import logging
 import os
 import socket
 import time
+import uuid
 from datetime import datetime
 
 from opentuner import resultsdb
@@ -61,6 +62,7 @@ class TuningRunMain(object):
       self.session.flush()
       self.tuning_run  = (
         resultsdb.models.TuningRun(
+          uuid            = uuid.uuid4().hex,
           name            = self.args.label,
           args            = self.args,
           start_date      = datetime.now(),
@@ -84,6 +86,9 @@ class TuningRunMain(object):
       self.measurement_driver = self.measurement_driver_cls(**driver_kwargs)
       self.measurement_interface.set_driver(self.measurement_driver)
       self.input_manager.set_driver(self.measurement_driver)
+
+      self.tuning_run.machine_class = self.measurement_driver.get_machine_class()
+      self.tuning_run.input_class = self.input_manager.get_input_class()
 
   def commit(self, force = False):
     if force or not self.fake_commit:

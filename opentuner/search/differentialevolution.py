@@ -28,10 +28,12 @@ class DifferentialEvolution(SearchTechnique):
                population_size=30,
                cr=0.9, # crossover rate
                n_cross=1, # force at least 1 to crossover
+               information_sharing=1, # number token sharing pop members
               ):
     self.population_size = population_size
     self.cr = cr
     self.n_cross = n_cross
+    self.information_sharing = information_sharing
     self.population = None
     super(DifferentialEvolution, self).__init__()
 
@@ -79,6 +81,12 @@ class DifferentialEvolution(SearchTechnique):
 
     # pick 3 random parents, not pp
     shuffled_pop = list(set(self.population) - set([pp]))
+
+    # share information with other techniques
+    if self.driver.best_result:
+      shuffled_pop += ([PopulationMember(self.driver.best_result.configuration)]
+                       * self.information_sharing)
+
     random.shuffle(shuffled_pop)
     x1, x2, x3 = map(_.config.data, shuffled_pop[0:3])
 
