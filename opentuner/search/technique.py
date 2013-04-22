@@ -109,6 +109,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
     super(MetaSearchTechnique, self).set_driver(driver)
     for t in self.techniques:
       t.set_driver(driver)
+    self.driver = driver
 
   def desired_result(self):
     return self.select_technique().desired_result()
@@ -236,7 +237,10 @@ def get_enabled(args):
     sys.exit(0)
 
   if not args.technique:
-    args.technique = ['DifferentialEvolution']
+    args.technique = ['DifferentialEvolution',
+                      'RightTorczon',
+                      'GreedyMutation',
+                      'RightTorczon']
 
   for unknown in set(args.technique) - set(map(_.name, techniques)):
     log.error("unknown technique %s", unknown)
@@ -244,5 +248,7 @@ def get_enabled(args):
   return [t for t in techniques if t.name in args.technique]
 
 def get_root(args):
-  return RoundRobinMetaSearchTechnique(get_enabled(args))
+  from bandittechniques import AUCBanditMetaTechnique
+  #RoundRobinMetaSearchTechnique
+  return AUCBanditMetaTechnique(get_enabled(args))
 
