@@ -131,7 +131,7 @@ class FileDisplayPlugin(SearchPlugin):
 def get_enabled(args):
   plugins = []
   if not args.quiet:
-    plugins.append(LogDisplayPlugin(30))
+    plugins.append(LogDisplayPlugin(10))
   if args.results_log:
     plugins.append(FileDisplayPlugin(args.results_log,
                                      args.results_log_details))

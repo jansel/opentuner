@@ -21,12 +21,15 @@ class SearchTechniqueBase(object):
   '''
   __metaclass__ = abc.ABCMeta
 
+  def __init__(self):
+    super(SearchTechniqueBase, self).__init__()
+    self.name = self.default_name()
+
   def is_ready(self):
     '''test if enough data has been gathered to use this technique'''
     return True
 
-  @property
-  def name(self):
+  def default_name(self):
     '''name of this SearchTechnique uses for display/accounting'''
     return self.__class__.__name__
 
@@ -57,6 +60,7 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
     self.driver      = None
     self.manipulator = None
     self.objective   = None
+    self.request_count = 0
 
   def set_driver(self, driver):
     super(SearchTechnique, self).set_driver(driver)
@@ -83,6 +87,7 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
     if hasattr(self, 'limit'):
       desired.limit = self.limit
     self.driver.register_result_callback(desired, self.handle_requested_result)
+    self.request_count += 1
     return desired
 
   @abc.abstractmethod
@@ -96,39 +101,6 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
   def handle_requested_result(self, result):
     '''called for each new Result(), regardless of who requested it'''
     pass
-
-class MetaSearchTechnique(SearchTechniqueBase):
-  '''
-  a technique made up of a collection of other techniques
-  '''
-  def __init__(self, techniques):
-    super(MetaSearchTechnique, self).__init__()
-    self.techniques = techniques
-
-  def set_driver(self, driver):
-    super(MetaSearchTechnique, self).set_driver(driver)
-    for t in self.techniques:
-      t.set_driver(driver)
-    self.driver = driver
-
-  def desired_result(self):
-    return self.select_technique().desired_result()
-
-  @abc.abstractmethod
-  def select_technique(self):
-    '''select the next technique to use'''
-    pass
-
-class RoundRobinMetaSearchTechnique(MetaSearchTechnique):
-  '''evenly switch between all source techniques'''
-  def __init__(self, techniques):
-    super(RoundRobinMetaSearchTechnique, self).__init__(techniques)
-    self.idx = 0
-
-  def select_technique(self):
-    i = self.idx
-    self.idx = (i+1) % len(self.techniques)
-    return self.techniques[i]
 
 class PureRandom(SearchTechnique):
   '''
@@ -222,9 +194,11 @@ def all_techniques(args):
      simplextechniques.RandomNelderMead(),
      simplextechniques.RegularNelderMead(),
      simplextechniques.RightNelderMead(),
+     simplextechniques.MultiNelderMead(),
      simplextechniques.RandomTorczon(),
      simplextechniques.RegularTorczon(),
      simplextechniques.RightTorczon(),
+     simplextechniques.MultiTorczon(),
      differentialevolution.DifferentialEvolution(),
      differentialevolution.DifferentialEvolutionAlt(),
     ]
@@ -238,9 +212,9 @@ def get_enabled(args):
 
   if not args.technique:
     args.technique = ['DifferentialEvolution',
-                      'RightTorczon',
+                      'MultiNelderMead',
                       'GreedyMutation',
-                      'RightTorczon']
+                      'MultiTorczon']
 
   for unknown in set(args.technique) - set(map(_.name, techniques)):
     log.error("unknown technique %s", unknown)

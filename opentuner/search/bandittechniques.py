@@ -6,17 +6,17 @@ import random
 from collections import deque, defaultdict
 from fn import _
 
-from .technique import MetaSearchTechnique
+from .metatechniques import MetaSearchTechnique
 
 log = logging.getLogger(__name__)
 
 class BanditMetaTechnique(MetaSearchTechnique):
-  def __init__(self, techniques, C=0.5, window=100):
+  def __init__(self, techniques, C=0.5, window=100, **kwargs):
     '''
     C is exploration/exploitation tradeoff
     window is how long to remember past results
     '''
-    super(BanditMetaTechnique, self).__init__(techniques)
+    super(BanditMetaTechnique, self).__init__(techniques, **kwargs)
     self.window = window
     self.C = C
     self.history = deque(maxlen=window) #will drop >window elements
@@ -43,11 +43,12 @@ class BanditMetaTechnique(MetaSearchTechnique):
     return (self.exploitation_term(technique) +
             self.C * self.exploration_term(technique))
 
-  def select_technique(self):
-    return self.select_technique_orcer()[0]
-
   def select_technique_order(self):
     '''select the next technique to use'''
+
+    if len(self.techniques) <= 1:
+      # no choices
+      return self.techniques
 
     # refresh technique_use_counts
     self.technique_use_counts = defaultdict(int)
@@ -59,18 +60,8 @@ class BanditMetaTechnique(MetaSearchTechnique):
     techniques.sort(key=self.bandit_score)
     return reversed(techniques)
 
-  def desired_result(self):
-    techniques = self.select_technique_order()
-    for technique in techniques:
-      dr = technique.desired_result()
-      if dr is not None:
-        def _callback(result):
-          self.history.append((technique, result))
-          assert len(self.history) <= self.window
-        # add results to history when they are ready
-        self.driver.register_result_callback(dr, _callback)
-        return dr
-    return None
+  def on_technique_result(self, technique, result):
+    self.history.append((technique, result))
 
 class AUCBanditMetaTechnique(BanditMetaTechnique):
   '''

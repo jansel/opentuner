@@ -80,7 +80,7 @@ class SearchDriver(DriverBase):
         # try again later
         self.pending_result_callbacks.append((dr, callback))
     if len(self.pending_result_callbacks):
-      log.warning("%d result callbacks still pending",
+      log.debug("%d result callbacks still pending",
                   len(self.pending_result_callbacks))
 
   def has_results(self, config):

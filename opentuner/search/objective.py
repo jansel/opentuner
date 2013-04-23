@@ -8,6 +8,7 @@ from opentuner.resultsdb.models import *
 
 log = logging.getLogger(__name__)
 
+
 class SearchObjective(object):
   '''
   delegates the comparison of results and configurations
@@ -70,6 +71,25 @@ class SearchObjective(object):
     a time limit to kill a result after such that it can be compared to config
     '''
     return max(map(_.time, self.driver.results_query(config=config)))
+
+
+  def project_compare(self, a1, a2, b1, b2, factor=1.0):
+    '''
+    linearly project both a and b forward to see how they will compare in the
+    future
+    '''
+    a3 = Result()
+    b3 = Result()
+    a3.time       = _project(a1.time,       a2.time,       factor)
+    a3.accuracy   = _project(a1.accuracy,   a2.accuracy,   factor)
+    a3.energy     = _project(a1.energy,     a2.energy,     factor)
+    a3.confidence = _project(a1.confidence, a2.confidence, factor)
+    return self.result_compare(a3, b3)
+
+def _project(a1, a2, factor):
+  if a1 is None or a2 is None:
+    return None
+  return a2 + factor*(a2-a1)
 
 class MinimizeTime(SearchObjective):
   '''

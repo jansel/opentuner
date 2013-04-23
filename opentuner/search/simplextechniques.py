@@ -10,6 +10,7 @@ from fn.iters import map, filter, repeat
 from opentuner.resultsdb.models import *
 from .technique import SequentialSearchTechnique
 from .manipulator import Parameter
+from .metatechniques import RecyclingMetaTechnique
 
 log = logging.getLogger(__name__)
 
@@ -20,11 +21,12 @@ class SimplexTechnique(SequentialSearchTechnique):
   to simplex type methods
   '''
 
-  def __init__(self, *args, **kwargs):
-    self.simplex_points = []
-    self.last_simplex_points = None
-    self.centroid = None
+  def __init__(self, seed_cfg = None, *args, **kwargs):
     super(SimplexTechnique, self).__init__(*args, **kwargs)
+    self.centroid = None
+    self.last_simplex_points = None
+    self.seed_cfg = seed_cfg
+    self.simplex_points = []
 
   def calculate_centroid(self):
     '''
@@ -75,25 +77,20 @@ class SimplexTechnique(SequentialSearchTechnique):
     self.last_simplex_points = list(self.simplex_points)
     return False
 
+  def initial_simplex_seed(self):
+    '''
+    return a point to base the initial simplex on
+    '''
+    if self.seed_cfg is not None:
+      return self.seed_cfg
+    return self.manipulator.random()
+
   @abc.abstractmethod
   def initial_simplex(self):
     '''
     return a initial list of configurations
     '''
     return []
-
-  @abc.abstractmethod
-  def initial_simplex_seed(self):
-    '''
-    return a point to base the initial simplex on
-    '''
-    return
-
-
-class RandomSeedMixin(object):
-  '''start the simplex in a random location'''
-  def initial_simplex_seed(self):
-    return self.manipulator.random()
 
 class RandomInitialMixin(object):
   '''
@@ -380,10 +377,32 @@ class Torczon(SimplexTechnique):
   def expanded_simplex(self):   return self.scaled_simplex(self.gamma)
   def contracted_simplex(self): return self.scaled_simplex(-self.beta)
 
-class RandomNelderMead (RandomInitialMixin,  RandomSeedMixin, NelderMead): pass
-class RightNelderMead  (RightInitialMixin,   RandomSeedMixin, NelderMead): pass
-class RegularNelderMead(RegularInitialMixin, RandomSeedMixin, NelderMead): pass
-class RandomTorczon    (RandomInitialMixin,  RandomSeedMixin, Torczon):    pass
-class RightTorczon     (RightInitialMixin,   RandomSeedMixin, Torczon):    pass
-class RegularTorczon   (RegularInitialMixin, RandomSeedMixin, Torczon):    pass
+class RandomNelderMead (RandomInitialMixin,  NelderMead): pass
+class RightNelderMead  (RightInitialMixin,   NelderMead): pass
+class RegularNelderMead(RegularInitialMixin, NelderMead): pass
+class RandomTorczon    (RandomInitialMixin,  Torczon):    pass
+class RightTorczon     (RightInitialMixin,   Torczon):    pass
+class RegularTorczon   (RegularInitialMixin, Torczon):    pass
+
+class MultiNelderMead(RecyclingMetaTechnique):
+  def __init__(self):
+    super(MultiNelderMead, self).__init__([
+        RightNelderMead,
+        RandomNelderMead,
+        RegularNelderMead]
+      )
+
+class MultiTorczon(RecyclingMetaTechnique):
+  def __init__(self):
+    super(MultiTorczon, self).__init__([
+        RightTorczon,
+        RandomTorczon,
+        RegularTorczon]
+      )
+
+
+
+
+
+
 
