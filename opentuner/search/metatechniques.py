@@ -18,6 +18,15 @@ class MetaSearchTechnique(SearchTechniqueBase):
     self.request_count = 0
     self.log_freq = log_freq
     self.logging_use_counters = defaultdict(int)
+    self.unique_names()
+
+  def unique_names(self):
+    names = set()
+    for t in self.techniques:
+      while t.name in names:
+        t.name += '~'
+      t.name = intern(t.name)
+      names.add(t.name)
 
   def set_driver(self, driver):
     super(MetaSearchTechnique, self).set_driver(driver)
@@ -32,8 +41,9 @@ class MetaSearchTechnique(SearchTechniqueBase):
       if dr is not None:
         self.driver.register_result_callback(dr,
             lambda result: self.on_technique_result(technique, result))
-        self.logging_use_counters[technique.name] += 1
-        self.debug_log()
+        if self.log_freq:
+          self.logging_use_counters[technique.name] += 1
+          self.debug_log()
         self.request_count += 1
         return dr
     return None
@@ -74,17 +84,19 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
                window = 100,
                factor = 5.0,
                **kwargs):
+    if 'log_freq' not in kwargs:
+      kwargs['log_freq'] = None
     techniques = deque((g(seed_cfg = None) for g in techniques_generators))
-    super(RecyclingMetaTechnique, self).__init__(techniques, **kwargs)
-    self.window = window
-    self.technique_generators = deque(techniques_generators)
     self.rename_i = 0
-    self.last_check = 0
-    self.factor = factor
-    self.best_results = defaultdict(lambda: None)
-    self.old_best_results = defaultdict(lambda: None)
-    for t in self.techniques:
+    for t in techniques:
       self.rename_technique(t)
+    super(RecyclingMetaTechnique, self).__init__(techniques, **kwargs)
+    self.best_results = defaultdict(lambda: None)
+    self.factor = factor
+    self.last_check = 0
+    self.old_best_results = defaultdict(lambda: None)
+    self.technique_generators = deque(techniques_generators)
+    self.window = window
 
   def rename_technique(self, technique):
     technique.name += ".R%d" % self.rename_i
@@ -97,17 +109,26 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
       self.best_results[technique] = result
 
   def technique_cmp(self, a, b):
-    a1 = self.old_best_results[a]
-    a2 = self.best_results[a]
-    b1 = self.old_best_results[b]
-    b2 = self.best_results[b]
-    if a1 is None and b1 is None:
+  # a1 = self.old_best_results[a]
+  # a2 = self.best_results[a]
+  # b1 = self.old_best_results[b]
+  # b2 = self.best_results[b]
+  # if a1 is None and b1 is None:
+  #   return 0
+  # if a1 is None:
+  #   return -1
+  # if b1 is None:
+  #   return 1
+  # return self.driver.objective.project_compare(a1, a2, b1, b2, self.factor)
+    a = self.best_results[a]
+    b = self.best_results[b]
+    if a is None and b is None:
       return 0
-    if a1 is None:
+    if a is None:
       return -1
-    if b1 is None:
+    if b is None:
       return 1
-    return self.driver.objective.project_compare(a1, a2, b1, b2, self.factor)
+    return self.driver.objective.compare(a, b)
 
   def recycle_techniques(self):
     techniques = list(self.techniques)
@@ -124,18 +145,19 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
         and self.driver.objective.lt(self.driver.best_result,
                                      self.best_results[worst])):
       techniques_new = deque()
+      tn = None
       for t, gen in zip(self.techniques, self.technique_generators):
         if t is worst:
           tn = gen(seed_cfg=self.driver.best_result.configuration.data)
           self.rename_technique(tn)
           tn.set_driver(self.driver)
-          log.info("replacing %s with %s", t.name, tn.name)
+          log.info("%s replacing %s with %s", self.name, t.name, tn.name)
           techniques_new.append(tn)
         else:
           techniques_new.append(t)
       self.techniques = techniques_new
     else:
-      log.info("not replacing techniques")
+      log.debug("%s: not replacing techniques", self.name)
 
     self.old_best_results = self.best_results
     self.best_results = defaultdict(lambda: None)
@@ -143,6 +165,9 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
       self.best_results[t] = self.old_best_results[t]
 
   def select_technique_order(self):
+    """
+    round robin between techniques
+    """
     if self.last_check + self.window < self.request_count:
       self.last_check = self.request_count
       self.recycle_techniques()
@@ -150,5 +175,4 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
     self.techniques.rotate(1)
     self.technique_generators.rotate(1)
     return rv
-
 

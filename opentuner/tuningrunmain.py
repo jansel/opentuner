@@ -34,7 +34,10 @@ class TuningRunMain(object):
       #args.database = 'sqlite://' #in memory
       if not os.path.isdir('opentuner.db'):
         os.mkdir('opentuner.db')
-      args.database = 'sqlite:///'+os.path.join('opentuner.db', socket.gethostname())
+      args.database = 'sqlite:///'+os.path.join('opentuner.db', socket.gethostname()+'.db')
+
+    if '://' not in args.database:
+      args.database = 'sqlite:///'+args.database
 
     if not args.label:
       args.label = 'unnamed'

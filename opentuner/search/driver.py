@@ -70,7 +70,7 @@ class SearchDriver(DriverBase):
     else:
       self.pending_result_callbacks.append((desired_result, callback))
 
-  def result_callbacks(self):
+  def result_callbacks(self, max_rounds = 3):
     pending = self.pending_result_callbacks
     self.pending_result_callbacks = list()
     for dr, callback in pending:
@@ -79,8 +79,13 @@ class SearchDriver(DriverBase):
       else:
         # try again later
         self.pending_result_callbacks.append((dr, callback))
-    if len(self.pending_result_callbacks):
-      log.debug("%d result callbacks still pending",
+
+    if (len(self.pending_result_callbacks)>0 and
+        len(self.pending_result_callbacks)<len(pending) and
+        max_rounds > 1):
+      return self.result_callbacks(max_rounds - 1)
+    elif len(self.pending_result_callbacks):
+      log.warning("%d result callbacks still pending",
                   len(self.pending_result_callbacks))
 
   def has_results(self, config):
@@ -103,9 +108,11 @@ class SearchDriver(DriverBase):
                             .all())
       self.session.add(dr)
       if len(duplicates):
-        log.warning("duplicate configuration request %d %s",
+        log.warning("duplicate configuration request #%d %s/%s %s",
                     self.test_count,
-                    str(duplicates[0].result))
+                    dr.requestor,
+                    duplicates[0].requestor,
+                    'OLD' if duplicates[0].result else 'PENDING')
         self.session.flush()
         desired_result_id = dr.id
         def callback(result):

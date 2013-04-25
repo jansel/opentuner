@@ -10,60 +10,68 @@ from .metatechniques import MetaSearchTechnique
 
 log = logging.getLogger(__name__)
 
-class BanditMetaTechnique(MetaSearchTechnique):
-  def __init__(self, techniques, C=0.5, window=100, **kwargs):
+class BanditQueue(object):
+  def __init__(self, keys, C=0.05, window=500, **kwargs):
     '''
     C is exploration/exploitation tradeoff
     window is how long to remember past results
     '''
-    super(BanditMetaTechnique, self).__init__(techniques, **kwargs)
-    self.window = window
+    super(BanditQueue, self).__init__(**kwargs)
     self.C = C
-    self.history = deque(maxlen=window) #will drop >window elements
-    self.technique_use_counts = None
+    self.history = deque()
+    self.keys = keys
+    self.use_counts = dict(((k, 0) for k in keys))
+    self.window = window
 
   @abc.abstractmethod
-  def exploitation_term(self, technique):
+  def exploitation_term(self, key):
     '''
     value 0 to 1.0 to represent quality of technique
     '''
     return 0.0
 
-  def exploration_term(self, technique):
+  def exploration_term(self, key):
     '''
     value represent how unsure we are (optimal bandit solution)
     '''
-    if technique in self.technique_use_counts:
+    if self.use_counts[key] > 0:
       return math.sqrt( (2.0 * math.log(len(self.history), 2.0))
-                      / self.technique_use_counts[technique])
+                      / self.use_counts[key])
     else:
       return float('inf')
 
-  def bandit_score(self, technique):
-    return (self.exploitation_term(technique) +
-            self.C * self.exploration_term(technique))
+  def bandit_score(self, key):
+    return (self.exploitation_term(key) +
+            self.C * self.exploration_term(key))
 
-  def select_technique_order(self):
+  def ordered_keys(self):
     '''select the next technique to use'''
 
-    if len(self.techniques) <= 1:
-      # no choices
-      return self.techniques
+    keys = list(self.keys)
+    random.shuffle(keys) #break ties randomly
+    keys.sort(key=self.bandit_score)
 
-    # refresh technique_use_counts
-    self.technique_use_counts = defaultdict(int)
-    for t, result in self.history:
-      self.technique_use_counts[t] += 1
+    if log.isEnabledFor(logging.DEBUG) and (self.request_count % 1000) == 0:
+      log.debug(str([
+          (t.name, self.exploitation_term(t), self.C*self.exploration_term(t))
+          for t in keys
+        ]))
 
-    techniques = list(self.techniques)
-    random.shuffle(techniques) #break ties randomly
-    techniques.sort(key=self.bandit_score)
-    return reversed(techniques)
+    return reversed(keys)
 
-  def on_technique_result(self, technique, result):
-    self.history.append((technique, result))
+  def on_result(self, key, value):
+    self.history.append((key, value))
+    self.on_push_history(key, value)
+    if len(self.history) > self.window:
+      self.on_pop_history(*self.history.popleft())
 
-class AUCBanditMetaTechnique(BanditMetaTechnique):
+  def on_push_history(self, key, value):
+    self.use_counts[key] += 1
+
+  def on_pop_history(self, key, value):
+    self.use_counts[key] -= 1
+
+class AUCBanditQueue(BanditQueue):
   '''
   Area Under the Receiving Operator Curve (AUC) credit assignment
 
@@ -71,18 +79,76 @@ class AUCBanditMetaTechnique(BanditMetaTechnique):
   Comparison-based adaptive strategy selection with bandits in differential
   evolution. Fialho et al.
   '''
-  def exploitation_term(self, technique):
+
+  def __init__(self, *args, **kwargs):
+    super(AUCBanditQueue, self).__init__(*args, **kwargs)
+    self.debug = kwargs.get('debug', False)
+    self.auc_sum   = dict(((t, 0) for t in self.keys))
+    self.auc_decay = dict(((t, 0) for t in self.keys))
+
+  def exploitation_term_slow(self, key):
     '''
-    value 0 to 1.0 to represent quality of technique
+    value 0 to 1.0 to represent quality of key
+
+    computes the area under the curve where finding a new
+    global best results in adding 1 to a cumulative total
     '''
     score = 0.0
     pos = 0
-    for t, result in self.history:
-      pos += 1
-      if t is technique and result.was_new_best:
-        score += pos
+    for t, value in self.history:
+      if t is key:
+        pos += 1
+        if value:
+          score += pos
     if pos:
       return score * 2.0 / (pos * (pos + 1.0))
     else:
       return 0.0
+
+  def exploitation_term_fast(self, key):
+    '''
+    value 0 to 1.0 to represent quality of key
+
+    optimized O(1) implementation exploitation_term_slow()
+    '''
+    score = self.auc_sum[key]
+    pos = self.use_counts[key]
+    if pos:
+      return score * 2.0 / (pos * (pos + 1.0))
+    else:
+      return 0.0
+
+  def exploitation_term(self, key):
+    v1 = self.exploitation_term_fast(key)
+    if self.debug:
+      v2 = self.exploitation_term_slow(key)
+      assert v1 == v2
+    return v1
+
+  def on_push_history(self, key, value):
+    super(AUCBanditQueue, self).on_push_history(key, value)
+    if value:
+      self.auc_sum[key] += self.use_counts[key]
+      self.auc_decay[key] += 1
+
+  def on_pop_history(self, key, value):
+    super(AUCBanditQueue, self).on_pop_history(key, value)
+    self.auc_sum[key] -= self.auc_decay[key]
+    if value:
+      self.auc_decay[key] -= 1
+
+
+
+class AUCBanditMetaTechnique(MetaSearchTechnique):
+  def __init__(self, techniques, bandit_kwargs=dict(), **kwargs):
+    super(AUCBanditMetaTechnique, self).__init__(techniques, **kwargs)
+    self.bandit = AUCBanditQueue([t.name for t in techniques], **bandit_kwargs)
+    self.name_to_technique = dict(((t.name, t) for t in self.techniques))
+
+  def select_technique_order(self):
+    '''select the next technique to use'''
+    return (self.name_to_technique[k] for k in self.bandit.ordered_keys())
+
+  def on_technique_result(self, technique, result):
+    self.bandit.on_result(technique.name, result.was_new_best)
 
