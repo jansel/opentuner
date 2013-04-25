@@ -25,6 +25,7 @@ argparser.add_argument('--stats-quanta', type=float, default=10,
                        help="step size in seconds for binning with --stats")
 argparser.add_argument('--stats-dir', default='stats',
                        help="directory to output --stats to")
+argparser.add_argument('--stats-input', default="opentuner.db")
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
@@ -69,32 +70,36 @@ def run_dir(base, tr):
                       tr.program_version.version[:16])
 
 class StatsMain(object):
-  def __init__(self, measurement_interface, session, args):
+  def __init__(self, measurement_interface, args):
     self.args = args
-    self.session = session
+    path = args.stats_input
+    self.dbs = list()
+    for f in os.listdir(path):
+      e, sm = resultsdb.connect('sqlite:///'+os.path.join(path, f))
+      self.dbs.append(sm())
     self.measurement_interface = measurement_interface
 
   def main(self):
-    q = (self.session.query(resultsdb.models.TuningRun)
-        .filter_by(state='COMPLETE')
-        .order_by('name'))
-
-    if self.args.label:
-      q = q.filter(TuningRun.name.in_(
-        map(str.strip,self.args.label.split(','))))
-
-
     runs = defaultdict(list)
-    for tr in q:
-      runs[run_name(tr)].append(tr)
+    for session in self.dbs:
+      q = (session.query(resultsdb.models.TuningRun)
+          .filter_by(state='COMPLETE')
+          .order_by('name'))
+
+      if self.args.label:
+        q = q.filter(TuningRun.name.in_(
+          map(str.strip,self.args.label.split(','))))
+
+      for tr in q:
+        runs[run_name(tr)].append((tr, session))
 
     dir_to_plots = defaultdict(list)
     for k, runs in runs.iteritems():
-      log.info('%s has %d runs %s', k, len(runs), runs[0].args.technique)
-      d = run_dir(self.args.stats_dir, runs[0])
+      log.info('%s has %d runs %s', k, len(runs), runs[0][0].args.technique)
+      d = run_dir(self.args.stats_dir, runs[0][0])
       if not os.path.isdir(d):
         os.makedirs(d)
-      label = run_label(runs[0])
+      label = run_label(runs[0][0])
       dir_to_plots[d].append(label)
       self.combined_stats_over_time(d, label, runs, _.result.time, min)
 
@@ -171,8 +176,8 @@ class StatsMain(object):
     '''
 
     log.info("writing stats for %s to %s", label, output_dir)
-    by_run = [self.stats_over_time(run, extract_fn, combine_fn, no_data)
-              for run in runs]
+    by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
+              for run, session in runs]
     max_len = max(map(len, by_run))
 
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
@@ -246,6 +251,7 @@ class StatsMain(object):
 
 
   def stats_over_time(self,
+                      session,
                       run,
                       extract_fn,
                       combine_fn,
@@ -257,10 +263,10 @@ class StatsMain(object):
     value_by_quanta = [ no_data ]
     start_date = run.start_date
 
-    subq = (self.session.query(Result.id)
+    subq = (session.query(Result.id)
            .filter_by(tuning_run = run, was_new_best = True))
 
-    q = (self.session.query(DesiredResult)
+    q = (session.query(DesiredResult)
          .join(Result)
          .filter(DesiredResult.state=='COMPLETE',
                  DesiredResult.tuning_run == run,

@@ -103,7 +103,6 @@ class TuningRunMain(object):
     if self.args.stats:
       import stats
       return stats.StatsMain(self.measurement_interface,
-                             self.session,
                              self.args).main()
 
     self.init()
