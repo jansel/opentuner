@@ -176,7 +176,12 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
             yield p
 
       # wait for all pending_tests to have results
+      c = 0
       while self.pending_tests:
+        c += 1
+        if (c % 100) == 0:
+          log.error("%s: still waiting for pending tests %d", self.name, c)
+
         self.pending_tests = filter(lambda x: not self.driver.has_results(x),
                                     self.pending_tests)
         if self.pending_tests:
@@ -184,23 +189,27 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
 
 
 def all_techniques(args):
+  from bandittechniques import AUCBanditMetaTechnique
   import evolutionarytechniques
   import differentialevolution
   import simplextechniques
   return [
      PureRandom(),
      evolutionarytechniques.GreedyMutation(),
-     simplextechniques.RandomTorczon(),
      simplextechniques.RandomNelderMead(),
-     simplextechniques.RegularNelderMead(),
+     #simplextechniques.RegularNelderMead(),
      simplextechniques.RightNelderMead(),
      simplextechniques.MultiNelderMead(),
      simplextechniques.RandomTorczon(),
-     simplextechniques.RegularTorczon(),
+     #simplextechniques.RegularTorczon(),
      simplextechniques.RightTorczon(),
      simplextechniques.MultiTorczon(),
      differentialevolution.DifferentialEvolution(),
      differentialevolution.DifferentialEvolutionAlt(),
+     AUCBanditMetaTechnique([differentialevolution.DifferentialEvolution(),
+                             simplextechniques.MultiNelderMead(),
+                             simplextechniques.MultiTorczon(),
+                             evolutionarytechniques.GreedyMutation()]),
     ]
 
 def get_enabled(args):
@@ -211,10 +220,7 @@ def get_enabled(args):
     sys.exit(0)
 
   if not args.technique:
-    args.technique = ['DifferentialEvolution',
-                      'MultiNelderMead',
-                      'GreedyMutation',
-                      'MultiTorczon']
+    args.technique = 'AUCBanditMetaTechnique'
 
   for unknown in set(args.technique) - set(map(_.name, techniques)):
     log.error("unknown technique %s", unknown)
@@ -222,7 +228,9 @@ def get_enabled(args):
   return [t for t in techniques if t.name in args.technique]
 
 def get_root(args):
-  from bandittechniques import AUCBanditMetaTechnique
-  #RoundRobinMetaSearchTechnique
-  return AUCBanditMetaTechnique(get_enabled(args))
+  from metatechniques import RoundRobinMetaSearchTechnique
+  enabled=get_enabled(args)
+  if len(enabled) == 1:
+    return enabled[0]
+  return RoundRobinMetaSearchTechnique(get_enabled(args))
 

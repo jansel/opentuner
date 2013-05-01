@@ -332,6 +332,9 @@ class Torczon(SimplexTechnique):
     self.simplex_points.sort(cmp=objective.compare)
 
     while not self.convergence_criterea():
+      # set limit from worst point
+      self.limit = objective.limit_from_config(self.simplex_points[-1])
+
       if log.isEnabledFor(logging.DEBUG):
         self.debug_log()
 
