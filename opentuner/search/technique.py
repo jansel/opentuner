@@ -8,6 +8,7 @@ from opentuner.resultsdb.models import *
 from plugin import SearchPlugin
 
 log = logging.getLogger(__name__)
+#log.setLevel(logging.DEBUG)
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--technique', action='append',
@@ -122,11 +123,13 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
 
   def desired_configuration(self):
     if self.gen is None:
+      log.debug("%s: creating generator", self.name)
       self.gen = self.call_main_generator()
     if not self.done:
       try:
         return self.gen.next()
       except StopIteration:
+        log.debug("%s: generator finished", self.name)
         self.done = True
     return None
 
@@ -148,8 +151,10 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     return not self.done
 
 class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
-  def __init__(self):
+  def __init__(self, novelty_threshold = 50):
     self.pending_tests = []
+    self.novelty_threshold = novelty_threshold
+    self.rounds_since_novel_request = 0
     super(SequentialSearchTechnique, self).__init__()
 
   def yield_nonblocking(self, cfg):
@@ -163,7 +168,13 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
   def call_main_generator(self):
     '''insert waits for results after every yielded item'''
     subgen = self.main_generator()
+    self.rounds_since_novel_request = 0
     while True:
+      self.rounds_since_novel_request += 1
+      if (self.rounds_since_novel_request % self.novelty_threshold) == 0:
+        log.warning("%s has not requested a new result for %d rounds",
+                    self.name, self.rounds_since_novel_request)
+        yield None # give other techniques a shot
       try:
         p = subgen.next()
         if p:
@@ -173,18 +184,23 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
       finally:
         for p in self.pending_tests:
           if not self.driver.has_results(p):
+            self.rounds_since_novel_request = 0
             yield p
 
       # wait for all pending_tests to have results
       c = 0
       while self.pending_tests:
+        log.debug("%s: waiting for %d pending tests",
+                  self.name, len(self.pending_tests))
         c += 1
         if (c % 100) == 0:
-          log.error("%s: still waiting for pending tests %d", self.name, c)
+          log.error("%s: still waiting for %d pending tests (c=%d)",
+                     self.name, len(self.pending_tests), c)
 
         self.pending_tests = filter(lambda x: not self.driver.has_results(x),
                                     self.pending_tests)
         if self.pending_tests:
+          self.rounds_since_novel_request = 0
           yield None # wait
 
 

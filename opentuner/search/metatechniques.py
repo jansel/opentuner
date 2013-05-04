@@ -120,6 +120,11 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
   # if b1 is None:
   #   return 1
   # return self.driver.objective.project_compare(a1, a2, b1, b2, self.factor)
+
+    # not ready techniques go to the back
+    if not a.is_ready() or not b.is_ready():
+      return cmp(b.is_ready(), a.is_ready())
+
     a = self.best_results[a]
     b = self.best_results[b]
     if a is None and b is None:
@@ -135,15 +140,10 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
     techniques.sort(cmp=self.technique_cmp)
     worst = techniques[-1]
 
-    if (self.old_best_results[worst] is not None
-      # and self.driver.objective.project_compare(
-      #                             self.driver.best_result,
-      #                             self.driver.best_result,
-      #                             self.old_best_results[worst],
-      #                             self.best_results[worst],
-      #                             self.factor) < 0):
-        and self.driver.objective.lt(self.driver.best_result,
-                                     self.best_results[worst])):
+    if (not worst.is_ready()
+        or (self.old_best_results[worst] is not None
+            and self.driver.objective.lt(self.driver.best_result,
+                                         self.best_results[worst]))):
       techniques_new = deque()
       tn = None
       for t, gen in zip(self.techniques, self.technique_generators):

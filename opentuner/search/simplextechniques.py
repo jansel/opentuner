@@ -13,6 +13,7 @@ from .manipulator import Parameter
 from .metatechniques import RecyclingMetaTechnique
 
 log = logging.getLogger(__name__)
+#log.setLevel(logging.DEBUG)
 
 
 class SimplexTechnique(SequentialSearchTechnique):
@@ -72,6 +73,8 @@ class SimplexTechnique(SequentialSearchTechnique):
 
   def convergence_criterea(self):
     '''True will cause the simplex method to stop'''
+    if self.rounds_since_novel_request > 3*len(self.simplex_points)+1:
+      return True
     if self.last_simplex_points == self.simplex_points:
       return True
     self.last_simplex_points = list(self.simplex_points)

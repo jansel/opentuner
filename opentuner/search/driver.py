@@ -11,6 +11,7 @@ import technique
 import plugin
 
 log = logging.getLogger(__name__)
+#log.setLevel(logging.DEBUG)
 
 
 argparser = argparse.ArgumentParser(add_help=False)
@@ -97,6 +98,7 @@ class SearchDriver(DriverBase):
     for z in xrange(self.args.parallelism):
       dr = self.root_technique.desired_result()
       if dr is None:
+        log.debug("no desired result, skipping to testing phase")
         break
       self.session.flush() # populate configuration_id
       duplicates = (self.session.query(DesiredResult)
@@ -122,6 +124,7 @@ class SearchDriver(DriverBase):
           dr.start_date = datetime.now()
         self.register_result_callback(duplicates[0], callback)
       else:
+        log.debug("desired result id=%d, cfg=%d", dr.id, dr.configuration_id)
         dr.state = 'REQUESTED'
       self.test_count += 1
       tests_this_generation += 1
