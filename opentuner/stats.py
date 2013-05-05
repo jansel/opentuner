@@ -46,7 +46,10 @@ def stddev(vals):
   return math.sqrt(variance(vals))
 
 def hash_args(x):
-  return hashlib.sha256(str(sorted(vars(x).items()))).hexdigest()[:20]
+  d = dict(vars(x))
+  for k in ('database', 'results_log', 'results_log_details'):
+    d[k] = None
+  return hashlib.sha256(str(sorted(d.items()))).hexdigest()[:20]
 
 def run_label(tr):
   techniques = ','.join(tr.args.technique)
