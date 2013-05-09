@@ -21,6 +21,10 @@ argparser.add_argument('--stop-after', type=float,
     help='stop tuning after given seconds')
 argparser.add_argument('--parallelism', type=int, default=10,
     help='how many tests to support at once')
+argparser.add_argument('--pipelining', type=int, default=0,
+    help='how long a delay (in generations) before results are available')
+argparser.add_argument('--bail-threshold', type=int, default=3,
+    help='abort if no requests have been made in X generations')
 
 class SearchDriver(DriverBase):
   '''
@@ -71,23 +75,30 @@ class SearchDriver(DriverBase):
     else:
       self.pending_result_callbacks.append((desired_result, callback))
 
-  def result_callbacks(self, max_rounds = 3):
+  def result_callbacks(self):
     pending = self.pending_result_callbacks
     self.pending_result_callbacks = list()
     for dr, callback in pending:
       if dr.result is not None:
         callback(dr.result)
-      else:
-        # try again later
-        self.pending_result_callbacks.append((dr, callback))
+        continue
+      elif self.generation - dr.generation > self.args.pipelining:
+        # see if we can find a result
+        results = self.results_query(config=dr.configuration).all()
+        log.warning("Result callback %d (requestor=%s) pending for "
+                    "%d generations %d results available",
+                    dr.id,
+                    dr.requestor,
+                    self.generation - dr.generation,
+                    len(results))
+        if len(results):
+          dr.result = results[0]
+          callback(dr.result)
+          continue
+      # try again later
+      self.pending_result_callbacks.append((dr, callback))
 
-    if (len(self.pending_result_callbacks)>0 and
-        len(self.pending_result_callbacks)<len(pending) and
-        max_rounds > 1):
-      return self.result_callbacks(max_rounds - 1)
-    elif len(self.pending_result_callbacks):
-      log.warning("%d result callbacks still pending",
-                  len(self.pending_result_callbacks))
+
 
   def has_results(self, config):
     return self.results_query(config=config).count()>0
@@ -105,7 +116,7 @@ class SearchDriver(DriverBase):
                             .filter_by(tuning_run=self.tuning_run,
                                        configuration_id=dr.configuration_id)
                             .filter(DesiredResult.id != dr.id)
-                            .order_by('request_date')
+                            .order_by(DesiredResult.request_date)
                             .limit(1)
                             .all())
       self.session.add(dr)
@@ -174,28 +185,28 @@ class SearchDriver(DriverBase):
     '''called by SearchTechniques to create Configuration objects'''
     hashv = self.manipulator.hash_config(cfg)
     config = Configuration.get(self.session, self.program, hashv, cfg)
-    assert config.data == cfg 
+    assert config.data == cfg
     return config
 
-  def main(self, pipelining = 0, bail_threshold = 3):
+  def main(self):
     self.plugin_proxy.set_driver(self)
     self.plugin_proxy.before_main()
 
     no_tests_generations = 0
 
     # prime pipeline with tests
-    for z in xrange(pipelining):
+    for z in xrange(self.args.pipelining):
       self.run_generation_techniques()
       self.generation += 1
 
     while not self.convergence_criterea():
       if self.run_generation_techniques() > 0:
         no_tests_generations = 0
-      elif no_tests_generations <= bail_threshold:
+      elif no_tests_generations <= self.args.bail_threshold:
         no_tests_generations += 1
       else:
         break
-      self.run_generation_results(offset = -pipelining)
+      self.run_generation_results(offset = -self.args.pipelining)
       self.generation += 1
 
     self.plugin_proxy.after_main()
