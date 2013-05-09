@@ -95,7 +95,6 @@ def main(args):
   m.main()
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
   #logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.INFO)
   parser = argparse.ArgumentParser(parents=opentuner.argparsers())
   parser.add_argument('program',
