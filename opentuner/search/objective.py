@@ -52,14 +52,18 @@ class SearchObjective(object):
   def gt(self, a, b):  return self.compare(a, b) >  0
   def gte(self, a, b): return self.compare(a, b) >= 0
 
-  def min(self, l):
+  def min(self, *l):
+    if len(l) == 1:
+      l = l[0]
     rv = l[0]
     for i in l[1:]:
       if self.lt(i, rv):
         rv = i
     return rv
 
-  def max(self, l):
+  def max(self, *l):
+    if len(l) == 1:
+      l = l[0]
     rv = l[0]
     for i in l[1:]:
       if self.gt(i, rv):
