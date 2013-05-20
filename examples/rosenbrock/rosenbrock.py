@@ -66,7 +66,6 @@ class Rosenbrock(MeasurementInterface):
     return opentuner.resultsdb.models.Result(time=val)
 
 def main(args):
-  logging.basicConfig(level=logging.INFO)
 
   if args.function == 'beale':
     # fixed for this function

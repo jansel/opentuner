@@ -4,8 +4,10 @@ import os
 import socket
 import time
 import uuid
+import sys
 from datetime import datetime
 
+from logging import config as loggingconfig
 from opentuner import resultsdb
 from opentuner.search.driver import SearchDriver
 from opentuner.measurement.driver import MeasurementDriver
@@ -19,6 +21,31 @@ argparser.add_argument('--database',
                        help=("database to store tuning results in, see: "
   "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
 
+class LogFormatter(logging.Formatter):
+    def format(self, record):
+      record.relativeCreated /= 1000.0
+      return super(LogFormatter, self).format(record)
+logging.Formatter = LogFormatter
+
+the_logging_config = {
+  'version': 1,
+  'disable_existing_loggers': False,
+  'formatters': {'default': {'datefmt': '%Y-%m-%d %H:%M:%S',
+                             'format': '[%(relativeCreated)6.0fs] '
+                                       ' %(levelname)8s %(name)s: '
+                                       '%(message)s'}},
+  'handlers': {'console': {'class': 'logging.StreamHandler',
+                           'formatter': 'default',
+                           'level': 'INFO'},
+               'file': {'class': 'logging.FileHandler',
+                        'filename': 'opentuner.log',
+                        'formatter': 'default',
+                        'level': 'WARNING'}},
+  'loggers': {'': {'handlers': ['console', 'file'],
+                   'level': 'INFO',
+                   'propagate': True}}}
+
+
 
 class TuningRunMain(object):
   def __init__(self,
@@ -29,6 +56,8 @@ class TuningRunMain(object):
                args,
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
+
+    loggingconfig.dictConfig(the_logging_config)
 
     if not args.database:
       #args.database = 'sqlite://' #in memory

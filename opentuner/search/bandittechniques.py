@@ -23,6 +23,7 @@ class BanditQueue(object):
     self.keys = keys
     self.use_counts = dict(((k, 0) for k in keys))
     self.window = window
+    self.request_count = 0
 
   @abc.abstractmethod
   def exploitation_term(self, key):
@@ -52,6 +53,7 @@ class BanditQueue(object):
     random.shuffle(keys) #break ties randomly
     keys.sort(key=self.bandit_score)
 
+    self.request_count += 1
     if log.isEnabledFor(logging.DEBUG) and (self.request_count % 1000) == 0:
       log.debug(str([
           (t.name, self.exploitation_term(t), self.C*self.exploration_term(t))

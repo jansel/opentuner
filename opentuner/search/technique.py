@@ -230,7 +230,7 @@ def get_enabled(args):
     sys.exit(0)
 
   if not args.technique:
-    args.technique = 'AUCBanditMetaTechnique'
+    args.technique = ['AUCBanditMetaTechnique']
 
   for unknown in set(args.technique) - set(map(_.name, techniques)):
     log.error("unknown technique %s", unknown)
