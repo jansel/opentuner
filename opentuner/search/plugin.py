@@ -21,7 +21,8 @@ argparser.add_argument('--results-log-details',
     help="file to store log of the non-best configuration times")
 argparser.add_argument('--quiet', action='store_true',
     help="print less information")
-
+argparser.add_argument('--display-frequency', default=10, type=int,
+    help="how often for DisplayPlugin to print")
 
 class SearchPlugin(object):
   @property
@@ -130,7 +131,7 @@ class FileDisplayPlugin(SearchPlugin):
 def get_enabled(args):
   plugins = []
   if not args.quiet:
-    plugins.append(LogDisplayPlugin(10))
+    plugins.append(LogDisplayPlugin(args.display_frequency))
   if args.results_log:
     plugins.append(FileDisplayPlugin(args.results_log,
                                      args.results_log_details))

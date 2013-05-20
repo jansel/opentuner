@@ -1,3 +1,5 @@
+
+
 from opentuner.search import technique
 
 class PatternSearch(technique.SequentialSearchTechnique):

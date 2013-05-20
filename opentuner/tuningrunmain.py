@@ -30,9 +30,8 @@ logging.Formatter = LogFormatter
 the_logging_config = {
   'version': 1,
   'disable_existing_loggers': False,
-  'formatters': {'default': {'datefmt': '%Y-%m-%d %H:%M:%S',
-                             'format': '[%(relativeCreated)6.0fs] '
-                                       ' %(levelname)8s %(name)s: '
+  'formatters': {'default': {'format': '[%(relativeCreated)6.0fs] '
+                                       '%(levelname)7s %(name)s: '
                                        '%(message)s'}},
   'handlers': {'console': {'class': 'logging.StreamHandler',
                            'formatter': 'default',
