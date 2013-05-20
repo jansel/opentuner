@@ -7,6 +7,7 @@ from collections import deque, defaultdict
 from fn import _
 
 from .metatechniques import MetaSearchTechnique
+from .technique import register
 
 log = logging.getLogger(__name__)
 
@@ -151,4 +152,16 @@ class AUCBanditMetaTechnique(MetaSearchTechnique):
 
   def on_technique_result(self, technique, result):
     self.bandit.on_result(technique.name, result.was_new_best)
+
+import evolutionarytechniques
+import differentialevolution
+import simplextechniques
+
+register(
+    AUCBanditMetaTechnique([
+      differentialevolution.DifferentialEvolution(),
+      simplextechniques.MultiNelderMead(),
+      simplextechniques.MultiTorczon(),
+      evolutionarytechniques.GreedyMutation()]))
+
 

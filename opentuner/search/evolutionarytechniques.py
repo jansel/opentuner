@@ -3,6 +3,7 @@ import copy
 import random
 from opentuner.resultsdb.models import *
 from technique import SearchTechnique
+from opentuner.search import technique
 
 class EvolutionaryTechnique(SearchTechnique):
   def __init__(self,
@@ -85,4 +86,6 @@ class GreedySelectionMixin(object):
 
 class GreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):
   pass
+
+technique.register(GreedyMutation())
 

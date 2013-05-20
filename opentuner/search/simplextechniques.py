@@ -8,7 +8,7 @@ from collections import defaultdict
 from fn import _
 from fn.iters import map, filter, repeat
 from opentuner.resultsdb.models import *
-from .technique import SequentialSearchTechnique
+from .technique import SequentialSearchTechnique, register
 from .manipulator import Parameter
 from .metatechniques import RecyclingMetaTechnique
 
@@ -407,6 +407,14 @@ class MultiTorczon(RecyclingMetaTechnique):
       )
 
 
+register(RandomNelderMead())
+register(RegularNelderMead())
+register(RightNelderMead())
+register(MultiNelderMead())
+register(RandomTorczon())
+register(RegularTorczon())
+register(RightTorczon())
+register(MultiTorczon())
 
 
 

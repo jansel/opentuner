@@ -1,6 +1,8 @@
 import abc
 import sys
+import os
 import logging
+from importlib import import_module
 from datetime import datetime
 import argparse
 from fn import _
@@ -203,30 +205,22 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
           self.rounds_since_novel_request = 0
           yield None # wait
 
+#list of all techniques
+the_registry = list()
+
+def register(t):
+  the_registry.append(t)
+
+register(PureRandom())
 
 def all_techniques(args):
-  from bandittechniques import AUCBanditMetaTechnique
-  import evolutionarytechniques
-  import differentialevolution
-  import simplextechniques
-  return [
-     PureRandom(),
-     evolutionarytechniques.GreedyMutation(),
-     simplextechniques.RandomNelderMead(),
-     simplextechniques.RegularNelderMead(),
-     simplextechniques.RightNelderMead(),
-     simplextechniques.MultiNelderMead(),
-     simplextechniques.RandomTorczon(),
-     simplextechniques.RegularTorczon(),
-     simplextechniques.RightTorczon(),
-     simplextechniques.MultiTorczon(),
-     differentialevolution.DifferentialEvolution(),
-     differentialevolution.DifferentialEvolutionAlt(),
-     AUCBanditMetaTechnique([differentialevolution.DifferentialEvolution(),
-                             simplextechniques.MultiNelderMead(),
-                             simplextechniques.MultiTorczon(),
-                             evolutionarytechniques.GreedyMutation()]),
-    ]
+  #import all modules in search to ensure techniques are Registered
+  for f in sorted(os.listdir(os.path.dirname(__file__))):
+    m = re.match(r'^(.*)[.]py$', f)
+    if m:
+      import_module('opentuner.search.'+m.group(1))
+
+  return the_registry
 
 def get_enabled(args):
   techniques = all_techniques(args)

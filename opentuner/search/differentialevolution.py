@@ -5,7 +5,7 @@ import time
 import logging
 from fn import _
 from opentuner.resultsdb.models import *
-from technique import SearchTechnique
+from technique import SearchTechnique, register
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARNING)
@@ -118,4 +118,9 @@ class DifferentialEvolutionAlt(DifferentialEvolution):
   def __init__(self, cr=0.2, **kwargs):
     kwargs['cr'] = cr
     super(DifferentialEvolutionAlt, self).__init__(**kwargs)
+
+
+register(DifferentialEvolution())
+register(DifferentialEvolutionAlt())
+
 
