@@ -1,9 +1,11 @@
 import abc
 import hashlib
 import re
+import logging
 
 from opentuner import resultsdb
 
+log = logging.getLogger(__name__)
 
 class MeasurementInterface(object):
   '''
@@ -12,14 +14,20 @@ class MeasurementInterface(object):
   __metaclass__ = abc.ABCMeta
 
   def __init__(self,
-               args    = None,
-               project = None,
-               program = 'unknown',
-               version = 'unknown'):
+               args          = None,
+               project_name  = None,
+               program_name  = 'unknown',
+               program_version = 'unknown',
+               manipulator   = None,
+               objective     = None,
+               input_manager = None):
     self.args = args
-    self._project = project
-    self._program = program
-    self._version = version
+    self._project       = project_name
+    self._program       = program_name
+    self._version       = program_version
+    self._objective     = objective
+    self._manipulator   = manipulator
+    self._input_manager = input_manager
 
 
   @abc.abstractmethod
@@ -61,5 +69,37 @@ class MeasurementInterface(object):
     '''helper used to generate program versions'''
     return hashlib.sha256(open(filename).read()).hexdigest()
 
+  def manipulator(self):
+    '''
+    called once to create the search.manipulator.ConfigurationManipulator
+    '''
+    if self._manipulator is None:
+      msg = ('MeasurementInterface.manipulator() must be implemented or a '
+             '"manipulator=..." must be provided to the constructor')
+      log.error(msg)
+      raise Exception(msg)
+    return self._manipulator
 
+  def objective(self):
+    '''
+    called once to create the search.objective.SearchObjective
+    '''
+    if self._objective is None:
+      from ..search.objective import MinimizeTime
+      return MinimizeTime()
+    return self._objective
+
+  def input_manager(self):
+    '''
+    called once to create the measurement.inputmanager.InputManager
+    '''
+    if self._objective is None:
+      from .inputmanager import FixedInputManager
+      return FixedInputManager()
+    return self._input_manager
+
+  @classmethod
+  def main(cls, args, *pargs, **kwargs):
+    from ..tuningrunmain import TuningRunMain
+    return TuningRunMain(cls(args, *pargs, **kwargs), args).main()
 
