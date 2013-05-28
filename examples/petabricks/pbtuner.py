@@ -55,6 +55,7 @@ class PetaBricksInterface(MeasurementInterface):
         #time will be 2**31 if timeout
         result.status = 'TIMEOUT'
     except:
+      log.warning("program crash, out = %s / err = %s", out, err)
       result.status   = 'ERROR'
       result.time     = float('inf')
       result.accuracy = float('-inf')

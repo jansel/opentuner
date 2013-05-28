@@ -30,7 +30,15 @@ argparser.add_argument('--stats-input', default="opentuner.db")
 PCTSTEPS = map(_/20.0, xrange(21))
 
 def mean(vals):
-  return sum(vals)/float(len(vals))
+  n = 0.0
+  d = 0.0
+  for v in vals:
+    if v is not None:
+      n += v
+      d += 1.0
+  if d == 0.0:
+    return None
+  return n/d
 
 def median(vals):
   vals = sorted(vals)
@@ -40,10 +48,15 @@ def median(vals):
 
 def variance(vals):
   avg = mean(vals)
+  if avg is None:
+    return None
   return mean(map((_ - avg) ** 2, vals))
 
 def stddev(vals):
-  return math.sqrt(variance(vals))
+  var = variance(vals)
+  if var is None:
+    return None
+  return math.sqrt(var)
 
 def hash_args(x):
   d = dict(vars(x))
@@ -121,16 +134,16 @@ class StatsMain(object):
                         ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
 
       print
-      print "10% Scores"
+      print "10% Scores", d
       pprint(self.technique_scores(d, labels, '0.1'))
       print
-      print "90% Scores"
+      print "90% Scores", d
       pprint(self.technique_scores(d, labels, '0.9'))
       print
-      print "Mean Scores"
+      print "Mean Scores", d
       pprint(self.technique_scores(d, labels, 'mean'))
       print
-      print "Median Scores"
+      print "Median Scores", d
       pprint(self.technique_scores(d, labels, '0.5'))
 
 
