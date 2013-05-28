@@ -1,5 +1,5 @@
 git
+gnuplot
 libpython-dev
 libsqlite3-dev
-postgresql-client
 sqlite3

@@ -38,6 +38,12 @@ class MeasurementInterface(object):
     '''
     return opentuner.resultdb.models.Result()
 
+  def save_final_config(self, config):
+    '''
+    called at the end of autotuning with the best resultsdb.models.Configuration
+    '''
+    pass
+
   def db_program_version(self, session):
     '''return a version identifier for the program being tuned'''
     return resultsdb.models.ProgramVersion.get(

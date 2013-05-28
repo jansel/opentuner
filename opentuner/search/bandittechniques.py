@@ -161,9 +161,10 @@ import simplextechniques
 
 register(
     AUCBanditMetaTechnique([
-      differentialevolution.DifferentialEvolution(),
-      simplextechniques.MultiNelderMead(),
-      simplextechniques.MultiTorczon(),
-      evolutionarytechniques.GreedyMutation()]))
+        differentialevolution.DifferentialEvolutionAlt(),
+        evolutionarytechniques.GreedyMutation(),
+        simplextechniques.RandomNelderMead(),
+        simplextechniques.RandomNelderMead(),
+      ]))
 
 
