@@ -12,8 +12,8 @@ class MetaSearchTechnique(SearchTechniqueBase):
   '''
   a technique made up of a collection of other techniques
   '''
-  def __init__(self, techniques, log_freq = 500):
-    super(MetaSearchTechnique, self).__init__()
+  def __init__(self, techniques, log_freq = 500, *pargs, **kwargs):
+    super(MetaSearchTechnique, self).__init__(*pargs, **kwargs)
     self.techniques = techniques
     self.request_count = 0
     self.log_freq = log_freq

@@ -24,9 +24,12 @@ class SearchTechniqueBase(object):
   '''
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self):
+  def __init__(self, name = None):
     super(SearchTechniqueBase, self).__init__()
-    self.name = self.default_name()
+    if name:
+      self.name = name
+    else:
+      self.name = self.default_name()
 
   def is_ready(self):
     '''test if enough data has been gathered to use this technique'''
@@ -58,8 +61,8 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
   a search search technique with basic utility functions
   '''
 
-  def __init__(self):
-    super(SearchTechnique, self).__init__()
+  def __init__(self, *pargs, **kwargs):
+    super(SearchTechnique, self).__init__(*pargs, **kwargs)
     self.driver      = None
     self.manipulator = None
     self.objective   = None
@@ -113,11 +116,11 @@ class PureRandom(SearchTechnique):
     return self.manipulator.random()
 
 class AsyncProceduralSearchTechnique(SearchTechnique):
-  def __init__(self):
+  def __init__(self, *pargs, **kwargs):
+    super(AsyncProceduralSearchTechnique, self).__init__(*pargs, **kwargs)
     self.gen = None
     self.done = False
     self.latest_results = []
-    super(AsyncProceduralSearchTechnique, self).__init__()
 
   def call_main_generator(self):
     '''passthrough (used in subclasses)'''
@@ -153,11 +156,11 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     return not self.done
 
 class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
-  def __init__(self, novelty_threshold = 50):
+  def __init__(self, novelty_threshold = 50, *pargs, **kwargs):
+    super(SequentialSearchTechnique, self).__init__(*pargs, **kwargs)
     self.pending_tests = []
     self.novelty_threshold = novelty_threshold
     self.rounds_since_novel_request = 0
-    super(SequentialSearchTechnique, self).__init__()
 
   def yield_nonblocking(self, cfg):
     '''
@@ -230,7 +233,7 @@ def get_enabled(args):
     sys.exit(0)
 
   if not args.technique:
-    args.technique = ['AUCBanditMetaTechnique']
+    args.technique = ['AUCBanditMetaTechniqueA']
 
   for unknown in set(args.technique) - set(map(_.name, techniques)):
     log.error("unknown technique %s", unknown)

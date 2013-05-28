@@ -163,8 +163,9 @@ register(
     AUCBanditMetaTechnique([
         differentialevolution.DifferentialEvolutionAlt(),
         evolutionarytechniques.GreedyMutation(),
-        simplextechniques.RandomNelderMead(),
-        simplextechniques.RandomNelderMead(),
-      ]))
+        simplextechniques.RandomNelderMead(name="NelderMeadA"),
+        simplextechniques.RandomNelderMead(name="NelderMeadB"),
+      ],
+      name = "AUCBanditMetaTechniqueA"))
 
 
