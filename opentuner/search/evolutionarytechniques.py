@@ -78,9 +78,8 @@ class GreedySelectionMixin(object):
   '''
   def select(self):
     '''return a single random parent configuration'''
-    best_result = self.driver.results_query(objective_ordered = True).first()
-    if best_result is not None:
-      return best_result.configuration.data
+    if self.driver.best_result is not None:
+      return self.driver.best_result.configuration.data
     else:
       return self.manipulator.random()
 

@@ -19,7 +19,7 @@ argparser.add_argument('--test-limit', type=int, default=5000,
     help='stop tuning after given tests count')
 argparser.add_argument('--stop-after', type=float,
     help='stop tuning after given seconds')
-argparser.add_argument('--parallelism', type=int, default=10,
+argparser.add_argument('--parallelism', type=int, default=4,
     help='how many tests to support at once')
 argparser.add_argument('--pipelining', type=int, default=0,
     help='how long a delay (in generations) before results are available')
