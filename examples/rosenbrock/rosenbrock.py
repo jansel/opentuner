@@ -33,13 +33,6 @@ parser.add_argument('--function', default='rosenbrock',
 
 
 class Rosenbrock(MeasurementInterface):
-  def __init__(self, args):
-    super(Rosenbrock, self).__init__(
-        args    = args,
-        program = args.function,
-        version = "%dx%d" % (args.dimensions, args.domain)
-      )
-
   def run(self, desired_result, input, limit):
     cfg = desired_result.configuration.data
     val = 0.0
@@ -65,25 +58,26 @@ class Rosenbrock(MeasurementInterface):
         )
     return opentuner.resultsdb.models.Result(time=val)
 
-def main(args):
+  def manipulator(self):
+    manipulator = ConfigurationManipulator()
+    for d in xrange(self.args.dimensions):
+      manipulator.add_parameter(FloatParameter('x%d'%d ,
+                                               -self.args.domain,
+                                               self.args.domain))
+    return manipulator
 
+  def program_name(self):
+    return self.args.function
+
+  def program_version(self):
+    return "%dx%d" % (self.args.dimensions, self.args.domain)
+
+
+if __name__ == '__main__':
+  args = parser.parse_args()
   if args.function == 'beale':
     # fixed for this function
     args.domain = 4.5
     args.dimensions = 2
-
-  manipulator = ConfigurationManipulator()
-  for d in xrange(args.dimensions):
-    manipulator.add_parameter(FloatParameter('x%d'%d ,
-                                             -args.domain,
-                                             args.domain))
-  m = TuningRunMain(manipulator,
-                    Rosenbrock(args),
-                    FixedInputManager(),
-                    MinimizeTime(),
-                    args)
-  m.main()
-
-if __name__ == '__main__':
-  main(parser.parse_args())
+  Rosenbrock.main(args)
 

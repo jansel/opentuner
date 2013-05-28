@@ -5,6 +5,7 @@ import socket
 import time
 import uuid
 import sys
+import inspect
 from datetime import datetime
 
 from logging import config as loggingconfig
@@ -30,15 +31,19 @@ logging.Formatter = LogFormatter
 the_logging_config = {
   'version': 1,
   'disable_existing_loggers': False,
-  'formatters': {'default': {'format': '[%(relativeCreated)6.0fs] '
+  'formatters': {'console': {'format': '[%(relativeCreated)6.0fs] '
                                        '%(levelname)7s %(name)s: '
-                                       '%(message)s'}},
+                                       '%(message)s'},
+                 'file':    {'format': '[%(asctime)-15s] '
+                                       '%(levelname)7s %(name)s: '
+                                       '%(message)s '
+                                       '@%(filename)s:%(lineno)d'}},
   'handlers': {'console': {'class': 'logging.StreamHandler',
-                           'formatter': 'default',
+                           'formatter': 'console',
                            'level': 'INFO'},
                'file': {'class': 'logging.FileHandler',
                         'filename': 'opentuner.log',
-                        'formatter': 'default',
+                        'formatter': 'file',
                         'level': 'WARNING'}},
   'loggers': {'': {'handlers': ['console', 'file'],
                    'level': 'INFO',
@@ -48,15 +53,16 @@ the_logging_config = {
 
 class TuningRunMain(object):
   def __init__(self,
-               manipulator,
                measurement_interface,
-               input_manager,
-               objective,
                args,
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
 
     loggingconfig.dictConfig(the_logging_config)
+
+    manipulator = measurement_interface.manipulator()
+    input_manager = measurement_interface.input_manager()
+    objective = measurement_interface.objective()
 
     if not args.database:
       #args.database = 'sqlite://' #in memory
@@ -151,6 +157,8 @@ class TuningRunMain(object):
     #single process version:
     self.measurement_driver.process_all()
 
-
-
+def main(interface, args, *pargs, **kwargs):
+  if inspect.isclass(interface):
+    interface = interface(args=args, *pargs, **kwargs)
+  return TuningRunMain(interface, args).main()
 

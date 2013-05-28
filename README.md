@@ -1,4 +1,5 @@
-# OpenTuner
+OpenTuner
+=========
 
 Program autotuning has been demonstrated in many domains to achieve better
 or more portable performance.  However, autotuners themselves are often not
@@ -15,35 +16,42 @@ ensembles of disparate search techniques simultaneously, techniques which
 perform well will receive larger testing budgets and techniques which perform
 poorly will be disabled.
 
-## System dependencies
+System dependencies
+-------------------
 
-A list of system dependencies can be found in
-[debian-package-deps](https://raw.github.com/jansel/opentuner/master/debian-packages-deps),
-which are primarily python 2.7+ (not 3.x) and sqlite3 (or
-your database backend of choice, [supported by
-sqlalchemy](http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html).
+A list of system dependencies can be found in [debian-package-deps][]
+which are primarily python 2.7+ (not 3.x) and sqlite3 (or your
+[supported][sqlalchemy-dialects] database backend of choice).
 
 On Ubuntu/Debian there can be installed with:
 
     sudo apt-get install `cat debian-package-deps`
 
+[debian-package-deps]: https://raw.github.com/jansel/opentuner/master/debian-packages-deps
+[sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
 
-## Python dependeices
+Python dependencies
+------------------
 
-A list of python dependencies can be found in
-[python-packages](https://raw.github.com/jansel/opentuner/master/python-packages)
-these can either be installed system-wide with `pip` or `easy_install`,
-or you can use virtual env to create a isolated python environment by running:
+A list of python dependencies can be found in [python-packages][] these can
+either be installed system-wide with `pip` or `easy_install`, or you can
+use virtual env to create a isolated python environment by running:
 
     python ./venv-bootstrap.py
 
 which will create a ./venv/bin/python with all the required packages installed.
 
+[python-packages]: https://raw.github.com/jansel/opentuner/master/python-packages
 
-## Tutorials
+Tutorials
+-------------
 
-- A tutorial for creating new techniques can be found here:
-  <https://github.com/jansel/opentuner/wiki/TechniqueTutorial>
+- A tutorial for creating new techniques can be found [here][technique-tutorial].
 
 More coming soon!
+
+[technique-tutorial]:  https://github.com/jansel/opentuner/wiki/TechniqueTutorial
+
+
+
 
