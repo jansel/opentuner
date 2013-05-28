@@ -23,16 +23,20 @@ from opentuner.tuningrunmain import TuningRunMain
 from opentuner.stats import StatsMain
 from opentuner.search.objective import ThresholdAccuracyMinimizeTime
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("pbtuner")
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('program',
                     help='PetaBricks binary program to autotune')
 parser.add_argument('--program-cfg-default',
                     help="override default program config exemplar location")
+parser.add_argument('--program-cfg-output',
+                    help="location final autotuned configuration is written")
 parser.add_argument('--program-settings',
                     help="override default program settings file location")
-parser.add_argument('--upper-limit', type=float, default=30,
+parser.add_argument('--program-input',
+                    help="use only a given input for autotuning")
+parser.add_argument('--upper-limit', type=float, default=90,
                     help="time limit to apply to initial test")
 
 class PetaBricksInterface(MeasurementInterface):
@@ -56,12 +60,18 @@ class PetaBricksInterface(MeasurementInterface):
       for k,v in desired_result.configuration.data.iteritems():
         print >>cfgtmp, k, '=', v
       cfgtmp.flush()
+      if args.program_input:
+        input_opts = ['--iogen-run='+args.program_input,
+                      '--iogen-n=%d' % input.input_class.size]
+      else:
+        input_opts = ['-n=%d' % input.input_class.size]
+
       cmd = [args.program,
              '--time',
              '--accuracy',
              '--max-sec=%.8f' % limit,
-             '-n=%d' % input.input_class.size,
-             '--config', cfgtmp.name]
+             '--config='+cfgtmp.name] + input_opts
+      log.debug("cmd: %s", ' '.join(cmd))
       p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
       out, err = p.communicate()
 
@@ -82,6 +92,14 @@ class PetaBricksInterface(MeasurementInterface):
       result.accuracy = float('-inf')
     return result
 
+  def save_final_config(self, configuration):
+    '''
+    called at the end of autotuning with the best resultsdb.models.Configuration
+    '''
+    with open(args.program_cfg_output, 'w') as fd:
+      for k,v in sorted(configuration.data.items()):
+        print >>fd, k, '=', v
+    log.info("final configuration written to %s", args.program_cfg_output)
 
   def manipulator(self):
     '''create the configuration manipulator, from example config'''
@@ -109,6 +127,8 @@ if __name__ == '__main__':
   args = parser.parse_args()
   if not args.program_cfg_default:
     args.program_cfg_default = args.program + '.cfg.default'
+  if not args.program_cfg_output:
+    args.program_cfg_output = args.program + '.cfg'
   if not args.program_settings:
     args.program_settings = args.program + '.settings'
   PetaBricksInterface.main(args)

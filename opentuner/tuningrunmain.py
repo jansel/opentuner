@@ -156,6 +156,8 @@ class TuningRunMain(object):
       self.tuning_run.state = 'RUNNING'
       self.commit(force=True)
       self.search_driver.main()
+      self.measurement_interface.save_final_config(
+          self.search_driver.best_result.configuration)
       self.tuning_run.state = 'COMPLETE'
     except:
       self.tuning_run.state = 'ABORTED'
