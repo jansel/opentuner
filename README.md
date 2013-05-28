@@ -20,7 +20,7 @@ System dependencies
 -------------------
 
 A list of system dependencies can be found in [debian-package-deps][]
-which are primarily python 2.7+ (not 3.x) and sqlite3 (or your
+which are primarily python 2.6+ (not 3.x) and sqlite3 (or your
 [supported][sqlalchemy-dialects] database backend of choice).
 
 On Ubuntu/Debian there can be installed with:

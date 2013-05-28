@@ -8,7 +8,6 @@ import sys
 import inspect
 from datetime import datetime
 
-from logging import config as loggingconfig
 from opentuner import resultsdb
 from opentuner.search.driver import SearchDriver
 from opentuner.measurement.driver import MeasurementDriver
@@ -23,10 +22,23 @@ argparser.add_argument('--database',
   "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
 
 class LogFormatter(logging.Formatter):
-    def format(self, record):
-      record.relativeCreated /= 1000.0
+  def format(self, record):
+    record.relativeCreated /= 1000.0
+    try:
+      # python 2.7
       return super(LogFormatter, self).format(record)
+    except:
+      # python 2.6
+      return _OldFormatter.format(self, record)
+_OldFormatter = logging.Formatter
 logging.Formatter = LogFormatter
+
+try:
+  # python 2.7
+  from logging.config import dictConfig
+except:
+  # python 2.6
+  from .utils.dictconfig import dictConfig
 
 the_logging_config = {
   'version': 1,
@@ -58,7 +70,7 @@ class TuningRunMain(object):
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
 
-    loggingconfig.dictConfig(the_logging_config)
+    dictConfig(the_logging_config)
 
     manipulator = measurement_interface.manipulator()
     input_manager = measurement_interface.input_manager()
