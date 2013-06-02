@@ -95,10 +95,9 @@ class LogDisplayPlugin(DisplayPlugin):
       log.warning("no results yet")
       return
     requestor = ','.join(map(_.requestor, best.desired_results))
-    display_log.info("tests=%d, best time=%.4f acc=%.4f, found by %s",
+    display_log.info("tests=%d, best %s, found by %s",
                      count,
-                     best.time,
-                     best.accuracy if best.accuracy is not None else float('NaN'),
+                     self.driver.objective.display(best),
                      requestor,
                      )
 

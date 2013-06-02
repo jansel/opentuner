@@ -90,6 +90,17 @@ class SearchObjective(object):
     a3.confidence = _project(a1.confidence, a2.confidence, factor)
     return self.result_compare(a3, b3)
 
+  def display(self, result):
+    '''
+    produce a string version of a resultsdb.models.Result()
+    '''
+    rv = []
+    for k in ('time', 'accuracy', 'energy', 'size', 'confidence'):
+      v = getattr(result, k)
+      if v is not None:
+        rv.append('%s=%.4f' % (k,v))
+    return ', '.join(rv)
+
 def _project(a1, a2, factor):
   if a1 is None or a2 is None:
     return None

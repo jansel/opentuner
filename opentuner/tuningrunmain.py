@@ -6,6 +6,7 @@ import time
 import uuid
 import sys
 import inspect
+import copy
 from datetime import datetime
 
 from opentuner import resultsdb
@@ -102,6 +103,7 @@ class TuningRunMain(object):
     self.input_manager = input_manager
     self.manipulator = manipulator
     self.objective = objective
+    self.objective_copy = copy.copy(objective)
 
 
   def init(self):
@@ -116,6 +118,7 @@ class TuningRunMain(object):
           args            = self.args,
           start_date      = datetime.now(),
           program_version = program_version,
+          objective       = self.objective_copy,
         ))
       self.session.add(self.tuning_run)
 
@@ -158,6 +161,7 @@ class TuningRunMain(object):
       self.search_driver.main()
       self.measurement_interface.save_final_config(
           self.search_driver.best_result.configuration)
+      self.tuning_run.final_config = self.search_driver.best_result.configuration
       self.tuning_run.state = 'COMPLETE'
     except:
       self.tuning_run.state = 'ABORTED'

@@ -150,14 +150,18 @@ class TuningRun(Base):
   input_class_id = Column(ForeignKey(InputClass.id))
   input_class    = relationship(InputClass, backref='tuning_runs')
 
-  name       = Column(String(128), default='unnamed')
-  args       = Column(PickleType)
+  name      = Column(String(128), default='unnamed')
+  args      = Column(PickleType)
+  objective = Column(PickleType)
 
   state      = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED',
                                  name='t_tr_state'),
                             default = 'QUEUED')
   start_date = Column(DateTime, default=func.now())
   end_date   = Column(DateTime)
+
+  final_config_id = Column(ForeignKey(Configuration.id))
+  final_config    = relationship(Configuration)
 
   #__mapper_args__ = {'primary_key': uuid}
 
@@ -189,6 +193,7 @@ class Result(Base):
   time            = Column(Float)
   accuracy        = Column(Float)
   energy          = Column(Float)
+  size            = Column(Float)
   confidence      = Column(Float)
   #extra           = Column(PickleType)
 

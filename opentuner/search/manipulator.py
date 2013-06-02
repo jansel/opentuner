@@ -123,7 +123,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     params = list(self.parameters(config))
     params.sort(key=_.name)
     for i, p in enumerate(params):
-      m.update(p.name)
+      m.update(str(p.name))
       m.update(p.hash_value(config))
       m.update(str(i))
       m.update("|")
