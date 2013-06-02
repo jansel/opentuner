@@ -31,7 +31,7 @@ On Ubuntu/Debian there can be installed with:
 [sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
 
 Python dependencies
-------------------
+-------------------
 
 A list of python dependencies can be found in [python-packages][] these can
 either be installed system-wide with `pip` or `easy_install`, or you can
@@ -44,7 +44,7 @@ which will create a ./venv/bin/python with all the required packages installed.
 [python-packages]: https://raw.github.com/jansel/opentuner/master/python-packages
 
 Tutorials
--------------
+---------
 
 - A tutorial for creating new techniques can be found [here][technique-tutorial].
 
@@ -52,6 +52,13 @@ More coming soon!
 
 [technique-tutorial]:  https://github.com/jansel/opentuner/wiki/TechniqueTutorial
 
+Contributing Code
+-----------------
 
+The preferred way to contribute code to OpenTuner is to fork the project
+on github and [submit a pull request][pull-req].  You can also submit a
+[patch via email][email-patch] to jansel@csail.mit.edu.
 
+[pull-req]: https://www.openshift.com/wiki/github-workflow-for-submitting-pull-requests
+[email-patch]: http://alblue.bandlem.com/2011/12/git-tip-of-week-patches-by-email.html
 
