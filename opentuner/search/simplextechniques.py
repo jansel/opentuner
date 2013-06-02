@@ -205,6 +205,11 @@ class NelderMead(SimplexTechnique):
     # test the entire initial simplex
     self.simplex_points = list(map(driver.get_configuration,
                                    self.initial_simplex()))
+
+    if len(self.simplex_points) <= 1:
+      log.warning("only 1 point in simplex, will not use %s", self.name)
+      return
+
     log.debug("initial points")
     for p in self.simplex_points:
       self.yield_nonblocking(p)

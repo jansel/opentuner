@@ -25,10 +25,10 @@ class SearchObjective(object):
     '''cmp() compatible comparison of resultsdb.models.Result'''
     return
 
-  @abc.abstractmethod
   def config_compare(self, config1, config2):
     '''cmp() compatible comparison of resultsdb.models.Configuration'''
-    return
+    return self.result_compare(self.driver.results_query(config=config1).one(),
+                               self.driver.results_query(config=config2).one())
 
   def __init__(self):
     self.driver = None
@@ -124,6 +124,42 @@ class MinimizeTime(SearchObjective):
     return cmp(min(map(_.time, self.driver.results_query(config=config1))),
                min(map(_.time, self.driver.results_query(config=config2))))
 
+
+
+class MaximizeAccuracy(SearchObjective):
+  '''
+  maximize Result().accuracy
+  '''
+
+  def result_order_by_terms(self):
+    '''return database columns required to order by the objective'''
+    return [-Result.accuracy]
+
+  def result_compare(self, result1, result2):
+    '''cmp() compatible comparison of resultsdb.models.Result'''
+    # note opposite order
+    return cmp(result2.accuracy, result1.accuracy)
+
+
+
+class MaximizeAccuracyMinimizeSize(SearchObjective):
+  '''
+  maximize Result().accuracy, break ties with Result().size
+  '''
+  def result_order_by_terms(self):
+    '''return database columns required to order by the objective'''
+    return [-Result.accuracy, Result.size]
+
+  def result_compare(self, result1, result2):
+    '''cmp() compatible comparison of resultsdb.models.Result'''
+    return cmp((-result1.accuracy, result1.size),
+               (-result2.accuracy, result2.size))
+
+  def display(self, result):
+    '''
+    produce a string version of a resultsdb.models.Result()
+    '''
+    return "accuracy=%.8f, size=%.1f" %  (result.accuracy, result.size)
 
 class ThresholdAccuracyMinimizeTime(SearchObjective):
   '''

@@ -25,6 +25,8 @@ argparser.add_argument('--pipelining', type=int, default=0,
     help='how long a delay (in generations) before results are available')
 argparser.add_argument('--bail-threshold', type=int, default=3,
     help='abort if no requests have been made in X generations')
+argparser.add_argument('--no-dups', action='store_true',
+    help='don\'t print out warnings for duplicate requests')
 
 class SearchDriver(DriverBase):
   '''
@@ -121,11 +123,12 @@ class SearchDriver(DriverBase):
                             .all())
       self.session.add(dr)
       if len(duplicates):
-        log.warning("duplicate configuration request #%d %s/%s %s",
-                    self.test_count,
-                    dr.requestor,
-                    duplicates[0].requestor,
-                    'OLD' if duplicates[0].result else 'PENDING')
+        if not self.args.no_dups:
+          log.warning("duplicate configuration request #%d %s/%s %s",
+                      self.test_count,
+                      dr.requestor,
+                      duplicates[0].requestor,
+                      'OLD' if duplicates[0].result else 'PENDING')
         self.session.flush()
         desired_result_id = dr.id
         def callback(result):
