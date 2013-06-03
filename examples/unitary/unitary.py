@@ -42,7 +42,7 @@ ERROR: import numpy failed, please install numpy
 Possible things to try:
   ../../venv/bin/pip install numpy
   ../../venv/bin/easy_install numpy
-  sudo aptitude install python-numpy
+  sudo apt-get install python-numpy
 
 '''
   raise
@@ -69,8 +69,6 @@ class Unitary(MeasurementInterface):
 
     #Ugoal = o.M[0] * o.M[1]
 
-    sequence = [0, 1, 2, 3, 2]
-
 
 
   def run(self, desired_result, input, limit):
@@ -80,8 +78,11 @@ class Unitary(MeasurementInterface):
                 if cfg[i]<self.num_operators]
     # sequence can be shorter than self.args.seq_len with null operator
 
-    accuracy = calc_fidelity(sequence, self.op, self.Ugoal)
-    # ~.99 is acceptable
+    if len(sequence) > 0:
+      accuracy = calc_fidelity(sequence, self.op, self.Ugoal)
+      # ~.99 is acceptable
+    else:
+      accuracy = 0.0
 
     return opentuner.resultsdb.models.Result(time = 0.0,
                                              accuracy = accuracy,
