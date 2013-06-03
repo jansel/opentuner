@@ -67,7 +67,11 @@ class SearchDriver(DriverBase):
   def convergence_criterea(self):
     '''returns true if the tuning process should stop'''
     if self.args.stop_after:
-      elapsed = (datetime.now()-self.tuning_run.start_date).total_seconds()
+      elapsed = (datetime.now()-self.tuning_run.start_date)
+      try:
+        elapsed = elapsed.total_seconds()
+      except: #python 2.6
+        elapsed = elapsed.days * 86400 + elapsed.seconds
       return elapsed > self.args.stop_after
     return self.test_count > self.args.test_limit
 

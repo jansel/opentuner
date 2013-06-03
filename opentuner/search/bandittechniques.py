@@ -158,14 +158,21 @@ class AUCBanditMetaTechnique(MetaSearchTechnique):
 import evolutionarytechniques
 import differentialevolution
 import simplextechniques
+import patternsearch
 
-register(
-    AUCBanditMetaTechnique([
+register(AUCBanditMetaTechnique([
         differentialevolution.DifferentialEvolutionAlt(),
         evolutionarytechniques.GreedyMutation(),
         simplextechniques.RandomNelderMead(name="NelderMeadA"),
         simplextechniques.RandomNelderMead(name="NelderMeadB"),
-      ],
-      name = "AUCBanditMetaTechniqueA"))
+      ], name = "AUCBanditMetaTechniqueA"))
+register(AUCBanditMetaTechnique([
+        differentialevolution.DifferentialEvolutionAlt(),
+        evolutionarytechniques.GreedyMutation(),
+      ], name = "AUCBanditMetaTechniqueB"))
+register(AUCBanditMetaTechnique([
+        differentialevolution.DifferentialEvolutionAlt(),
+        patternsearch.PatternSearch(),
+      ], name = "AUCBanditMetaTechniqueC"))
 
 

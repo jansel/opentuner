@@ -66,7 +66,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
 class RoundRobinMetaSearchTechnique(MetaSearchTechnique):
   '''evenly switch between all source techniques'''
   def __init__(self, techniques, **kwargs):
-    techniques = deqeue(techniques)
+    techniques = deque(techniques)
     super(RoundRobinMetaSearchTechnique, self).__init__(techniques, **kwargs)
 
   def select_technique_order(self):
