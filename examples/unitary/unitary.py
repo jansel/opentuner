@@ -12,25 +12,7 @@
 import argparse
 import logging
 import sys
-
-import deps #fix sys.path
-import opentuner
-
-
-from math import sqrt
-from cla_func import *
-
-from opentuner.search.manipulator import (ConfigurationManipulator,
-                                          SwitchParameter,
-                                          IntegerParameter,
-                                          FloatParameter)
-from opentuner.search.objective import MinimizeTime
-from opentuner.measurement import MeasurementInterface
-from opentuner.measurement.inputmanager import FixedInputManager
-from opentuner.tuningrunmain import TuningRunMain
-
-log = logging.getLogger(__name__)
-
+import random
 
 try:
   import numpy as np
@@ -47,27 +29,50 @@ Possible things to try:
 '''
   raise
 
+
+import deps #fix sys.path
+import opentuner
+
+from math import sqrt
+from fn import _
+from cla_func import *
+
+from opentuner.search.manipulator import (ConfigurationManipulator,
+                                          SwitchParameter,
+                                          IntegerParameter,
+                                          FloatParameter)
+
+log = logging.getLogger(__name__)
+
+
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('--seq-len', type=int, default=10,
                     help='maximum length for generated sequence')
+parser.add_argument('--random-goal', type=int,
+                    help='generate a random goal of the given length')
 
 
-class Unitary(MeasurementInterface):
+class Unitary(opentuner.measurement.MeasurementInterface):
   def __init__(self, *pargs, **kwargs):
     super(Unitary, self).__init__(*pargs, **kwargs)
 
     self.op = Op()
     self.num_operators = len(self.op.M)
 
-    # some test Ugoal
-    Ag = -1/sqrt(10);Bg = sqrt(2)/sqrt(10);Cg = -sqrt(3)/sqrt(10);Dg = -sqrt(4)/sqrt(10);
-    # Ag = -1/sqrt(2);Bg = 1/sqrt(2);Cg = 0;Dg = 0;
-    # Ag = sqrt(3)/sqrt(6);Bg = sqrt(1)/sqrt(6);Cg = sqrt(1)/sqrt(6);Dg = sqrt(1)/sqrt(6);
-    # Ag = sqrt(2)/sqrt(6);Bg = 1/sqrt(6);Cg = sqrt(3)/sqrt(6);Dg = 0/sqrt(6);
-    # Bg = 1/sqrt(2); Cg = 1/sqrt(2); Ag = 0; Dg = 0;
-    self.Ugoal = np.matrix([[Ag + Cg*1j, Bg + Dg*1j], [-Bg + Dg*1j, Ag - Cg*1j]])
 
-    #Ugoal = o.M[0] * o.M[1]
+    if self.args.random_goal:
+      self.Ugoal = reduce(_ * _,
+          [random.choice(self.op.M) for i in xrange(self.args.random_goal)])
+    else:
+      # some test Ugoal
+      Ag = -1/sqrt(10);Bg = sqrt(2)/sqrt(10);Cg = -sqrt(3)/sqrt(10);Dg = -sqrt(4)/sqrt(10);
+      # Ag = -1/sqrt(2);Bg = 1/sqrt(2);Cg = 0;Dg = 0;
+      # Ag = sqrt(3)/sqrt(6);Bg = sqrt(1)/sqrt(6);Cg = sqrt(1)/sqrt(6);Dg = sqrt(1)/sqrt(6);
+      # Ag = sqrt(2)/sqrt(6);Bg = 1/sqrt(6);Cg = sqrt(3)/sqrt(6);Dg = 0/sqrt(6);
+      # Bg = 1/sqrt(2); Cg = 1/sqrt(2); Ag = 0; Dg = 0;
+      self.Ugoal = np.matrix([[Ag + Cg*1j, Bg + Dg*1j], [-Bg + Dg*1j, Ag - Cg*1j]])
+
+      #self.Ugoal = self.op.M[0] * self.op.M[1]
 
 
 
