@@ -123,7 +123,7 @@ def calc_fidelity(sequence, Op, Ugoal):
     	Uapprox = Op.M[sequence[k]] * Uapprox
 
     # M.getH() returns the complex conjugate of self
-    result = 1.0 - (1.0/len(Ugoal)) * abs(np.trace(Ugoal * Uapprox.getH()))
+    result = (1.0/len(Ugoal)) * abs(np.trace(Ugoal * Uapprox.getH()))
 
     return result
 
