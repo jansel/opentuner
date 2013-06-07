@@ -11,7 +11,7 @@ def argparsers():
       search.driver.argparser,
       search.plugin.argparser,
       search.technique.argparser,
-      stats.argparser,
+      #stats.argparser,
       tuningrunmain.argparser,
     ]
 

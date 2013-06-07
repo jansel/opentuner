@@ -1,10 +1,18 @@
+#!/usr/bin/python
+
+if __name__ == '__main__':
+  import adddeps
+
 import argparse
 import csv
 import hashlib
 import logging
-import subprocess
+import re
 import math
 import os
+import subprocess
+import sys
+import itertools
 
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -13,15 +21,16 @@ from fn import Stream
 from fn.iters import repeat
 from pprint import pprint
 
+import opentuner
 from opentuner import resultsdb
 from opentuner.resultsdb.models import *
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('opentuner.utils.stats')
 
-argparser = argparse.ArgumentParser(add_help=False)
+argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--stats', action='store_true',
                        help="run in stats mode")
-argparser.add_argument('--stats-quanta', type=float, default=10,
+argparser.add_argument('--stats-quanta', type=float, default=1,
                        help="step size in seconds for binning with --stats")
 argparser.add_argument('--stats-dir', default='stats',
                        help="directory to output --stats to")
@@ -46,7 +55,15 @@ def median(vals):
   b = (len(vals))/2
   return (vals[a]+vals[b])/2.0
 
+def percentile(vals, pct):
+  vals = sorted(vals)
+  pos = (len(vals)-1) * pct
+  a = int(math.floor(pos))
+  b = a+1
+  return (1.0-(pos-a))*vals[a] + (pos-a)*vals[b]
+
 def variance(vals):
+  vals = filter(lambda x: x is not None, vals)
   avg = mean(vals)
   if avg is None:
     return None
@@ -64,20 +81,15 @@ def hash_args(x):
     d[k] = None
   return hashlib.sha256(str(sorted(d.items()))).hexdigest()[:20]
 
-def run_label(tr):
+def run_label(tr, short = False):
   techniques = ','.join(tr.args.technique)
   if not tr.name or tr.name=='unnamed':
-    return "%s_%s" % (techniques, hash_args(tr.args)[:6])
+    if short:
+      return techniques
+    else:
+      return "%s_%s" % (techniques, hash_args(tr.args)[:6])
   else:
     return tr.label
-
-def run_name(tr):
-  return "%s/%s/%s[%s]" % (
-      tr.program.project,
-      tr.program.name,
-      tr.program_version.version,
-      run_label(tr),
-    )
 
 def run_dir(base, tr):
   return os.path.join(base,
@@ -86,17 +98,21 @@ def run_dir(base, tr):
                       tr.program_version.version[:16])
 
 class StatsMain(object):
-  def __init__(self, measurement_interface, args):
+  def __init__(self, args):
     self.args = args
     path = args.stats_input
     self.dbs = list()
     for f in os.listdir(path):
-      e, sm = resultsdb.connect('sqlite:///'+os.path.join(path, f))
-      self.dbs.append(sm())
-    self.measurement_interface = measurement_interface
+      try:
+        e, sm = resultsdb.connect('sqlite:///'+os.path.join(path, f))
+        self.dbs.append(sm())
+      except:
+        log.error('failed to load database: %s', 
+                  os.path.join(path, f),
+                  exc_info=True)
 
   def main(self):
-    runs = defaultdict(list)
+    dir_label_runs = defaultdict(lambda: defaultdict(list))
     for session in self.dbs:
       q = (session.query(resultsdb.models.TuningRun)
           .filter_by(state='COMPLETE')
@@ -107,19 +123,96 @@ class StatsMain(object):
           map(str.strip,self.args.label.split(','))))
 
       for tr in q:
-        runs[run_name(tr)].append((tr, session))
+        d = run_dir(self.args.stats_dir, tr)
+        d = os.path.normpath(d)
+        dir_label_runs[d][run_label(tr)].append((tr, session))
 
-    dir_to_plots = defaultdict(list)
-    for k, runs in runs.iteritems():
-      log.info('%s has %d runs %s', k, len(runs), runs[0][0].args.technique)
-      d = run_dir(self.args.stats_dir, runs[0][0])
+    summary_report = defaultdict(lambda: defaultdict(list))
+    for d, label_runs in dir_label_runs.iteritems():
       if not os.path.isdir(d):
         os.makedirs(d)
-      label = run_label(runs[0][0])
-      dir_to_plots[d].append(label)
-      self.combined_stats_over_time(d, label, runs, _.result.time, min)
+      session = label_runs.values()[0][0][1]
+      objective = label_runs.values()[0][0][0].objective
+      all_run_ids = map(_[0].id, itertools.chain(*label_runs.values()))
+      q = (session.query(Result)
+           .filter(Result.tuning_run_id.in_(all_run_ids))
+           .filter(Result.time < float('inf'))
+           .filter_by(was_new_best=True, state='OK'))
+      total = q.count()
+      q = objective.filter_acceptable(q)
+      acceptable = q.count()
+      q = q.order_by(*objective.result_order_by_terms())
+      best = q.limit(1).one()
+      worst = q.offset(acceptable-1).limit(1).one()
 
-    for d, labels in dir_to_plots.iteritems():
+      map(len, label_runs.values())
+
+      log.info("%s -- best %.4f / worst %.f4 "
+               "-- %d of %d acceptable -- %d techniques with %d to %d runs",
+               d,
+               best.time,
+               worst.time,
+               acceptable,
+               total,
+               len(label_runs.values()),
+               min(map(len, label_runs.values())),
+               max(map(len, label_runs.values())))
+
+      for label, runs in sorted(label_runs.items()):
+        log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
+        self.combined_stats_over_time(d, label, runs, objective, worst, best)
+
+        final_scores = list()
+        for run, session in runs:
+          try:
+            final = (session.query(Result)
+                    .filter_by(tuning_run=run,
+                               configuration=run.final_config)
+                    .limit(1)
+                    .one())
+          except sqlalchemy.orm.exc.NoResultFound:
+            continue
+          final_scores.append(objective.stats_quality_score(final, worst, best))
+        final_scores.sort()
+        if final_scores:
+          summary_report[d][run_label(run, short=True)] = (
+              percentile(final_scores, 0.5) / objective.stats_quality_score(best, worst, best),
+              percentile(final_scores, 0.1) / objective.stats_quality_score(best, worst, best),
+              percentile(final_scores, 0.9) / objective.stats_quality_score(best, worst, best),
+            )
+
+
+    with open("stats/summary.dat", 'w') as o:
+      # make summary report
+      keys = sorted(reduce(set.union,
+                           [set(x.keys()) for x in summary_report.values()]))
+
+      print >>o, '#####',
+      for k in keys:
+        print >>o, k,
+      print >>o
+      for d, label_vals in sorted(summary_report.items()):
+        print >>o, d.split('/')[-2],
+        for k in keys:
+          if k in label_vals:
+            print >>o, '-', label_vals[k][0], label_vals[k][1], label_vals[k][2],
+          else:
+            print >>o, '-', '-', '-', '-',
+        print >>o
+
+    plotcmd = ["""'summary.dat' using 3:4:5:xtic(1) ti "%s" """ % keys[0]]
+    for n, k in enumerate(keys[1:]):
+      plotcmd.append("""'summary.dat' using %d:%d:%d ti "%s" """ % (
+                      4*n + 7,
+                      4*n + 8,
+                      4*n + 9,
+                      k))
+    self.gnuplot_summary_file('stats', 'summary', plotcmd)
+
+
+
+    for d, label_runs in dir_label_runs.iteritems():
+      labels = label_runs.keys()
       self.gnuplot_file(d,
                         "medianperfe",
                         ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
@@ -133,15 +226,15 @@ class StatsMain(object):
                         "meanperfl",
                         ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
 
-      print
-      print "10% Scores", d
-      pprint(self.technique_scores(d, labels, '0.1'))
-      print
-      print "90% Scores", d
-      pprint(self.technique_scores(d, labels, '0.9'))
-      print
-      print "Mean Scores", d
-      pprint(self.technique_scores(d, labels, 'mean'))
+    # print
+    # print "10% Scores", d
+    # pprint(self.technique_scores(d, labels, '0.1'))
+    # print
+    # print "90% Scores", d
+    # pprint(self.technique_scores(d, labels, '0.9'))
+    # print
+    # print "Mean Scores", d
+    # pprint(self.technique_scores(d, labels, 'mean'))
       print
       print "Median Scores", d
       pprint(self.technique_scores(d, labels, '0.5'))
@@ -184,14 +277,19 @@ class StatsMain(object):
                                output_dir,
                                label,
                                runs,
-                               extract_fn,
-                               combine_fn,
-                               no_data = None):
+                               objective,
+                               worst,
+                               best,
+                               ):
     '''
     combine stats_over_time() vectors for multiple runs
     '''
 
-    log.info("writing stats for %s to %s", label, output_dir)
+    extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
+    combine_fn = min
+    no_data = 0.0
+
+    log.debug("writing stats for %s to %s", label, output_dir)
     by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
               for run, session in runs]
     max_len = max(map(len, by_run))
@@ -264,6 +362,21 @@ class StatsMain(object):
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
     subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir)
 
+  def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
+    with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
+      print >>fd, 'set terminal postscript eps enhanced color'
+      print >>fd, 'set output "%s"' % (prefix+'.pdf')
+      print >>fd, '''
+set boxwidth 0.9
+set style fill solid 1.00 border 0
+set style histogram errorbars gap 2 lw 1
+set style data histograms
+set xtics rotate by -45
+set bars 0.5
+set yrange [0:20]
+'''
+      print >>fd, 'plot', ',\\\n'.join(plotcmd)
+    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir)
 
 
   def stats_over_time(self,
@@ -280,7 +393,7 @@ class StatsMain(object):
     start_date = run.start_date
 
     subq = (session.query(Result.id)
-           .filter_by(tuning_run = run, was_new_best = True))
+           .filter_by(tuning_run = run, was_new_best = True, state='OK'))
 
     q = (session.query(DesiredResult)
          .join(Result)
@@ -306,8 +419,8 @@ class StatsMain(object):
 
 
 
-
-
-
+if __name__ == '__main__':
+  opentuner.tuningrunmain.init_logging()
+  sys.exit(StatsMain(argparser.parse_args()).main())
 
 

@@ -101,6 +101,21 @@ class SearchObjective(object):
         rv.append('%s=%.4f' % (k,v))
     return ', '.join(rv)
 
+  def filter_acceptable(self, query):
+    '''Return a Result() query that only returns acceptable results'''
+    return query
+
+  def is_acceptable(self, result):
+    '''Test if a Result() meets thresholds'''
+    return True
+
+  def stats_quality_score(self, result, worst_result, best_result):
+    '''return a score for statistics'''
+    if not self.is_acceptable(result):
+      return worst_result.time
+    else:
+      return result.time
+
 def _project(a1, a2, factor):
   if a1 is None or a2 is None:
     return None
@@ -140,9 +155,18 @@ class MaximizeAccuracy(SearchObjective):
     # note opposite order
     return cmp(result2.accuracy, result1.accuracy)
 
+  def stats_quality_score(self, result, worst_result, best_result):
+    '''return a score for statistics'''
+    if not self.is_acceptable(result):
+      return worst_result.time
+    else:
+      return result.time
+
+  def stats_raw_score(self, result):
+    return result.accuracy
 
 
-class MaximizeAccuracyMinimizeSize(SearchObjective):
+class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):
   '''
   maximize Result().accuracy, break ties with Result().size
   '''
@@ -200,6 +224,17 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     else:
       m = 1.0
     return m*max(map(_.time, results))
+
+
+  def filter_acceptable(self, query):
+    '''Return a Result() query that only returns acceptable results'''
+    return query.filter(opentuner.resultsdb.models.Result.accuracy
+                        >= self.accuracy_target)
+
+  def is_acceptable(self, result):
+    '''Test if a Result() meets thresholds'''
+    return result.accuracy >= self.accuracy_target
+
 
 
 

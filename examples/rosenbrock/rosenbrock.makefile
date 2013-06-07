@@ -9,8 +9,9 @@ DB="sqlite:///opentuner.db/$$RUN.db";     \
 for TEQ in $(TECHNIQUES); do          \
 	./rosenbrock.py --function=$(FN)    \
 									--technique=$$TEQ  \
-									--dimensions=$(DIMS)\
-									--database=$$DB;    \
+									--dimensions=$(DIMS)   \
+									--database=$$DB;       \
+									--stop-after=300;      \
 done;
 endef
 
