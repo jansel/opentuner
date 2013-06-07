@@ -11,7 +11,6 @@ for TEQ in $(TECHNIQUES); do          \
 									--technique=$$TEQ  \
 									--dimensions=$(DIMS)   \
 									--database=$$DB;       \
-									--stop-after=300;      \
 done;
 endef
 

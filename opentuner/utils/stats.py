@@ -27,7 +27,8 @@ from opentuner.resultsdb.models import *
 
 log = logging.getLogger('opentuner.utils.stats')
 
-argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
+argparser = argparse.ArgumentParser()
+argparser.add_argument('--label')
 argparser.add_argument('--stats', action='store_true',
                        help="run in stats mode")
 argparser.add_argument('--stats-quanta', type=float, default=1,
@@ -35,6 +36,8 @@ argparser.add_argument('--stats-quanta', type=float, default=1,
 argparser.add_argument('--stats-dir', default='stats',
                        help="directory to output --stats to")
 argparser.add_argument('--stats-input', default="opentuner.db")
+argparser.add_argument('--min-runs',  type=int, default=10,
+                       help="ignore series with less then N runs")
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
@@ -103,6 +106,8 @@ class StatsMain(object):
     path = args.stats_input
     self.dbs = list()
     for f in os.listdir(path):
+      if 'journal' in f:
+        continue
       try:
         e, sm = resultsdb.connect('sqlite:///'+os.path.join(path, f))
         self.dbs.append(sm())
@@ -159,6 +164,9 @@ class StatsMain(object):
                max(map(len, label_runs.values())))
 
       for label, runs in sorted(label_runs.items()):
+        if len(runs) < self.args.min_runs:
+          continue
+
         log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
         self.combined_stats_over_time(d, label, runs, objective, worst, best)
 
@@ -175,11 +183,19 @@ class StatsMain(object):
           final_scores.append(objective.stats_quality_score(final, worst, best))
         final_scores.sort()
         if final_scores:
-          summary_report[d][run_label(run, short=True)] = (
-              percentile(final_scores, 0.5) / objective.stats_quality_score(best, worst, best),
-              percentile(final_scores, 0.1) / objective.stats_quality_score(best, worst, best),
-              percentile(final_scores, 0.9) / objective.stats_quality_score(best, worst, best),
-            )
+          norm = objective.stats_quality_score(best, worst, best)
+          if norm > 0.00001:
+            summary_report[d][run_label(run, short=True)] = (
+                percentile(final_scores, 0.5) / norm,
+                percentile(final_scores, 0.1) / norm,
+                percentile(final_scores, 0.9) / norm,
+              )
+          else:
+            summary_report[d][run_label(run, short=True)] = (
+                percentile(final_scores, 0.5) + norm + 1.0,
+                percentile(final_scores, 0.1) + norm + 1.0,
+                percentile(final_scores, 0.9) + norm + 1.0,
+              )
 
 
     with open("stats/summary.dat", 'w') as o:
@@ -200,9 +216,10 @@ class StatsMain(object):
             print >>o, '-', '-', '-', '-',
         print >>o
 
-    plotcmd = ["""'summary.dat' using 3:4:5:xtic(1) ti "%s" """ % keys[0]]
+    plotcmd = ["""1 w lines lt 1 lc rgb "black" notitle""",
+               """'summary.dat' using 3:4:5:xtic(1) ti "%s" """ % keys[0]]
     for n, k in enumerate(keys[1:]):
-      plotcmd.append("""'summary.dat' using %d:%d:%d ti "%s" """ % (
+      plotcmd.append("""'' using %d:%d:%d ti "%s" """ % (
                       4*n + 7,
                       4*n + 8,
                       4*n + 9,
@@ -212,7 +229,8 @@ class StatsMain(object):
 
 
     for d, label_runs in dir_label_runs.iteritems():
-      labels = label_runs.keys()
+      labels = [k for k,v in label_runs.iteritems()
+                if len(v)>=self.args.min_runs]
       self.gnuplot_file(d,
                         "medianperfe",
                         ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
@@ -285,9 +303,10 @@ class StatsMain(object):
     combine stats_over_time() vectors for multiple runs
     '''
 
-    extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
+    #extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
+    extract_fn = _.result.time
     combine_fn = min
-    no_data = 0.0
+    no_data = 999
 
     log.debug("writing stats for %s to %s", label, output_dir)
     by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
@@ -333,23 +352,23 @@ class StatsMain(object):
                       label+'_percentiles',
                       reversed([
                         '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
-                        '""                          using 1:3  with lines title "5%"',
+                      # '""                          using 1:3  with lines title "5%"',
                         '""                          using 1:4  with lines title "10%"',
-                        '""                          using 1:5  with lines title "25%"',
+                      # '""                          using 1:5  with lines title "25%"',
                         '""                          using 1:6  with lines title "20%"',
-                        '""                          using 1:7  with lines title "35%"',
+                      # '""                          using 1:7  with lines title "35%"',
                         '""                          using 1:8  with lines title "30%"',
-                        '""                          using 1:9  with lines title "45%"',
+                      # '""                          using 1:9  with lines title "45%"',
                         '""                          using 1:10 with lines title "40%"',
-                        '""                          using 1:11 with lines title "55%"',
+                      # '""                          using 1:11 with lines title "55%"',
                         '""                          using 1:12 with lines title "50%"',
-                        '""                          using 1:13 with lines title "65%"',
+                      # '""                          using 1:13 with lines title "65%"',
                         '""                          using 1:14 with lines title "70%"',
-                        '""                          using 1:15 with lines title "75%"',
+                      # '""                          using 1:15 with lines title "75%"',
                         '""                          using 1:16 with lines title "80%"',
-                        '""                          using 1:17 with lines title "85%"',
+                      # '""                          using 1:17 with lines title "85%"',
                         '""                          using 1:18 with lines title "90%"',
-                        '""                          using 1:19 with lines title "95%"',
+                      # '""                          using 1:19 with lines title "95%"',
                         '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
                        ]))
 
@@ -374,6 +393,12 @@ set style data histograms
 set xtics rotate by -45
 set bars 0.5
 set yrange [0:20]
+
+set yrange [0:10]
+set key out vert top left
+set size 1.5,1
+set ytics 1
+
 '''
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
     subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir)
