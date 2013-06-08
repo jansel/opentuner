@@ -63,6 +63,11 @@ the_logging_config = {
                    'propagate': True}}}
 
 
+def init_logging():
+  dictConfig(the_logging_config)
+  global init_logging
+  init_logging = lambda: None
+
 
 class TuningRunMain(object):
   def __init__(self,
@@ -70,8 +75,7 @@ class TuningRunMain(object):
                args,
                search_driver = SearchDriver,
                measurement_driver = MeasurementDriver):
-
-    dictConfig(the_logging_config)
+    init_logging()
 
     manipulator = measurement_interface.manipulator()
     input_manager = measurement_interface.input_manager()
@@ -149,11 +153,6 @@ class TuningRunMain(object):
       self.session.flush()
 
   def main(self):
-    if self.args.stats:
-      import stats
-      return stats.StatsMain(self.measurement_interface,
-                             self.args).main()
-
     self.init()
     try:
       self.tuning_run.state = 'RUNNING'
