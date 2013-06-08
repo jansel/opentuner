@@ -1,4 +1,4 @@
-#!../../venv/bin/python
+#!/usr/bin/env python
 #
 # This is a quantum control example motivated by the experimental need
 # to synthesize unitary matrices in SU(2) in optimal time, given an
@@ -9,6 +9,9 @@
 #
 # Contributed by Clarice D. Aiello <clarice@mit.edu>
 #
+
+import adddeps #fix sys.path
+
 import argparse
 import logging
 import sys
@@ -30,7 +33,6 @@ Possible things to try:
   raise
 
 
-import deps #fix sys.path
 import opentuner
 
 from math import sqrt

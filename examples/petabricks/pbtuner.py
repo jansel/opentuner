@@ -1,4 +1,7 @@
-#!../../venv/bin/python
+#!/usr/bin/env python
+
+import adddeps #fix sys.path
+
 import re
 import argparse
 import logging
@@ -7,8 +10,7 @@ import tempfile
 import json
 from pprint import pprint
 
-import deps #fix sys.path
-from deps import etree
+
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                          IntegerParameter,
@@ -17,10 +19,17 @@ from opentuner.search.manipulator import (ConfigurationManipulator,
                                          LogFloatParameter,
                                          SwitchParameter,
                                          )
+
+
+
+try:
+  from lxml import etree
+except ImportError:
+  import xml.etree.ElementTree as etree
+
 from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
-from opentuner.stats import StatsMain
 from opentuner.search.objective import ThresholdAccuracyMinimizeTime
 
 log = logging.getLogger("pbtuner")

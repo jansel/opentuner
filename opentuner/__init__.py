@@ -1,5 +1,5 @@
 
-import search, measurement, tuningrunmain, stats
+import search, measurement, tuningrunmain
 from tuningrunmain import main
 
 def argparsers():

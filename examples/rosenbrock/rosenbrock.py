@@ -1,4 +1,4 @@
-#!../../venv/bin/python
+#!/usr/bin/env python
 #
 # This is a simple testcase purely for testing the autotuner
 #
@@ -7,10 +7,12 @@
 # Also supports some other test functions taken from:
 # http://en.wikipedia.org/wiki/Test_functions_for_optimization
 #
+
+import adddeps #fix sys.path
+
 import argparse
 import logging
 
-import deps #fix sys.path
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           IntegerParameter,
