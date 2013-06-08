@@ -3,7 +3,7 @@
 DST=`pwd`
 
 #this is hardcoded, you should change it :)
-cd ~/petabricks
+cd /data/commit/jansel/petabricks
 
 ./configure CXXFLAGS="-O2"
 make
