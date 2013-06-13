@@ -38,20 +38,41 @@ import opentuner
 from math import sqrt
 from fn import _
 from cla_func import *
+from input_generator import (
+  generate_random_Ugoal_HARD,
+  generate_random_Ugoal_EASY,
+  generate_random_Ugoal_RANDOM,
+)
 
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           SwitchParameter,
                                           IntegerParameter,
                                           FloatParameter)
 
+
+def generate_random_Ugoal_FIXED(**kwargs):
+  Ag = -1/sqrt(10);Bg = sqrt(2)/sqrt(10);Cg = -sqrt(3)/sqrt(10);Dg = -sqrt(4)/sqrt(10);
+  return np.matrix([[Ag + Cg*1j, Bg + Dg*1j], [-Bg + Dg*1j, Ag - Cg*1j]])
+
+
 log = logging.getLogger(__name__)
 
+generators = {
+    'hard': generate_random_Ugoal_HARD,
+    'easy': generate_random_Ugoal_EASY,
+    'random': generate_random_Ugoal_RANDOM,
+    'fixed': generate_random_Ugoal_FIXED,
+  }
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('--seq-len', type=int, default=10,
                     help='maximum length for generated sequence')
-parser.add_argument('--random-goal', type=int,
-                    help='generate a random goal of the given length')
+parser.add_argument('--goal-type', choices=generators.keys(), default='hard',
+                    help='method used to generate goal')
+parser.add_argument('--goal-n', type=int, default=100,
+                    help='argument to ugoal generator')
+parser.add_argument('--goal-alpha', type=float, default=random.random() * math.pi,
+                    help='argument to ugoal generator')
 
 
 class Unitary(opentuner.measurement.MeasurementInterface):
@@ -60,22 +81,7 @@ class Unitary(opentuner.measurement.MeasurementInterface):
 
     self.op = Op()
     self.num_operators = len(self.op.M)
-
-
-    if self.args.random_goal:
-      self.Ugoal = reduce(_ * _,
-          [random.choice(self.op.M) for i in xrange(self.args.random_goal)])
-    else:
-      # some test Ugoal
-      Ag = -1/sqrt(10);Bg = sqrt(2)/sqrt(10);Cg = -sqrt(3)/sqrt(10);Dg = -sqrt(4)/sqrt(10);
-      # Ag = -1/sqrt(2);Bg = 1/sqrt(2);Cg = 0;Dg = 0;
-      # Ag = sqrt(3)/sqrt(6);Bg = sqrt(1)/sqrt(6);Cg = sqrt(1)/sqrt(6);Dg = sqrt(1)/sqrt(6);
-      # Ag = sqrt(2)/sqrt(6);Bg = 1/sqrt(6);Cg = sqrt(3)/sqrt(6);Dg = 0/sqrt(6);
-      # Bg = 1/sqrt(2); Cg = 1/sqrt(2); Ag = 0; Dg = 0;
-      self.Ugoal = np.matrix([[Ag + Cg*1j, Bg + Dg*1j], [-Bg + Dg*1j, Ag - Cg*1j]])
-
-      #self.Ugoal = self.op.M[0] * self.op.M[1]
-
+    self.Ugoal = generators[args.goal_type](N=args.goal_n, alpha=args.goal_alpha)
 
 
   def run(self, desired_result, input, limit):
