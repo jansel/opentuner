@@ -465,10 +465,10 @@ class EnumParameter(SwitchParameter):
     super(EnumParameter, self).__init__(name, option_count=len(options))
 
   def _to_storage_type(self, val):
-    return super(EnumParameter)._to_storage_type(self.int_to_opt[val])
+    return super(EnumParameter, self)._to_storage_type(self.int_to_opt[val])
 
   def _from_storage_type(self, sval):
-    return self.opt_to_int[super(EnumParameter)._from_storage_type(sval)]
+    return self.opt_to_int[super(EnumParameter, self)._from_storage_type(sval)]
 
 
 ##################
