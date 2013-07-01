@@ -55,7 +55,7 @@ class MeasurementDriver(DriverBase):
       m = Machine(name          = hostname,
                   cpu           = _cputype(),
                   cores         = _cpucount(),
-                  memory_gb     = _memorysize()/(1024.0**3),
+                  memory_gb     = _memorysize()/(1024.0**3) if _memorysize() else 0,
                   machine_class = self.get_machine_class())
       self.session.add(m)
       return m
@@ -161,6 +161,12 @@ def _cputype():
     return re.search(r"model name\s*:\s*([^\n]*)",
                      open("/proc/cpuinfo").read()).group(1)
   except:
+    pass
+  try:
+    # for OS X
+    import subprocess
+    return subprocess.Popen(["sysctl", "-n", "machdep.cpu.brand_string"], stdout=subprocess.PIPE).communicate()[0].strip()
+  except:
     log.warning("failed to get cpu type")
     return None
 
@@ -190,6 +196,12 @@ def _memorysize():
     pass
   try:
     return os.sysconf("_SC_PHYS_PAGES")*os.sysconf("_SC_PAGE_SIZE")
+  except:
+    pass
+  try:
+    # for OS X
+    import subprocess
+    return subprocess.Popen(["sysctl", "-n", "hw.memsize"], stdout=subprocess.PIPE).communicate()[0].strip()
   except:
     log.warning("failed to get total memory")
     return None
