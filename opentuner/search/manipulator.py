@@ -107,7 +107,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     else:
       cfg = self.config_type()
       for p in self.params:
-        if '/' not in p.name:
+        if not isinstance(p.name, str) or '/' not in p.name:
           cfg[p.name] = p.seed_value()
     return cfg
 
@@ -168,6 +168,8 @@ class Parameter(object):
   def _read_node(self, config):
     '''hook to support different storage structures'''
     node = config
+    if not isinstance(self.name, str):
+      return node, self.name
     name_parts = self.name.split('/')
     for part in name_parts[:-1]:
       if isinstance(node, list):

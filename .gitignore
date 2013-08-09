@@ -42,3 +42,4 @@ venv
 .ropeproject
 opentuner.log
 .*.swo
+opentuner.db
