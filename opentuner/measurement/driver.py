@@ -168,15 +168,15 @@ def _cputype():
     return subprocess.Popen(["sysctl", "-n", "machdep.cpu.brand_string"], stdout=subprocess.PIPE).communicate()[0].strip()
   except:
     log.warning("failed to get cpu type")
-    return None
+  return "unknown"
 
 def _cpucount():
   try:
-    return os.sysconf("SC_NPROCESSORS_ONLN")
+    return int(os.sysconf("SC_NPROCESSORS_ONLN"))
   except:
     pass
   try:
-    return os.sysconf("_SC_NPROCESSORS_ONLN")
+    return int(os.sysconf("_SC_NPROCESSORS_ONLN"))
   except:
     pass
   try:
@@ -187,22 +187,24 @@ def _cpucount():
     return int(os.environ["NUM_PROCESSORS"])
   except:
     log.warning("failed to get the number of processors")
-  return None
+  return 1
 
 def _memorysize():
   try:
-    return os.sysconf("SC_PHYS_PAGES")*os.sysconf("SC_PAGE_SIZE")
+    return int(os.sysconf("SC_PHYS_PAGES")*os.sysconf("SC_PAGE_SIZE"))
   except:
     pass
   try:
-    return os.sysconf("_SC_PHYS_PAGES")*os.sysconf("_SC_PAGE_SIZE")
+    return int(os.sysconf("_SC_PHYS_PAGES")*os.sysconf("_SC_PAGE_SIZE"))
   except:
     pass
   try:
     # for OS X
     import subprocess
-    return subprocess.Popen(["sysctl", "-n", "hw.memsize"], stdout=subprocess.PIPE).communicate()[0].strip()
+    return int(subprocess.Popen(["sysctl", "-n", "hw.memsize"],
+                                stdout=subprocess.PIPE)
+              .communicate()[0].strip())
   except:
     log.warning("failed to get total memory")
-    return None
+  return 1024**3
 
