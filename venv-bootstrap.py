@@ -596,7 +596,8 @@ def _install_req(py_executable, unzip=False, distribute=False,
 def file_search_dirs():
     here = os.path.dirname(os.path.abspath(__file__))
     dirs = ['.', here,
-            join(here, 'virtualenv_support')]
+            #join(here, 'virtualenv_support')]
+            '/usr/share/python-virtualenv/']
     if os.path.splitext(os.path.dirname(__file__))[0] != 'virtualenv':
         # Probably some boot script; just in case virtualenv is installed...
         try:
@@ -884,7 +885,7 @@ def main():
         'VIRTUALENV_SETUPTOOLS to make it the default ')
 
     # Set this to True to use distribute by default, even in Python 2.
-    parser.set_defaults(use_distribute=False)
+    parser.set_defaults(use_distribute=True)
 
     default_search_dirs = file_search_dirs()
     parser.add_option(
@@ -1925,8 +1926,12 @@ def adjust_options(options, args):
 
 def after_install(options, home_dir):
   from os.path import join
-  pip = join(home_dir, 'bin', 'pip')
-  #subprocess.call([pip, 'install'] + pip_install_packages)
+  pip = join(home_dir, 'bin/pip')
+  if not os.path.exists(pip):
+    # on windows
+    pip = join(home_dir, 'Scripts/pip.exe')
+  if not os.path.exists(pip):
+    print "error", pip, "is missing"
   for prog in pip_install_packages:
     subprocess.call([pip, 'install', prog])
 

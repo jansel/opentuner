@@ -39,7 +39,8 @@ use virtual env to create a isolated python environment by running:
 
     python ./venv-bootstrap.py
 
-which will create a ./venv/bin/python with all the required packages installed.
+which will create a ./venv/bin/python (./venv/Scripts/python.exe on windows)
+with all the required packages installed.
 
 [python-packages]: https://raw.github.com/jansel/opentuner/master/python-packages
 

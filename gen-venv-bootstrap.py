@@ -16,14 +16,19 @@ def adjust_options(options, args):
 
 def after_install(options, home_dir):
   from os.path import join
-  pip = join(home_dir, 'bin', 'pip')
-  #subprocess.call([pip, 'install'] + pip_install_packages)
+  pip = join(home_dir, 'bin/pip')
+  if not os.path.exists(pip):
+    # on windows
+    pip = join(home_dir, 'Scripts/pip.exe')
+  if not os.path.exists(pip):
+    print "error", pip, "is missing"
   for prog in pip_install_packages:
     subprocess.call([pip, 'install', prog])
 
 '''
 
-import os, virtualenv
+import os
+import virtualenv
 
 os.chdir(os.path.dirname(__file__))
 output = virtualenv.create_bootstrap_script(extra)
