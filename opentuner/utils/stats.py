@@ -384,7 +384,7 @@ class StatsMain(object):
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
 
     try:
-      subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir,shell=True)
+      subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
     except OSError:
       log.error("command gnuplot not found")
 
@@ -408,7 +408,7 @@ set ytics 1
 
 '''
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
-    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir,shell=True)
+    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
 
 
   def stats_over_time(self,
