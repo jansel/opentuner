@@ -64,7 +64,7 @@ def percentile(vals, pct):
   vals = sorted(vals)
   pos = (len(vals)-1) * pct
   a = int(math.floor(pos))
-  b = a+1
+  b = min(len(vals) - 1, a + 1)
   return (1.0-(pos-a))*vals[a] + (pos-a)*vals[b]
 
 def variance(vals):
