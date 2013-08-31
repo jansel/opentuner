@@ -97,7 +97,7 @@ class LogDisplayPlugin(DisplayPlugin):
     requestor = ','.join(map(_.requestor, best.desired_results))
     display_log.info("tests=%d, best %s, cost %s, found by %s",
                      count,
-                     best.configuration.data,
+                     cfg_repr(best.configuration),
                      self.driver.objective.display(best),
                      requestor,
                      )
@@ -136,6 +136,18 @@ def get_enabled(args):
     plugins.append(FileDisplayPlugin(args.results_log,
                                      args.results_log_details))
   return plugins
+
+def cfg_repr(cfg):
+  try:
+    s = repr(cfg.data)
+    if len(s) < 100:
+      return s
+  except:
+    pass
+  return "#{0}".format(cfg.id)
+
+
+
 
 
 
