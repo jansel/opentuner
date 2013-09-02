@@ -218,6 +218,11 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     for func in self.settings['functions']:
       name = func['name']
       store_order = cfg['{0}_store_order'.format(name)]
+      inner_varname = var_name_order[name][-1]
+      vectorize = cfg['{0}_vectorize'.format(name)]
+      # unroll = cfg['{0}_unroll'.format(name)]
+      unroll = 1
+
 
       print >>o, name,
 
@@ -238,9 +243,13 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
             if split_factor2 <= 1:
               break
             split_factor *= split_factor2
-
           varname = var_names[(name, var, nesting)]
           lastvarname = var_names[(name, var, nesting - 1)]
+
+          if varname == inner_varname:
+            split_factor *= unroll
+            split_factor *= vectorize
+
           print >>o, '.split({0}, {0}, {1}, {2})'.format(
             lastvarname, varname, split_factor),
 
@@ -251,13 +260,11 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       # reorder_storage
       print >>o, '.reorder_storage({0})'.format(', '.join(store_order))
 
-      vectorize = cfg['{0}_vectorize'.format(name)]
+      if unroll > 1:
+        print >>o, '.unroll({0}, {1})'.format(var_name_order[name][-1], unroll * vectorize),
+
       if vectorize > 1:
         print >>o, '.vectorize({0}, {1})'.format(var_name_order[name][-1], vectorize),
-
-      unroll = cfg['{0}_unroll'.format(name)]
-      if unroll > 1:
-        print >>o, '.unroll({0}, {1})'.format(var_name_order[name][-1], unroll),
 
       if (compute_at[name] is not None and
             len(var_name_order[compute_at[name][0]]) >= compute_at[name][1]):
@@ -320,7 +327,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
 
     try:
       result = self.call_program(binfile,
-                                 limit=1 + 2 * self.min_collection_cost,
+                                 limit=args.limit,
                                  memory_limit=args.memory_limit)
       stdout = result['stdout']
       stderr = result['stderr']

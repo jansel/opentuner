@@ -6,5 +6,5 @@
   {"name": "blurx", "vars": ["x", "y", "z"], "calls": ["grid"]},
   {"name": "blury", "vars": ["x", "y", "z"], "calls": ["blurx"]},
   {"name": "blurz", "vars": ["x", "y", "z"], "calls": ["blury"]},
-  {"name": "interpolated", "vars": ["x", "y"], "calls": ["blurz"]},
+  {"name": "interpolated", "vars": ["x", "y"], "calls": ["blurz", "clamped"]},
   {"name": "bilateral_grid", "vars": ["x", "y"], "calls": ["interpolated"]}]}
