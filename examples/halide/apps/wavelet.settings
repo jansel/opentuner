@@ -1,3 +1,4 @@
 {"input_size": "2048, 2048",
- "functions": [{"name": "wavelet_clamped", "vars": ["x", "y", "c"]},
-               {"name": "inv_daub_x", "vars": ["x", "y"]}]}
+ "functions": [
+    {"name": "wavelet_clamped", "vars": ["x", "y", "c"], "calls": []},
+    {"name": "inv_daub_x", "vars": ["x", "y"], "calls": ["wavelet_clamped"]}]}
