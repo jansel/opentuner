@@ -6,10 +6,6 @@
 
 using namespace Halide;
 
-Expr lerp(Expr a, Expr b, Expr alpha) {
-    return (1.0f - alpha)*a + alpha*b;
-}
-
 int main(int argc, char **argv) {
   // if (argc < 2) {
   //     printf("Usage: bilateral_grid <s_sigma>\n");

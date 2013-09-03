@@ -1,16 +1,6 @@
-
-import sys
-from os.path import normpath, realpath, dirname, join, isfile
-
-proj_root = normpath(join(dirname(realpath(__file__)), '../..'))
-
-if 'venv' not in ','.join(sys.path):
-  venv_activate = join(proj_root, 'venv/bin/activate_this.py')
-  if isfile(venv_activate):
-    execfile(venv_activate, dict(__file__=venv_activate))
-
-try:
-  import opentuner
-except:
-  sys.path.append(proj_root)
+# we would prefer a symbolic link, but it does not work on windows
+import os
+target = os.path.join(os.path.dirname(__file__),
+                      '../../opentuner/utils/adddeps.py')
+execfile(target, dict(__file__=target))
 

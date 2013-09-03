@@ -1,9 +1,10 @@
-{"input_size": "1024, 1024",
- "functions": [{"name": "clamped", "vars": ["x", "y"]},
-               {"name": "grid", "vars": ["x", "y", "z", "c"]},
-               {"name": "histogram", "vars": ["x", "y", "c"]},
-               {"name": "blurx", "vars": ["x", "y", "z"]},
-               {"name": "blury", "vars": ["x", "y", "z"]},
-               {"name": "blurz", "vars": ["x", "y", "z"]},
-               {"name": "interpolated", "vars": ["x", "y"]},
-               {"name": "bilateral_grid", "vars": ["x", "y"]}]}
+{"input_size": "512, 512",
+ "functions": [
+  {"name": "clamped", "vars": ["x", "y"], "calls": []},
+  {"name": "histogram", "vars": ["x", "y", "c"], "calls": ["clamped"]},
+  {"name": "grid", "vars": ["x", "y", "z", "c"], "calls": ["histogram"]},
+  {"name": "blurx", "vars": ["x", "y", "z"], "calls": ["grid"]},
+  {"name": "blury", "vars": ["x", "y", "z"], "calls": ["blurx"]},
+  {"name": "blurz", "vars": ["x", "y", "z"], "calls": ["blury"]},
+  {"name": "interpolated", "vars": ["x", "y"], "calls": ["blurz", "clamped"]},
+  {"name": "bilateral_grid", "vars": ["x", "y"], "calls": ["interpolated"]}]}

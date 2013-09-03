@@ -64,7 +64,7 @@ def percentile(vals, pct):
   vals = sorted(vals)
   pos = (len(vals)-1) * pct
   a = int(math.floor(pos))
-  b = a+1
+  b = min(len(vals) - 1, a + 1)
   return (1.0-(pos-a))*vals[a] + (pos-a)*vals[b]
 
 def variance(vals):
@@ -378,13 +378,13 @@ class StatsMain(object):
   def gnuplot_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
       print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.pdf')
+      print >>fd, 'set output "%s"' % (prefix+'.eps')
       print >>fd, 'set ylabel "Execution Time (seconds)"'
       print >>fd, 'set xlabel "Autotuning Time (seconds)"'
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
 
     try:
-      subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir,shell=True)
+      subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
     except OSError:
       log.error("command gnuplot not found")
 
@@ -408,7 +408,7 @@ set ytics 1
 
 '''
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
-    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir,shell=True)
+    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
 
 
   def stats_over_time(self,

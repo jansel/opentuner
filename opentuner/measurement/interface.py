@@ -22,7 +22,6 @@ except:
   fcntl = None
 
 from opentuner import resultsdb
-from opentuner.utils.socketpair_compat import socketpair
 
 log = logging.getLogger(__name__)
 
