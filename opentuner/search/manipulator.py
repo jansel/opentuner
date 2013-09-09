@@ -27,7 +27,7 @@ class ConfigurationManipulatorBase(object):
 
   def validate(self, config):
     '''is the given config valid???'''
-    return all(map(_.validate(config), self.parameters(config)))
+    return all(map(_.validate(config), self.parameters()))
 
   def set_search_driver(self, search_driver):
     '''called exactly once during setup'''
@@ -37,14 +37,14 @@ class ConfigurationManipulatorBase(object):
     '''produce copy of config'''
     return copy.deepcopy(config)
 
-  def parameters_dict(self, config):
+  def parameters_dict(self):
     '''convert self.parameters() to a dictionary by name'''
-    return dict([(p.name, p) for p in self.parameters(config)])
+    return dict([(p.name, p) for p in self.parameters()])
 
   def param_names(self, *args):
     '''return union of parameter names in args'''
     return sorted(reduce(set.union,
-                  [set(map(_.name, self.parameters(cfg)))
+                  [set(map(_.name, self.parameters()))
                    for cfg in args]))
 
   def linear_config(self, a, cfg_a, b, cfg_b, c, cfg_c):
@@ -64,7 +64,7 @@ class ConfigurationManipulatorBase(object):
     return
 
   @abc.abstractmethod
-  def parameters(self, config):
+  def parameters(self):
     '''return a list of of Parameter objects'''
     return
 
@@ -114,23 +114,29 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
   def random(self):
     '''produce a random configuration'''
     cfg = self.seed_config()
-    for p in self.parameters(cfg):
+    for p in self.parameters():
       p.randomize(cfg)
     return cfg
 
-  def parameters(self, config):
-    '''return a list of Parameter objects'''
-    if type(config) is not self.config_type:
-      log.error("wrong type, expected %s got %s",
-                str(self.config_type),
-                str(type(config)))
-      raise TypeError()
+    # Need to allow format parameters without referring configuration data
+
+##  def parameters(self, config):
+##    '''return a list of Parameter objects'''
+##    if type(config) is not self.config_type:
+##      log.error("wrong type, expected %s got %s",
+##                str(self.config_type),
+##                str(type(config)))
+##      raise TypeError()
+##    return self.params
+
+  def parameters(self):
     return self.params
+
 
   def hash_config(self, config):
     '''produce unique hash value for the given config'''
     m = hashlib.sha256()
-    params = list(self.parameters(config))
+    params = list(self.parameters())
     params.sort(key=_.name)
     for i, p in enumerate(params):
       m.update(str(p.name))
@@ -1090,7 +1096,7 @@ class ManipulatorProxy(object):
   def __init__(self, manipulator, cfg):
     self.cfg = cfg
     self.manipulator = manipulator
-    self.params = manipulator.parameters_dict(self.cfg)
+    self.params = manipulator.parameters_dict()
 
   def keys(self):
     return self.params.keys()
