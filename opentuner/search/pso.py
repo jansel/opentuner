@@ -18,38 +18,26 @@ class PSO(technique.SequentialSearchTechnique ):
         
         objective   = self.objective
         driver      = self.driver
-##        m = PSOmanipulator(crossover, self.manipulator.params)
+        m = PSOmanipulator(self.crossover, self.manipulator.params)
         def config(cfg):
             return driver.get_configuration(cfg)
 
-        population = [ParticleII(self.manipulator, self.crossover) for i in range(N)]
+        population = [ParticleII(m, omega=0.5) for i in range(N)]
         for p in population:
-##            print p.position
             yield driver.get_configuration(p.position)
             
         while True:
             # For each particle
             for particle in population:
                 g = driver.best_result.configuration.data
-##                print "GLOBAL", g
-##                print "MOVE FROM", particle.position
                 particle.move(g)
-##                print "MOVE TO", particle.position
-
-##                print particle.velocity
                 
                 # send out for measurement
                 yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
                     particle.best = particle.position
-##                    print "UPDATE:", particle.position
-                    # update global best: done automatically by search driver?
-                    # TODO: swarm best == global best?
-##                print "POPULATION:"
-##                for p in population:
-##                    print p.position 
-                            
+                           
  
 
 
@@ -86,14 +74,6 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
 
 
 class ParticleII(Particle):
-    def __init__(self, m, crossover, omega=0.5, phi=0.5):
-        # allow selection of crossover operator by function name
-        super(ParticleII, self).__init__(m, omega, phi, phi)
-        self.crossover = crossover
-        for p in self.m.params:
-            if p.is_permutation():
-                self.crossover
-
     def move(self, global_best):
         m = self.manipulator
         # Decide if crossover happens
@@ -101,9 +81,9 @@ class ParticleII(Particle):
             return
         else:
             if random.uniform(0,1)<self.phi_l:
-                o, = self.crossover(self.position, global_best)
+                o = m.crossover(self.position, global_best)
             else:
-                o, = self.crossover(self.position, self.best)
+                o = m.crossover(self.position, self.best)
             self.position = o
         
 
@@ -150,9 +130,10 @@ class ParticleIV(Particle):
         
     
 class PSOmanipulator(manipulator.ConfigurationManipulator):
-    def __init__(self, choices *pargs, **kwargs):
-        for p in self.params:
-            getattr(self, 
+    def __init__(self, crossover, *pargs, **kwargs):
+        super(PSOmanipulator, self).__init__(*pargs, **kwargs)
+        self.crossover_choice = crossover
+
     def difference(self, cfg1, cfg2):
         """ Return the difference of two positions i.e. velocity """
         v = {}
@@ -166,16 +147,12 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                     
     def scale(self, dcfg, k):
         """ Scale a velocity by k """
-##        print 'scale', dcfg
         new = self.copy(dcfg)
         for p in self.params:
             if isinstance(p, manipulator.PermutationParameter):                   
-##                print 'scale', dcfg[p.name]
                 new[p.name]=p.scale_swaps(new[p.name], k)
-##                print 'to', dcfg[p.name]
             else:
                 p.scale(new, k)
-##        print 'to', new
         return new
 
     def split(self, dcfg, k):
@@ -183,12 +160,9 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         new2 = self.copy(dcfg)
         for p in self.params:
             if isinstance(p, manipulator.PermutationParameter):                   
-##                print 'scale', dcfg[p.name]
                 new1[p.name], new2[p.name]=p.split_swaps(dcfg[p.name], k)
-##                print 'to', dcfg[p.name]
             else:
                 pass
-##        print 'to', new
         return new1, new2           
 
     def sum_v(self, *vs):
@@ -215,22 +189,29 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         return new
         
 
-##    def crossover(self, cfg1, cfg2):
-##        for p in self.params:
+    def crossover(self, cfg1, cfg2):
+        for p in self.params:
+            if p.is_permutation():
+                # Select crossover operator
+                new = getattr(p, self.crossover_choice)(cfg1, cfg2)
 ##            if isinstance(p, manipulator.PermutationParameter):
-####                new = p.OX1(cfg1, cfg2, 3)
+##                new = p.OX1(cfg1, cfg2, 3)
 ##                new = p.OX3(cfg1, cfg2, 5)
-####                new = p.PX(cfg1, cfg2)
-####                new = p.EX(cfg1, cfg2)
-####                new = p.CX(cfg1, cfg2)
-##            else:
-##                # crossover undefined for non-permutations
-##                pass 
-##            if len(new)>1:    # the offspring from cfg1
-##                new = new[0]
-##        return new        
-##        
+##                new = p.PX(cfg1, cfg2)
+##                new = p.EX(cfg1, cfg2)
+##                new = p.CX(cfg1, cfg2)
+            else:
+                # crossover undefined for non-permutations
+                pass 
+            if len(new)>1:    # the offspring from cfg1
+                new = new[0]
+        return new        
+        
             
                                 
 
+technique.register(PSO(crossover = 'OX3'))
+technique.register(PSO(crossover = 'OX1'))
 technique.register(PSO(crossover = 'PX'))
+technique.register(PSO(crossover = 'PX'))
+technique.register(PSO(crossover = 'CX'))

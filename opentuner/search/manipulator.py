@@ -770,7 +770,6 @@ class PermutationParameter(ComplexParameter):
       c1 = random.randint(0,len(p1))
     if not c2:
       c2 = random.randint(0,len(p2))
-    print c1, c2
 
     new1 = self.parent.copy(cfg1)
     new2 = self.parent.copy(cfg2)
