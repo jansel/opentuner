@@ -6,18 +6,23 @@ N=10
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
-    def __init__(self,*pargs, **kwargs):
+    def __init__(self, crossover, *pargs, **kwargs):
+        """
+        crossover: name of crossover operator function
+        """
         super(PSO, self).__init__(*pargs, **kwargs)
-    
+        self.crossover = crossover
+        self.name = 'pso-'+crossover
+        
     def main_generator(self):
         
         objective   = self.objective
         driver      = self.driver
-        m = PSOmanipulator(self.manipulator.params)
+##        m = PSOmanipulator(crossover, self.manipulator.params)
         def config(cfg):
             return driver.get_configuration(cfg)
 
-        population = [ParticleII(m) for i in range(N)]
+        population = [ParticleII(self.manipulator, self.crossover) for i in range(N)]
         for p in population:
 ##            print p.position
             yield driver.get_configuration(p.position)
@@ -81,8 +86,13 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
 
 
 class ParticleII(Particle):
-    def __init__(self, m, omega=0.5, phi=0.5):
-        super(ParticleII, self).__init__(m, omega, phi, phi)        
+    def __init__(self, m, crossover, omega=0.5, phi=0.5):
+        # allow selection of crossover operator by function name
+        super(ParticleII, self).__init__(m, omega, phi, phi)
+        self.crossover = crossover
+        for p in self.m.params:
+            if p.is_permutation():
+                self.crossover
 
     def move(self, global_best):
         m = self.manipulator
@@ -91,9 +101,9 @@ class ParticleII(Particle):
             return
         else:
             if random.uniform(0,1)<self.phi_l:
-                o = m.crossover(self.position, global_best)
+                o, = self.crossover(self.position, global_best)
             else:
-                o = m.crossover(self.position, self.best)
+                o, = self.crossover(self.position, self.best)
             self.position = o
         
 
@@ -140,6 +150,9 @@ class ParticleIV(Particle):
         
     
 class PSOmanipulator(manipulator.ConfigurationManipulator):
+    def __init__(self, choices *pargs, **kwargs):
+        for p in self.params:
+            getattr(self, 
     def difference(self, cfg1, cfg2):
         """ Return the difference of two positions i.e. velocity """
         v = {}
@@ -202,41 +215,22 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         return new
         
 
-    def crossover(self, cfg1, cfg2):
-        for p in self.params:
-            if isinstance(p, manipulator.PermutationParameter):
-##                new = p.OX1(cfg1, cfg2, 3)
-                new = p.OX3(cfg1, cfg2, 5)
-##                new = p.PX(cfg1, cfg2)
-##                new = p.EX(cfg1, cfg2)
-##                new = p.CX(cfg1, cfg2)
-            else:
-                # crossover undefined for non-permutations
-                pass 
-            if len(new)>1:    # the offspring from cfg1
-                new = new[0]
-        return new        
-        
-        
-        
-class OXMixin(object):
-
-  def crossover(self, cfgs):
-    '''
-    Crossover the first permtation parameter, if found, of two parents and
-    return one offspring cfg
-    '''
-    
-    cfg1, cfg2, = cfgs
-    params = self.manipulator.parameters(cfg)
-    for param in params:
-      if param.is_permutation():
-        new = param.OX3(cfg1, cfg2)[0]  # TODO: take both offsprings
-        return new
-    return cfg1
-
-       
-                                
+##    def crossover(self, cfg1, cfg2):
+##        for p in self.params:
+##            if isinstance(p, manipulator.PermutationParameter):
+####                new = p.OX1(cfg1, cfg2, 3)
+##                new = p.OX3(cfg1, cfg2, 5)
+####                new = p.PX(cfg1, cfg2)
+####                new = p.EX(cfg1, cfg2)
+####                new = p.CX(cfg1, cfg2)
+##            else:
+##                # crossover undefined for non-permutations
+##                pass 
+##            if len(new)>1:    # the offspring from cfg1
+##                new = new[0]
+##        return new        
+##        
+            
                                 
 
-technique.register(PSO(name='pso-ox'))
+technique.register(PSO(crossover = 'PX'))

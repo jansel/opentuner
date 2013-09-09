@@ -139,6 +139,16 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
       m.update("|")
     return m.hexdigest()
 
+  def difference(self, cfg1, cfg2):
+      """ Return the difference of two configurations """
+      v = self.copy(cfg1)
+      for p in self.params:
+          if isinstance(p, PermutationParameter):
+              v[p.name]=p.swap_dist(cfg1, cfg2)       # no longer legal configuration
+          else:
+              p.difference(v, cfg1, cfg2)
+
+      return v
 
   def search_space_size(self):
     '''estimate the size of the search space, not precise'''
@@ -730,6 +740,15 @@ class PermutationParameter(ComplexParameter):
     
 
 
+  def crossover(self, cfg1, cfg2, choice):
+    """
+    Crossover two permutations and produce one or more offsprings.
+    choice: string name of the crossover function
+    cfg1, cfg2: parent configuration dictionaries
+    """
+    f = getattr(self, choice)
+    return f(self, cfg1, cfg2)
+    
 
   # Crossover operators
   def PX(self, cfg1, cfg2, c1=None, c2=None):
@@ -754,7 +773,7 @@ class PermutationParameter(ComplexParameter):
     new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
     return new1, new2
 
-  def PMX(self, cfg1, cfg2,d):
+  def PMX(self, cfg1, cfg2, d=3):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
@@ -806,7 +825,7 @@ class PermutationParameter(ComplexParameter):
 ##    print new1
     return (new1, new2)
 
-  def OX1(self, cfg1, cfg2, d):
+  def OX1(self, cfg1, cfg2, d=3):
     """
     Ordered Crossover (Davis 1985)
     Two parents exchange subpaths of the same length d while order the remaining
@@ -830,7 +849,7 @@ class PermutationParameter(ComplexParameter):
       
     
     
-  def OX3(self, cfg1, cfg2, d):
+  def OX3(self, cfg1, cfg2, d=3):
     """
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)

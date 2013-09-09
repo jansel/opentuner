@@ -239,10 +239,4 @@ register(AUCBanditMetaTechnique([
         differentialevolution.DifferentialEvolutionAlt(),
         patternsearch.PatternSearch(),
       ], name = "AUCBanditMetaTechniqueC"))
-register(AUCBanditMetaTechnique([
-        differentialevolution.DifferentialEvolution(name='DE'),
-        evolutionarytechniques.UniformGreedyMutation(name='GA-OX'),
-        pso.PSO(name='PSO-OX'),
-        PureRandom(name='random')
-      ], name = "bandit"))
 
