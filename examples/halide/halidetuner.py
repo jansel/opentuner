@@ -220,8 +220,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       store_order = cfg['{0}_store_order'.format(name)]
       inner_varname = var_name_order[name][-1]
       vectorize = cfg['{0}_vectorize'.format(name)]
-      # unroll = cfg['{0}_unroll'.format(name)]
-      unroll = 1
+      unroll = cfg['{0}_unroll'.format(name)]
 
 
       print >>o, name,
