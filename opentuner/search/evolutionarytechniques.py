@@ -42,7 +42,7 @@ class EvolutionaryTechnique(SearchTechnique):
     '''
     mutate cfg in place
     '''
-    params = self.manipulator.parameters(cfg)
+    params = self.manipulator.parameters()
     random.shuffle(params)
     for param in params[:self.must_mutate_count]:
       self.mutate_param(cfg, param)
@@ -113,7 +113,7 @@ class OXMixin(object):
     '''
     
     cfg1, cfg2, = cfgs
-    params = self.manipulator.parameters(cfg)
+    params = self.manipulator.parameters()
     for param in params:
       if param.is_permutation():
         new = param.OX3(cfg1, cfg2)[0]  # TODO: take both offsprings
