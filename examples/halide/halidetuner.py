@@ -143,7 +143,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           for callee in func['calls']:
             deps[(callee, 'c')].append(name)
     return ScheduleParameter('schedule', nodes, deps)
-  
+
   def store_order_parameter(self, func):
     name = func['name']
     return PermutationParameter('{0}_store_order'.format(name), func['vars'])
@@ -358,7 +358,12 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       os.unlink(binfile)
 
   def run_cfg(self, cfg):
-    return self.run_schedule(self.cfg_to_schedule(cfg))
+    try:
+      schedule = self.cfg_to_schedule(cfg)
+    except:
+      log.exception('error generating schedule')
+      return None
+    return self.run_schedule(schedule)
 
   def run(self, desired_result, input, limit):
     time = self.run_cfg(desired_result.configuration.data)
