@@ -64,7 +64,7 @@ parser.add_argument('--trials', default=3, type=int,
                     help='Number of times to test each schedule')
 parser.add_argument('--nesting', default=2, type=int,
                     help='Maximum depth for generated loops')
-parser.add_argument('--max-split-factor', default=16, type=int)
+parser.add_argument('--max-split-factor', default=8, type=int)
 parser.add_argument('--compile-command', default=GCC_CMD)
 parser.add_argument('--cxx', default='clang++')
 parser.add_argument('--cxxflags', default='')
@@ -72,7 +72,9 @@ parser.add_argument('--tmp-dir', default='/run/shm'
                     if os.access('/run/shm', os.W_OK) else '/tmp')
 parser.add_argument('--settings-file')
 parser.add_argument('--random-test', action='store_true')
+parser.add_argument('--random-source', action='store_true')
 parser.add_argument('--debug-error')
+parser.add_argument('--debug-timeout', action='store_true')
 parser.add_argument('--limit', type=float, default=60)
 parser.add_argument('--memory-limit', type=int, default=1024**3)
 
@@ -220,7 +222,8 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       store_order = cfg['{0}_store_order'.format(name)]
       inner_varname = var_name_order[name][-1]
       vectorize = cfg['{0}_vectorize'.format(name)]
-      unroll = cfg['{0}_unroll'.format(name)]
+      # unroll = cfg['{0}_unroll'.format(name)]
+      unroll = 1
 
 
       print >>o, name,
@@ -286,17 +289,23 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     else:
       return o.getvalue()
 
-  def run_schedule(self, schedule):
+  def schedule_to_source(self, schedule):
     """
-    Generate a temporary Halide cpp file with schedule inserted and run it
-    with our timing harness found in timing_prefix.h.
+    Generate a temporary Halide cpp file with schedule inserted
     """
     def repl_autotune_hook(match):
       return '\n\n%s\n\n_autotune_timing_stub(%s);' % (
         schedule, match.group(1))
     source = re.sub(r'\n\s*AUTOTUNE_HOOK\(\s*([a-zA-Z0-9_]+)\s*\)',
                     repl_autotune_hook, self.template)
-    return self.run_source(source)
+    return source
+
+  def run_schedule(self, schedule):
+    """
+    Generate a temporary Halide cpp file with schedule inserted and run it
+    with our timing harness found in timing_prefix.h.
+    """
+    return self.run_source(self.schedule_to_source(schedule))
 
   def run_baseline(self):
     """
@@ -335,6 +344,10 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       if result['timeout']:
         log.info('timeout: collection cost %.2f + %.2f',
                  compile_result['time'], result['time'])
+        if args.debug_timeout:
+          open('/tmp/halidetimeout.cpp', 'w').write(source)
+          raw_input(
+            'offending schedule written to /tmp/halidetimeout.cpp, press ENTER to continue')
         return float('inf')
       elif returncode != 0 or stderr:
         log.error('invalid schedule: %s', stderr.strip())
@@ -395,7 +408,8 @@ class ScheduleNormalizer(object):
   def process_loopnest(self, out, stack):
     func, idx = self.tokens[-1]
     out.append(self.tokens.pop())
-    assert idx == 'c'
+    if idx != 'c':
+      raise Exception('Invalid schedule')
 
     self.compute_at[func] = None
     for targ_func, targ_idx in reversed(stack):
@@ -466,9 +480,21 @@ def random_test(args):
   print 'Schedule', m.run_schedule(schedule)
   print 'Baseline', m.run_baseline()
 
+
+def random_source(args):
+  opentuner.tuningrunmain.init_logging()
+  m = HalideTuner(args)
+  cfg = m.manipulator().random()
+  schedule = m.cfg_to_schedule(cfg)
+  source = m.schedule_to_source(schedule)
+  print source
+
+
 if __name__ == '__main__':
   args = parser.parse_args()
   if args.random_test:
     random_test(args)
+  elif args.random_source:
+    random_source(args)
   else:
     HalideTuner.main(args)
