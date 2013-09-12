@@ -444,8 +444,12 @@ class HalideConfigurationManipulator(ConfigurationManipulator):
     hash function that hashes the resulting schedule instead of the raw config.
     This will lead to fewer duplicate tests.
     """
-    schedule = self.halide_tuner.cfg_to_schedule(config)
-    return hashlib.sha256(schedule).hexdigest()
+    try:
+      schedule = self.halide_tuner.cfg_to_schedule(config)
+      return hashlib.sha256(schedule).hexdigest()
+    except:
+      log.warning('error hashing config')
+      return super(HalideConfigurationManipulator, self).hash_config(config)
 
 def post_dominators(settings):
   functions = [f['name'] for f in settings['functions']]
