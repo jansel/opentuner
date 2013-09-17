@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding: utf-8
 #
 # Example of synthesizing Halide schedules using OpenTuner.  This program
 # expects a compiled version of Halide to exist at ~/Halide or at the location
@@ -47,9 +48,11 @@ from opentuner.search import bandittechniques
 from opentuner.search import technique
 
 
-GCC_CMD = ('{args.cxx} "{cpp}" -o "{bin}" -I "{args.halide_dir}/include" '
-           '"{args.halide_dir}/bin/libHalide.a" -ldl -lpthread {args.cxxflags}'
-           '-DAUTOTUNE_N="{args.input_size}" -DAUTOTUNE_TRIALS={args.trials}')
+COMPILE_CMD = (
+  '{args.cxx} "{cpp}" -o "{bin}" -I "{args.halide_dir}/include" '
+  '"{args.halide_dir}/bin/libHalide.a" -ldl -lpthread {args.cxxflags}'
+  '-DAUTOTUNE_N="{args.input_size}" -DAUTOTUNE_TRIALS={args.trials}')
+
 
 log = logging.getLogger('halide')
 
@@ -64,29 +67,37 @@ parser.add_argument('--trials', default=3, type=int,
                     help='Number of times to test each schedule')
 parser.add_argument('--nesting', default=2, type=int,
                     help='Maximum depth for generated loops')
-parser.add_argument('--max-split-factor', default=16, type=int)
-parser.add_argument('--compile-command', default=GCC_CMD)
-parser.add_argument('--cxx', default='clang++')
-parser.add_argument('--cxxflags', default='')
+parser.add_argument('--max-split-factor', default=8, type=int,
+                    help='The largest value a single split() can add')
+parser.add_argument('--compile-command', default=COMPILE_CMD,
+                    help='How to compile generated C++ code')
+parser.add_argument('--cxx', default='clang++',
+                    help='C++ compiler to use (g++ or clang++)')
+parser.add_argument('--cxxflags', default='',
+                    help='Extra flags to the C++ compiler')
 parser.add_argument('--tmp-dir', default='/run/shm'
-                    if os.access('/run/shm', os.W_OK) else '/tmp')
-parser.add_argument('--settings-file')
-parser.add_argument('--random-test', action='store_true')
-parser.add_argument('--debug-error')
-parser.add_argument('--limit', type=float, default=60)
-parser.add_argument('--memory-limit', type=int, default=1024**3)
+                    if os.access('/run/shm', os.W_OK) else '/tmp',
+                    help='Where to store generated tests')
+parser.add_argument('--settings-file',
+                    help='Override location of json encoded settings')
+parser.add_argument('--random-test', action='store_true',
+                    help='Generate a random configuration and run it')
+parser.add_argument('--random-source', action='store_true',
+                    help='Generate a random configuration and print source ')
+parser.add_argument('--debug-error',
+                    help='Stop on errors matching a given string')
+parser.add_argument('--debug-timeout', action='store_true',
+                    help='Stop on timeouts')
+parser.add_argument('--limit', type=float, default=30,
+                    help='Kill compile + runs taking too long (seconds)')
+parser.add_argument('--memory-limit', type=int, default=1024 ** 3,
+                    help='Set memory ulimit on unix based systems')
+parser.add_argument('--enable-store-at', action='store_true',
+                    help='Enable store_at() generation')
+parser.add_argument('--enable-unroll', action='store_true',
+                    help='Enable unroll() generation')
 
 
-# class ForType:
-#   SERIAL = 'Serial'
-#   PARALLEL = 'Parallel'
-#   VECTORIZED = 'Vectorized'
-#   UNROLLED = 'Unrolled'
-#   # Legal choices for inner and outer loops:
-#   _OUTER = [SERIAL, PARALLEL]
-#   _INNER = [SERIAL, UNROLLED]
-#   #_INNER = [SERIAL, VECTORIZED, UNROLLED]
-#
 # class HalideRandomConfig(opentuner.search.technique.SearchTechnique):
 #   def desired_configuration(self):
 #     '''
@@ -131,7 +142,9 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     deps = collections.defaultdict(list)
     for func in self.settings['functions']:
       last = None
-      for idx in [3, 2, 1, 'c']: # fixed number for now
+      for idx in reversed(['c'] +  # 'c' = compute location (and close loops)
+                          range(1, len(func['vars']) * self.args.nesting + 1) +
+                          ['s']):  # 's' = storage location
         name = (func['name'], idx)
         if last is not None:
           # variables must go in order
@@ -139,14 +152,10 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
         last = name
         nodes.append(name)
         if idx == 'c':
-          # computes must follow callgraph order
+          # computes must follow call graph order
           for callee in func['calls']:
             deps[(callee, 'c')].append(name)
     return ScheduleParameter('schedule', nodes, deps)
-  
-  def store_order_parameter(self, func):
-    name = func['name']
-    return PermutationParameter('{0}_store_order'.format(name), func['vars'])
 
   def compute_order_parameter(self, func):
     name = func['name']
@@ -156,7 +165,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       sched_vars.append((var, 0))
       for i in xrange(1, self.args.nesting):
         sched_vars.append((var, i))
-        sched_deps[(var, i-1)] = [(var, i)]
+        sched_deps[(var, i - 1)] = [(var, i)]
     return ScheduleParameter('{0}_compute_order'.format(name), sched_vars,
                              sched_deps)
 
@@ -169,7 +178,10 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     manipulator.add_parameter(self.compute_at_parameter())
     for func in self.settings['functions']:
       name = func['name']
-      manipulator.add_parameter(self.store_order_parameter(func))
+      manipulator.add_parameter(PermutationParameter(
+        '{0}_store_order'.format(name), func['vars']))
+      manipulator.add_parameter(
+        BooleanParameter('{0}_store_order_enabled'.format(name)))
       manipulator.add_parameter(self.compute_order_parameter(func))
       for var in func['vars']:
         manipulator.add_parameter(PowerOfTwoParameter(
@@ -192,8 +204,9 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     o = StringIO()
     cnt = 0
     temp_vars = list()
-    compute_at = (ScheduleNormalizer(cfg['schedule'], self.post_dominators)
-                 .compute_at)
+    schedule = ComputeAtStoreAtParser(cfg['schedule'], self.post_dominators)
+    compute_at = schedule.compute_at
+    store_at = schedule.store_at
 
     # build list of all used variable names
     var_names = dict()
@@ -214,17 +227,16 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       var_name_order[name] = [var_names[(name, v, n)] for v, n in compute_order
                               if (name, v, n) in var_names]
 
-
     for func in self.settings['functions']:
       name = func['name']
-      store_order = cfg['{0}_store_order'.format(name)]
       inner_varname = var_name_order[name][-1]
       vectorize = cfg['{0}_vectorize'.format(name)]
-      # unroll = cfg['{0}_unroll'.format(name)]
-      unroll = 1
+      if args.enable_unroll:
+        unroll = cfg['{0}_unroll'.format(name)]
+      else:
+        unroll = 1
 
-
-      print >>o, name,
+      print >>o, name
 
       vectorize_used = False
       for var in func['vars']:
@@ -237,7 +249,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           if split_factor <= 1:
             break
 
-          for nesting2 in xrange(nesting+1, self.args.nesting):
+          for nesting2 in xrange(nesting + 1, self.args.nesting):
             split_factor2 = cfg.get('{0}_splitfactor_{1}_{2}'.format(
               name, nesting2, var), 0)
             if split_factor2 <= 1:
@@ -251,32 +263,48 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
             split_factor *= vectorize
 
           print >>o, '.split({0}, {0}, {1}, {2})'.format(
-            lastvarname, varname, split_factor),
+            lastvarname, varname, split_factor)
 
-      print >>o
+      # drop unused variables and truncate (Halide supports only 10 reorders)
+      print >>o, '.reorder({0})'.format(
+        ', '.join(reversed(var_name_order[name][:10])))
 
-      # drop unused variables and truncate (Halide supports only 5 reorders)
-      print >>o, '.reorder({0})'.format(', '.join(reversed(var_name_order[name][:10]))),
       # reorder_storage
-      print >>o, '.reorder_storage({0})'.format(', '.join(store_order))
+      store_order_enabled = cfg['{0}_store_order_enabled'.format(name)]
+      if store_order_enabled:
+        store_order = cfg['{0}_store_order'.format(name)]
+        print >>o, '.reorder_storage({0})'.format(', '.join(store_order))
 
       if unroll > 1:
-        print >>o, '.unroll({0}, {1})'.format(var_name_order[name][-1], unroll * vectorize),
+        print >>o, '.unroll({0}, {1})'.format(
+          var_name_order[name][-1], unroll * vectorize)
 
       if vectorize > 1:
-        print >>o, '.vectorize({0}, {1})'.format(var_name_order[name][-1], vectorize),
+        print >>o, '.vectorize({0}, {1})'.format(
+          var_name_order[name][-1], vectorize)
 
       if (compute_at[name] is not None and
-            len(var_name_order[compute_at[name][0]]) >= compute_at[name][1]):
-         at_func, at_idx = compute_at[name]
-         at_var = var_name_order[compute_at[name][0]][-at_idx]
-         print >>o
-         print >>o, '.compute_at({0}, {1})'.format(at_func, at_var)
+         len(var_name_order[compute_at[name][0]]) >= compute_at[name][1]):
+        at_func, at_idx = compute_at[name]
+        try:
+          at_var = var_name_order[at_func][-at_idx]
+          print >>o, '.compute_at({0}, {1})'.format(at_func, at_var)
+          if not args.enable_store_at:
+            pass  # disabled
+          elif store_at[name] is None:
+            print >>o, '.store_root()'
+          elif store_at[name] != compute_at[name]:
+            at_func, at_idx = store_at[name]
+            at_var = var_name_order[at_func][-at_idx]
+            print >>o, '.store_at({0}, {1})'.format(at_func, at_var)
+        except IndexError:
+          # this is expected when at_idx is too large
+          # TODO: implement a cleaner fix
+          pass
       else:
         parallel = cfg['{0}_parallel'.format(name)]
         if parallel:
-          print >>o, '.parallel({0})'.format(var_name_order[name][0]),
-        print >>o
+          print >>o, '.parallel({0})'.format(var_name_order[name][0])
         print >>o, '.compute_root()'
 
       print >>o, ';'
@@ -287,17 +315,23 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     else:
       return o.getvalue()
 
-  def run_schedule(self, schedule):
+  def schedule_to_source(self, schedule):
     """
-    Generate a temporary Halide cpp file with schedule inserted and run it
-    with our timing harness found in timing_prefix.h.
+    Generate a temporary Halide cpp file with schedule inserted
     """
     def repl_autotune_hook(match):
       return '\n\n%s\n\n_autotune_timing_stub(%s);' % (
         schedule, match.group(1))
     source = re.sub(r'\n\s*AUTOTUNE_HOOK\(\s*([a-zA-Z0-9_]+)\s*\)',
                     repl_autotune_hook, self.template)
-    return self.run_source(source)
+    return source
+
+  def run_schedule(self, schedule):
+    """
+    Generate a temporary Halide cpp file with schedule inserted and run it
+    with our timing harness found in timing_prefix.h.
+    """
+    return self.run_source(self.schedule_to_source(schedule))
 
   def run_baseline(self):
     """
@@ -315,14 +349,14 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
                                      dir=args.tmp_dir) as cppfile:
       cppfile.write(source)
       cppfile.flush()
-      #binfile = os.path.splitext(cppfile.name)[0] + '.bin'
+      # binfile = os.path.splitext(cppfile.name)[0] + '.bin'
       binfile = '/tmp/halide.bin'
       cmd = args.compile_command.format(
         cpp=cppfile.name, bin=binfile, args=args)
       compile_result = self.call_program(cmd, limit=args.limit,
-                                 memory_limit=args.memory_limit)
+                                         memory_limit=args.memory_limit)
       if compile_result['returncode'] != 0:
-        log.error("compile failed: %s", compile_result)
+        log.error('compile failed: %s', compile_result)
         return None
 
     try:
@@ -336,11 +370,15 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       if result['timeout']:
         log.info('timeout: collection cost %.2f + %.2f',
                  compile_result['time'], result['time'])
+        if args.debug_timeout:
+          open('/tmp/halidetimeout.cpp', 'w').write(source)
+          raw_input(
+            'offending schedule written to /tmp/halidetimeout.cpp, press ENTER to continue')
         return float('inf')
       elif returncode != 0 or stderr:
         log.error('invalid schedule: %s', stderr.strip())
         if args.debug_error is not None and (args.debug_error in stderr
-                                             or args.debug_error==""):
+                                             or args.debug_error == ""):
           open('/tmp/halideerror.cpp', 'w').write(source)
           raw_input(
             'offending schedule written to /tmp/halideerror.cpp, press ENTER to continue')
@@ -349,17 +387,23 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
         try:
           time = json.loads(stdout)['time']
         except:
-          log.exception("error parsing output: %s", result)
+          log.exception('error parsing output: %s', result)
           return None
         log.info('success: %.4f (collection cost %.2f + %.2f)',
                  time, compile_result['time'], result['time'])
-        self.min_collection_cost = min(self.min_collection_cost, result['time'])
+        self.min_collection_cost = min(
+          self.min_collection_cost, result['time'])
         return time
     finally:
       os.unlink(binfile)
 
   def run_cfg(self, cfg):
-    return self.run_schedule(self.cfg_to_schedule(cfg))
+    try:
+      schedule = self.cfg_to_schedule(cfg)
+    except:
+      log.exception('error generating schedule')
+      return None
+    return self.run_schedule(schedule)
 
   def run(self, desired_result, input, limit):
     time = self.run_cfg(desired_result.configuration.data)
@@ -374,24 +418,45 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     print 'Final Configuration:'
     print self.cfg_to_schedule(configuration.data)
 
-class ScheduleNormalizer(object):
-  """a simple recursive descent parser to force proper loop nesting"""
+
+class ComputeAtStoreAtParser(object):
+
+  """
+  A recursive descent parser to force proper loop nesting, and enforce post
+  dominator scheduling constraints
+
+  For each function input will have tokens like:
+  ('foo', 's') = store_at location for foo
+  ('foo', '2'), ('foo', '1') = opening the loop nests for foo,
+                               the inner 2 variables
+  ('foo', 'c') = the computation of foo, and closing all loop nests
+
+  The order of these tokens define a loop nest tree which we reconstruct
+  """
+
   def __init__(self, tokens, post_dominators):
+    self.tokens = list(tokens)  # input, processed back to front
     self.post_dominators = post_dominators
     self.compute_at = dict()
-    self.tokens = list(tokens)
+    self.store_at = dict()
     self.process_root()
 
   def process_root(self):
     out = []
     while self.tokens:
-      self.process_loopnest(out, [])
+      if self.tokens[-1][1] == 's':
+        # store at root
+        self.store_at[self.tokens[-1][0]] = None
+        out.append(self.tokens.pop())
+      else:
+        self.process_loopnest(out, [])
     self.tokens = reversed(out)
 
   def process_loopnest(self, out, stack):
     func, idx = self.tokens[-1]
     out.append(self.tokens.pop())
-    assert idx == 'c'
+    if idx != 'c':
+      raise Exception('Invalid schedule')
 
     self.compute_at[func] = None
     for targ_func, targ_idx in reversed(stack):
@@ -399,18 +464,25 @@ class ScheduleNormalizer(object):
         self.compute_at[func] = (targ_func, targ_idx)
         break
 
-    close_tokens = [(f, i) for f, i in self.tokens if f == func]
+    close_tokens = [(f, i) for f, i in self.tokens if f == func and i != 's']
     while close_tokens:
       if self.tokens[-1] == close_tokens[-1]:
         # proper nesting
-        out.append(self.tokens.pop())
         close_tokens.pop()
+        out.append(self.tokens.pop())
       elif self.tokens[-1][1] == 'c':
         self.process_loopnest(out, stack + close_tokens[-1:])
+      elif self.tokens[-1][1] == 's':
+        # self.tokens[-1] is computed at this level
+        if func in self.post_dominators[self.tokens[-1][0]]:
+          self.store_at[self.tokens[-1][0]] = close_tokens[-1]
+        else:
+          self.store_at[self.tokens[-1][0]] = None
+        out.append(self.tokens.pop())
       else:
-        # improper nesting, just close the loop
+        # improper nesting, just close the loop and search/delete close_tokens
         out.extend(reversed(close_tokens))
-        self.tokens = [(f, i) for f, i in self.tokens if f != func]
+        self.tokens = [x for x in self.tokens if x not in close_tokens]
         break
 
 
@@ -426,12 +498,22 @@ class HalideConfigurationManipulator(ConfigurationManipulator):
     hash function that hashes the resulting schedule instead of the raw config.
     This will lead to fewer duplicate tests.
     """
-    schedule = self.halide_tuner.cfg_to_schedule(config)
-    return hashlib.sha256(schedule).hexdigest()
+    self.normalize(config)
+    try:
+      schedule = self.halide_tuner.cfg_to_schedule(config)
+      return hashlib.sha256(schedule).hexdigest()
+    except:
+      log.warning('error hashing config', exc_info=True)
+      return super(HalideConfigurationManipulator, self).hash_config(config)
+
 
 def post_dominators(settings):
+  """
+  Compute post dominator tree using textbook iterative algorithm for the
+  call graph defined in settings
+  """
   functions = [f['name'] for f in settings['functions']]
-  calls = {f['name'] : set(f['calls']) for f in settings['functions']}
+  calls = {f['name']: set(f['calls']) for f in settings['functions']}
   invcalls = collections.defaultdict(set)
   for k, callees in calls.items():
     for v in callees:
@@ -444,10 +526,12 @@ def post_dominators(settings):
     change = False
     for f in functions[:-1]:
       old = dom[f]
-      dom[f] = set([f]) | reduce(_ & _, [dom[c] for c in invcalls[f]], set(functions))
+      dom[f] = set([f]) | reduce(_ & _, [dom[c]
+                                         for c in invcalls[f]], set(functions))
       if old != dom[f]:
         change = True
   return dom
+
 
 def random_test(args):
   from pprint import pprint
@@ -462,9 +546,21 @@ def random_test(args):
   print 'Schedule', m.run_schedule(schedule)
   print 'Baseline', m.run_baseline()
 
+
+def random_source(args):
+  opentuner.tuningrunmain.init_logging()
+  m = HalideTuner(args)
+  cfg = m.manipulator().random()
+  schedule = m.cfg_to_schedule(cfg)
+  source = m.schedule_to_source(schedule)
+  print source
+
+
 if __name__ == '__main__':
   args = parser.parse_args()
   if args.random_test:
     random_test(args)
+  elif args.random_source:
+    random_source(args)
   else:
     HalideTuner.main(args)

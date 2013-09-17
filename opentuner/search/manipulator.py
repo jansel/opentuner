@@ -29,6 +29,11 @@ class ConfigurationManipulatorBase(object):
     '''is the given config valid???'''
     return all(map(_.validate(config), self.parameters(config)))
 
+  def normalize(self, config):
+    '''mutate config into canonical form'''
+    for param in self.parameters(config):
+      param.normalize(config)
+
   def set_search_driver(self, search_driver):
     '''called exactly once during setup'''
     pass
