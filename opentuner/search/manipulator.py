@@ -746,15 +746,6 @@ class PermutationParameter(ComplexParameter):
     
 
 
-  def crossover(self, cfg1, cfg2, choice):
-    """
-    Crossover two permutations and produce one or more offsprings.
-    choice: string name of the crossover function
-    cfg1, cfg2: parent configuration dictionaries
-    """
-    f = getattr(self, choice)
-    return f(self, cfg1, cfg2)
-    
 
   # Crossover operators
   def PX(self, cfg1, cfg2, c1=None, c2=None):
@@ -778,7 +769,7 @@ class PermutationParameter(ComplexParameter):
     new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
     return new1, new2
 
-  def PMX(self, cfg1, cfg2, d=3):
+  def PMX(self, cfg1, cfg2, d=5):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
@@ -789,16 +780,34 @@ class PermutationParameter(ComplexParameter):
     p2 = self.get_value(new2)
     
     r = random.randint(0,len(p1)-d)
-
     c1 = p1[r:r+d]
     c2 = p2[r:r+d]
 
-    for i in range(d):
-      p1[p1.index(c2[i])]=c1[i]
-      p2[p2.index(c1[i])]=c2[i]
+    # Construct partial map
+    pm = dict([ (c1[i], c2[i]) for i in range(d)])
+    agenda = c1[:]
+    while agenda!=[]:
+      n = agenda.pop()
+      while pm[n] in pm:
+        if n == pm[n]:
+          pm.pop(n)
+          break
+        try:
+            agenda.remove(pm[n])
+        except:
+          pass
+        link = pm.pop(pm[n])
+        pm[n] = link
+    # Reversed partial map    
+    pm2 = {v:k for k,v in pm.items()}
+    # Fix conflicts
+    for k in pm:
+      p2[p2.index(k)]=pm[k]
+    for k in pm2:
+      p1[p1.index(k)]=pm2[k]        
+    # Cross over
     p1[r:r+d] = c2     
-    p2[r:r+d] = c1
-    
+    p2[r:r+d] = c1    
     return new1, new2
 
 
