@@ -745,29 +745,26 @@ class PermutationParameter(ComplexParameter):
 
     
 
-
-
   # Crossover operators
   def PX(self, cfg1, cfg2, c1=None, c2=None):
     """
     Partition crossover (Whitley 2009?)
-    Change the order of items up to c1 in cfg1 according to their order in cfg2,
-    and those in cfg2 up to c2 according to cfg1. Return the two new resulting cfg.
+    Change the order of items up to c1 in cfg1 according to their order in cfg2.
     """
 
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     if not c1:
       c1 = random.randint(0,len(p1))
-    if not c2:
-      c2 = random.randint(0,len(p2))
+##    if not c2:
+##      c2 = random.randint(0,len(p2))
 
     new1 = self.parent.copy(cfg1)
-    new2 = self.parent.copy(cfg2)
+##    new2 = self.parent.copy(cfg2)
 
     new1[self.name] = sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:]
-    new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
-    return new1, new2
+##    new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
+    return [new1]
 
   def PMX(self, cfg1, cfg2, d=5):
     """
