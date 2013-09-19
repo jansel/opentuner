@@ -2,7 +2,7 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=10
+N=100
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
@@ -31,7 +31,6 @@ class PSO(technique.SequentialSearchTechnique ):
             for particle in population:
                 g = driver.best_result.configuration.data
                 particle.move(g)
-                
                 # send out for measurement
                 yield config(particle.position)
                 # update individual best
@@ -212,6 +211,6 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
 
 technique.register(PSO(crossover = 'OX3'))
 technique.register(PSO(crossover = 'OX1'))
-technique.register(PSO(crossover = 'PX'))
+technique.register(PSO(crossover = 'PMX'))
 technique.register(PSO(crossover = 'PX'))
 technique.register(PSO(crossover = 'CX'))
