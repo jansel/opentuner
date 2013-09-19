@@ -90,12 +90,14 @@ class LogDisplayPlugin(DisplayPlugin):
     if not t:
       t = time.time()
     count = self.driver.results_query().count()
+    request_count = self.driver.requests_query().count()
     best = self.driver.results_query(objective_ordered = True).first()
     if best is None:
       log.warning("no results yet")
       return
     requestor = ','.join(map(_.requestor, best.desired_results))
-    display_log.info("tests=%d, best %s, cost %s, found by %s",
+    display_log.info("requests=%d, evaluations=%d, best %s, cost %s, found by %s",
+                     request_count,
                      count,
                      cfg_repr(best.configuration),
                      self.driver.objective.display(best),
