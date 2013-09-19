@@ -764,7 +764,7 @@ class PermutationParameter(ComplexParameter):
 
     new1[self.name] = sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:]
 ##    new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
-    return [new1]
+    return new1, None
 
   def PMX(self, cfg1, cfg2, d=5):
     """
