@@ -319,7 +319,6 @@ class StatsMain(object):
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
     by_quanta = zip(*by_run_streams[:])
-
     def data_file(suffix, headers, value_function):
       with open(os.path.join(output_dir, label+suffix), 'w') as fd:
         out = csv.writer(fd, delimiter=' ', lineterminator='\n')
@@ -338,42 +337,47 @@ class StatsMain(object):
    #                    ' with lines'
    #                    ' title "Run %d"'%i)
    #                   for i in xrange(max_len)])
-
-    data_file('_mean.dat',
+   
+    data_file('.dat',
               ['#sec', 'mean', 'stddev'],
-              lambda values: [mean(values), stddev(values)])
-    self.gnuplot_file(output_dir,
-                      label+'_mean',
-                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
+              lambda values: list(values)+[mean(values), stddev(values)])
+
+
+##    data_file('_mean.dat',
+##              ['#sec', 'mean', 'stddev'],
+##              lambda values: [mean(values), stddev(values)])
+##    self.gnuplot_file(output_dir,
+##                      label+'_mean',
+##                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
 
     def extract_percentiles(values):
       values = sorted(values)
       return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
              + [mean(values)])
-    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
-    self.gnuplot_file(output_dir,
-                      label+'_percentiles',
-                      reversed([
-                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
-                      # '""                          using 1:3  with lines title "5%"',
-                        '""                          using 1:4  with lines title "10%"',
-                      # '""                          using 1:5  with lines title "25%"',
-                        '""                          using 1:6  with lines title "20%"',
-                      # '""                          using 1:7  with lines title "35%"',
-                        '""                          using 1:8  with lines title "30%"',
-                      # '""                          using 1:9  with lines title "45%"',
-                        '""                          using 1:10 with lines title "40%"',
-                      # '""                          using 1:11 with lines title "55%"',
-                        '""                          using 1:12 with lines title "50%"',
-                      # '""                          using 1:13 with lines title "65%"',
-                        '""                          using 1:14 with lines title "70%"',
-                      # '""                          using 1:15 with lines title "75%"',
-                        '""                          using 1:16 with lines title "80%"',
-                      # '""                          using 1:17 with lines title "85%"',
-                        '""                          using 1:18 with lines title "90%"',
-                      # '""                          using 1:19 with lines title "95%"',
-                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
-                       ]))
+##    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
+##    self.gnuplot_file(output_dir,
+##                      label+'_percentiles',
+##                      reversed([
+##                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
+##                      # '""                          using 1:3  with lines title "5%"',
+##                        '""                          using 1:4  with lines title "10%"',
+##                      # '""                          using 1:5  with lines title "25%"',
+##                        '""                          using 1:6  with lines title "20%"',
+##                      # '""                          using 1:7  with lines title "35%"',
+##                        '""                          using 1:8  with lines title "30%"',
+##                      # '""                          using 1:9  with lines title "45%"',
+##                        '""                          using 1:10 with lines title "40%"',
+##                      # '""                          using 1:11 with lines title "55%"',
+##                        '""                          using 1:12 with lines title "50%"',
+##                      # '""                          using 1:13 with lines title "65%"',
+##                        '""                          using 1:14 with lines title "70%"',
+##                      # '""                          using 1:15 with lines title "75%"',
+##                        '""                          using 1:16 with lines title "80%"',
+##                      # '""                          using 1:17 with lines title "85%"',
+##                        '""                          using 1:18 with lines title "90%"',
+##                      # '""                          using 1:19 with lines title "95%"',
+##                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
+##                       ]))
 
   def gnuplot_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
