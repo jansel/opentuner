@@ -72,6 +72,8 @@ def variance(vals):
   avg = mean(vals)
   if avg is None:
     return None
+  if avg in (float('inf'), float('-inf')):
+    return avg
   return mean(map((_ - avg) ** 2, vals))
 
 def stddev(vals):
