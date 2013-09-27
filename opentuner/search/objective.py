@@ -30,6 +30,17 @@ class SearchObjective(object):
     return self.result_compare(self.driver.results_query(config=config1).one(),
                                self.driver.results_query(config=config2).one())
 
+  @abc.abstractmethod
+  def result_relative(self, result1, result2):
+    '''return None, or a relative goodness of resultsdb.models.Result'''
+    return
+
+  def config_relative(self, config1, config2):
+    '''return None, or a relative goodness of resultsdb.models.Configuration'''
+    return self.result_relative(self.driver.results_query(config=config1).one(),
+				self.driver.results_query(config=config2).one())
+
+
   def __init__(self):
     self.driver = None
 
@@ -46,6 +57,13 @@ class SearchObjective(object):
     if isinstance(a, Result):
       return self.result_compare(a, b)
     assert False
+
+  def relative(self, a, b):
+    if isinstance(a, Configuration):
+      return self.config_relative(a,b)
+    if isinstance(a, Result):
+      return self.result_relative(a,b)
+    assert None
 
   def lt(self, a, b):  return self.compare(a, b) <  0
   def lte(self, a, b): return self.compare(a, b) <= 0
@@ -139,6 +157,9 @@ class MinimizeTime(SearchObjective):
     return cmp(min(map(_.time, self.driver.results_query(config=config1))),
                min(map(_.time, self.driver.results_query(config=config2))))
 
+  def result_relative(self, result1, result2):
+    '''return None, or a relative goodness of resultsdb.models.Result'''
+    return result1.time/result2.time
 
 
 class MaximizeAccuracy(SearchObjective):
@@ -154,6 +175,11 @@ class MaximizeAccuracy(SearchObjective):
     '''cmp() compatible comparison of resultsdb.models.Result'''
     # note opposite order
     return cmp(result2.accuracy, result1.accuracy)
+
+  def result_relative(self, result1, result2):
+    '''return None, or a relative goodness of resultsdb.models.Result'''
+    # note opposite order
+    return result2.accuracy/result1.accuracy
 
   def stats_quality_score(self, result, worst_result, best_result):
     '''return a score for statistics'''
@@ -185,6 +211,12 @@ class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):
     '''
     return "accuracy=%.8f, size=%.1f" %  (result.accuracy, result.size)
 
+  def result_relative(self, result1, result2):
+    '''return None, or a relative goodness of resultsdb.models.Result'''
+    #unimplemented for now
+    return None
+
+
 class ThresholdAccuracyMinimizeTime(SearchObjective):
   '''
   if accuracy >= target:
@@ -200,12 +232,14 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
 
   def result_order_by_terms(self):
     '''return database columns required to order by the objective'''
+
     return ["min(accuracy, %f) desc" % self.accuracy_target,
             opentuner.resultsdb.models.Result.time]
 
   def result_compare(self, result1, result2):
     '''cmp() compatible comparison of resultsdb.models.Result'''
-    return cmp((-min(self.accuracy_target, result1.accuracy), result1.time),
+    return cmp((-min(self.accuracy_target, result1.accuracy), 
+result1.time),
                (-min(self.accuracy_target, result2.accuracy), result2.time))
 
   def config_compare(self, config1, config2):
@@ -235,6 +269,10 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     '''Test if a Result() meets thresholds'''
     return result.accuracy >= self.accuracy_target
 
+  def result_relative(self, result1, result2):
+    '''return None, or a relative goodness of resultsdb.models.Result'''
+    #unimplemented for now
+    return None
 
 
 
