@@ -159,6 +159,8 @@ class MinimizeTime(SearchObjective):
 
   def result_relative(self, result1, result2):
     '''return None, or a relative goodness of resultsdb.models.Result'''
+      if result2.time == 0:
+        return  float('inf')*result1.time
     return result1.time/result2.time
 
 
@@ -179,6 +181,7 @@ class MaximizeAccuracy(SearchObjective):
   def result_relative(self, result1, result2):
     '''return None, or a relative goodness of resultsdb.models.Result'''
     # note opposite order
+      return float('inf')*result2.accuracy
     return result2.accuracy/result1.accuracy
 
   def stats_quality_score(self, result, worst_result, best_result):
@@ -214,6 +217,7 @@ class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):
   def result_relative(self, result1, result2):
     '''return None, or a relative goodness of resultsdb.models.Result'''
     #unimplemented for now
+    log.warning('result_relative() not yet implemented for %s', self.__class__.__name__)
     return None
 
 
@@ -272,6 +276,7 @@ result1.time),
   def result_relative(self, result1, result2):
     '''return None, or a relative goodness of resultsdb.models.Result'''
     #unimplemented for now
+    log.warning('result_relative() not yet implemented for %s', self.__class__.__name__)
     return None
 
 
