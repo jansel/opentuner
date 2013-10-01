@@ -159,8 +159,8 @@ class MinimizeTime(SearchObjective):
 
   def result_relative(self, result1, result2):
     '''return None, or a relative goodness of resultsdb.models.Result'''
-      if result2.time == 0:
-        return  float('inf')*result1.time
+    if result2.time == 0:
+      return  float('inf')*result1.time
     return result1.time/result2.time
 
 
@@ -181,6 +181,7 @@ class MaximizeAccuracy(SearchObjective):
   def result_relative(self, result1, result2):
     '''return None, or a relative goodness of resultsdb.models.Result'''
     # note opposite order
+    if result1.accuracy == 0:
       return float('inf')*result2.accuracy
     return result2.accuracy/result1.accuracy
 
