@@ -221,6 +221,7 @@ import evolutionarytechniques
 import differentialevolution
 import simplextechniques
 import patternsearch
+import simulatedannealing
 import pso
 
 register(AUCBanditMutationTechnique())
@@ -245,4 +246,16 @@ register(AUCBanditMetaTechnique([
         pso.PSO(name='PSO-OX'),
         PureRandom(name='random')
       ], name = "bandit"))
+register(AUCBanditMetaTechnique([
+	differentialevolution.DifferentialEvolutionAlt(),
+	simulatedannealing.PseudoAnnealingSearch()
+      ], name = "test"))
+register(AUCBanditMetaTechnique([
+        differentialevolution.DifferentialEvolutionAlt(),
+        evolutionarytechniques.UniformGreedyMutation(),
+        evolutionarytechniques.NormalGreedyMutation(mutation_rate=0.3),
+        simplextechniques.RandomNelderMead(),
+	simulatedannealing.PseudoAnnealingSearch()
+      ], name = "test2"))
+
 
