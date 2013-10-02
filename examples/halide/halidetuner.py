@@ -50,8 +50,9 @@ from opentuner.search import technique
 
 COMPILE_CMD = (
   '{args.cxx} "{cpp}" -o "{bin}" -I "{args.halide_dir}/include" '
-  '"{args.halide_dir}/bin/libHalide.a" -ldl -lpthread {args.cxxflags}'
-  '-DAUTOTUNE_N="{args.input_size}" -DAUTOTUNE_TRIALS={args.trials}')
+  '"{args.halide_dir}/bin/libHalide.a" -ldl -lpthread {args.cxxflags} '
+  '-DAUTOTUNE_N="{args.input_size}" -DAUTOTUNE_TRIALS={args.trials} '
+  '-DAUTOTUNE_LIMIT={limit}')
 
 
 log = logging.getLogger('halide')
@@ -86,16 +87,16 @@ parser.add_argument('--random-source', action='store_true',
                     help='Generate a random configuration and print source ')
 parser.add_argument('--debug-error',
                     help='Stop on errors matching a given string')
-parser.add_argument('--debug-timeout', action='store_true',
-                    help='Stop on timeouts')
 parser.add_argument('--limit', type=float, default=30,
                     help='Kill compile + runs taking too long (seconds)')
 parser.add_argument('--memory-limit', type=int, default=1024 ** 3,
                     help='Set memory ulimit on unix based systems')
-parser.add_argument('--enable-store-at', action='store_true',
-                    help='Enable store_at() generation')
 parser.add_argument('--enable-unroll', action='store_true',
-                    help='Enable unroll() generation')
+                    help='Enable .unroll(...) generation')
+parser.add_argument('--enable-store-at', action='store_true',
+                    help='Never generate .store_at(...)')
+parser.add_argument('--gated-store-reorder', action='store_true',
+                    help='Only reorder storage if a special parameter is given')
 
 
 # class HalideRandomConfig(opentuner.search.technique.SearchTechnique):
@@ -134,29 +135,6 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       args.input_size = self.settings['input_size']
     self.min_collection_cost = float('inf')
 
-  def compute_at_parameter(self):
-    """
-    create ScheduleParameter to encode compute_at() relations tree
-    """
-    nodes = list()
-    deps = collections.defaultdict(list)
-    for func in self.settings['functions']:
-      last = None
-      for idx in reversed(['c'] +  # 'c' = compute location (and close loops)
-                          range(1, len(func['vars']) * self.args.nesting + 1) +
-                          ['s']):  # 's' = storage location
-        name = (func['name'], idx)
-        if last is not None:
-          # variables must go in order
-          deps[last].append(name)
-        last = name
-        nodes.append(name)
-        if idx == 'c':
-          # computes must follow call graph order
-          for callee in func['calls']:
-            deps[(callee, 'c')].append(name)
-    return ScheduleParameter('schedule', nodes, deps)
-
   def compute_order_parameter(self, func):
     name = func['name']
     sched_vars = []
@@ -175,7 +153,8 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     data structure and defines the configuration space to search
     """
     manipulator = HalideConfigurationManipulator(self)
-    manipulator.add_parameter(self.compute_at_parameter())
+    manipulator.add_parameter(HalideComputeAtScheduleParameter(
+      'schedule', self.args, self.settings['functions'], self.post_dominators))
     for func in self.settings['functions']:
       name = func['name']
       manipulator.add_parameter(PermutationParameter(
@@ -238,7 +217,6 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
 
       print >>o, name
 
-      vectorize_used = False
       for var in func['vars']:
         lastvarname = None
 
@@ -271,7 +249,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
 
       # reorder_storage
       store_order_enabled = cfg['{0}_store_order_enabled'.format(name)]
-      if store_order_enabled:
+      if store_order_enabled or not args.gated_store_reorder:
         store_order = cfg['{0}_store_order'.format(name)]
         print >>o, '.reorder_storage({0})'.format(', '.join(store_order))
 
@@ -326,12 +304,12 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
                     repl_autotune_hook, self.template)
     return source
 
-  def run_schedule(self, schedule):
+  def run_schedule(self, schedule, limit):
     """
     Generate a temporary Halide cpp file with schedule inserted and run it
     with our timing harness found in timing_prefix.h.
     """
-    return self.run_source(self.schedule_to_source(schedule))
+    return self.run_source(self.schedule_to_source(schedule), limit)
 
   def run_baseline(self):
     """
@@ -344,7 +322,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
                     repl_autotune_hook, self.template)
     return self.run_source(source)
 
-  def run_source(self, source):
+  def run_source(self, source, limit=0):
     with tempfile.NamedTemporaryFile(suffix='.cpp', prefix='halide',
                                      dir=args.tmp_dir) as cppfile:
       cppfile.write(source)
@@ -352,7 +330,8 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       # binfile = os.path.splitext(cppfile.name)[0] + '.bin'
       binfile = '/tmp/halide.bin'
       cmd = args.compile_command.format(
-        cpp=cppfile.name, bin=binfile, args=args)
+        cpp=cppfile.name, bin=binfile, args=args,
+        limit=math.ceil(limit) if limit < float('inf') else 0)
       compile_result = self.call_program(cmd, limit=args.limit,
                                          memory_limit=args.memory_limit)
       if compile_result['returncode'] != 0:
@@ -368,20 +347,19 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       returncode = result['returncode']
 
       if result['timeout']:
-        log.info('timeout: collection cost %.2f + %.2f',
-                 compile_result['time'], result['time'])
-        if args.debug_timeout:
-          open('/tmp/halidetimeout.cpp', 'w').write(source)
-          raw_input(
-            'offending schedule written to /tmp/halidetimeout.cpp, press ENTER to continue')
+        log.info('compiler timeout %d (%.2f+%.0f cost)', args.limit,
+                 compile_result['time'], args.limit)
         return float('inf')
+      elif returncode == 142:
+        log.info('program timeout %d (%.2f+%.2f cost)', math.ceil(limit),
+                 compile_result['time'], result['time'])
+        return None
       elif returncode != 0 or stderr:
-        log.error('invalid schedule: %s', stderr.strip())
+        log.error('invalid schedule (returncode=%d): %s', returncode,
+                  stderr.strip())
         if args.debug_error is not None and (args.debug_error in stderr
                                              or args.debug_error == ""):
-          open('/tmp/halideerror.cpp', 'w').write(source)
-          raw_input(
-            'offending schedule written to /tmp/halideerror.cpp, press ENTER to continue')
+          self.debug_schedule('/tmp/halideerror.cpp', source)
         return None
       else:
         try:
@@ -397,16 +375,16 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     finally:
       os.unlink(binfile)
 
-  def run_cfg(self, cfg):
+  def run_cfg(self, cfg, limit=0):
     try:
       schedule = self.cfg_to_schedule(cfg)
     except:
       log.exception('error generating schedule')
       return None
-    return self.run_schedule(schedule)
+    return self.run_schedule(schedule, limit)
 
   def run(self, desired_result, input, limit):
-    time = self.run_cfg(desired_result.configuration.data)
+    time = self.run_cfg(desired_result.configuration.data, limit)
     if time is not None:
       return opentuner.resultsdb.models.Result(time=time)
     else:
@@ -417,6 +395,11 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     """called at the end of tuning"""
     print 'Final Configuration:'
     print self.cfg_to_schedule(configuration.data)
+
+  def debug_schedule(self, filename, source):
+    open(filename, 'w').write(source)
+    raw_input('offending schedule written to {0} press ENTER to continue'
+              .format(filename))
 
 
 class ComputeAtStoreAtParser(object):
@@ -442,6 +425,7 @@ class ComputeAtStoreAtParser(object):
     self.process_root()
 
   def process_root(self):
+    old_len = len(self.tokens)
     out = []
     while self.tokens:
       if self.tokens[-1][1] == 's':
@@ -450,7 +434,8 @@ class ComputeAtStoreAtParser(object):
         out.append(self.tokens.pop())
       else:
         self.process_loopnest(out, [])
-    self.tokens = reversed(out)
+    self.tokens = list(reversed(out))
+    assert old_len == len(self.tokens)
 
   def process_loopnest(self, out, stack):
     func, idx = self.tokens[-1]
@@ -507,6 +492,49 @@ class HalideConfigurationManipulator(ConfigurationManipulator):
       return super(HalideConfigurationManipulator, self).hash_config(config)
 
 
+class HalideComputeAtScheduleParameter(ScheduleParameter):
+
+  def __init__(self, name, args, functions, post_dominators):
+    """
+    Custom ScheduleParameter that normalizes using ComputeAtStoreAtParser
+    """
+    super(HalideComputeAtScheduleParameter, self).__init__(
+      name, *self.gen_nodes_deps(args, functions))
+    self.post_dominators = post_dominators
+
+  def gen_nodes_deps(self, args, functions):
+    """
+    Compute the list of nodes and point-to-point deps to provide to base class
+    """
+    nodes = list()
+    deps = collections.defaultdict(list)
+    for func in functions:
+      last = None
+      for idx in reversed(['c'] +  # 'c' = compute location (and close loops)
+                          range(1, len(func['vars']) * args.nesting + 1) +
+                          ['s']):  # 's' = storage location
+        name = (func['name'], idx)
+        if last is not None:
+          # variables must go in order
+          deps[last].append(name)
+        last = name
+        nodes.append(name)
+        if idx == 'c':
+          # computes must follow call graph order
+          for callee in func['calls']:
+            deps[(callee, 'c')].append(name)
+    return nodes, deps
+
+  def normalize(self, cfg):
+    """
+    First enforce basic point-to-point deps (in base class), then call
+    ComputeAtStoreAtParser to normalize schedule.
+    """
+    super(HalideComputeAtScheduleParameter, self).normalize(cfg)
+    cfg[self.name] = ComputeAtStoreAtParser(cfg[self.name],
+                                            self.post_dominators).tokens
+
+
 def post_dominators(settings):
   """
   Compute post dominator tree using textbook iterative algorithm for the
@@ -534,6 +562,9 @@ def post_dominators(settings):
 
 
 def random_test(args):
+  """
+  Generate and run a random schedule
+  """
   from pprint import pprint
   opentuner.tuningrunmain.init_logging()
   m = HalideTuner(args)
@@ -543,11 +574,14 @@ def random_test(args):
   schedule = m.cfg_to_schedule(cfg)
   print schedule
   print
-  print 'Schedule', m.run_schedule(schedule)
+  print 'Schedule', m.run_schedule(schedule, 30)
   print 'Baseline', m.run_baseline()
 
 
 def random_source(args):
+  """
+  Dump the source code of a random schedule
+  """
   opentuner.tuningrunmain.init_logging()
   m = HalideTuner(args)
   cfg = m.manipulator().random()
