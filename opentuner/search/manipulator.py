@@ -27,7 +27,7 @@ class ConfigurationManipulatorBase(object):
 
   def validate(self, config):
     '''is the given config valid???'''
-    return all(map(_.validate(config), self.parameters()))
+    return all(map(_.validate(config), self.parameters(config)))
 
   def normalize(self, config):
     '''mutate config into canonical form'''
@@ -633,6 +633,7 @@ class PermutationParameter(ComplexParameter):
   def __init__(self, name, items):
     super(PermutationParameter, self).__init__(name)
     self._items = list(items)
+    self.size = len(items)
 
   def randomize(self, config):
     random.shuffle(self._get(config))
@@ -1091,7 +1092,7 @@ class ManipulatorProxy(object):
   def __init__(self, manipulator, cfg):
     self.cfg = cfg
     self.manipulator = manipulator
-    self.params = manipulator.parameters_dict()
+    self.params = manipulator.parameters_dict(self.cfg)
 
   def keys(self):
     return self.params.keys()
