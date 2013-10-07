@@ -29,7 +29,6 @@ class EvolutionaryTechnique(SearchTechnique):
     
     if len(parents) > 1:
       cfg = self.crossover(parents)
-      print cfg
     else:
       cfg = parents[0]
 
