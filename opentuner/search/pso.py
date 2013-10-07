@@ -2,7 +2,7 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=3
+N=10
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
