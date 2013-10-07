@@ -1,4 +1,5 @@
 from opentuner.resultsdb.models import *
+from fn import _
 
 class DriverBase(object):
   '''
@@ -38,4 +39,9 @@ class DriverBase(object):
       q = self.objective.result_order_by(q)
 
     return q
+
+  def requests_query(self):
+    q = self.session.query(DesiredResult).filter_by(tuning_run = self.tuning_run)
+    return q
+    
 

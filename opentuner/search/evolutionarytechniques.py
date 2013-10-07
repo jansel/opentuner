@@ -26,7 +26,7 @@ class EvolutionaryTechnique(SearchTechnique):
     parents = self.selection()
     parents = map(copy.deepcopy, parents)
     parent_hashes = map(self.manipulator.hash_config, parents)
-
+    
     if len(parents) > 1:
       cfg = self.crossover(parents)
     else:
@@ -104,20 +104,23 @@ class NormalMutationMixin(object):
       random.choice(param.manipulators(cfg))(cfg)
 
 
-class OXMixin(object):
-
+class CrossoverMixin(object):
+  def __init__(self, crossover,   *pargs, **kwargs):
+    super(CrossoverMixin, self).__init__(*pargs, **kwargs)
+    self.crossover_op = crossover
+    self.name = 'ga-'+crossover
+    
   def crossover(self, cfgs):
     '''
     Crossover the first permtation parameter, if found, of two parents and
     return one offspring cfg
     '''
-    
     cfg1, cfg2, = cfgs
-    params = self.manipulator.parameters(cfg)
+    params = self.manipulator.parameters(cfg1)
     for param in params:
-      if param.is_permutation():
-        new = param.OX3(cfg1, cfg2)[0]  # TODO: take both offsprings
-        return new
+      if param.is_permutation() and param.size>6:
+        new = getattr(param, self.crossover_op)(cfg1, cfg2)[0]
+	return new
     return cfg1
 
 
@@ -127,10 +130,14 @@ class UniformGreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):
 class NormalGreedyMutation(NormalMutationMixin, GreedySelectionMixin, EvolutionaryTechnique):
   pass
 
-class OXGA(OXMixin, UniformGreedyMutation):
+class GA(CrossoverMixin, UniformGreedyMutation):
   pass
 
-technique.register(OXGA(name='ga-ox', mutation_rate=0.01))
+technique.register(GA(crossover = 'OX3', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'OX1', mutation_rate=0.10,crossover_rate=0.8))
+technique.register(GA(crossover = 'PX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'CX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'PMX', mutation_rate=0.10, crossover_rate=0.8))
 
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation10', mutation_rate=0.10))
