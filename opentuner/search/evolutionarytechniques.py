@@ -26,9 +26,10 @@ class EvolutionaryTechnique(SearchTechnique):
     parents = self.selection()
     parents = map(copy.deepcopy, parents)
     parent_hashes = map(self.manipulator.hash_config, parents)
-
+    
     if len(parents) > 1:
       cfg = self.crossover(parents)
+      print cfg
     else:
       cfg = parents[0]
 
@@ -115,13 +116,12 @@ class CrossoverMixin(object):
     Crossover the first permtation parameter, if found, of two parents and
     return one offspring cfg
     '''
-    
     cfg1, cfg2, = cfgs
-    params = self.manipulator.parameters()
+    params = self.manipulator.parameters(cfg1)
     for param in params:
-      if param.is_permutation():
+      if param.is_permutation() and param.size>6:
         new = getattr(param, self.crossover_op)(cfg1, cfg2)[0]
-        return new
+	return new
     return cfg1
 
 
@@ -134,11 +134,11 @@ class NormalGreedyMutation(NormalMutationMixin, GreedySelectionMixin, Evolutiona
 class GA(CrossoverMixin, UniformGreedyMutation):
   pass
 
-technique.register(GA(crossover = 'OX3', mutation_rate=0.10))
-technique.register(GA(crossover = 'OX1', mutation_rate=0.10))
-technique.register(GA(crossover = 'PX', mutation_rate=0.10))
-technique.register(GA(crossover = 'CX', mutation_rate=0.10))
-technique.register(GA(crossover = 'PMX', mutation_rate=0.10))
+technique.register(GA(crossover = 'OX3', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'OX1', mutation_rate=0.10,crossover_rate=0.8))
+technique.register(GA(crossover = 'PX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'CX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'PMX', mutation_rate=0.10, crossover_rate=0.8))
 
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation10', mutation_rate=0.10))
