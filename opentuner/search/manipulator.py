@@ -839,7 +839,7 @@ class PermutationParameter(ComplexParameter):
   def OX1(self, cfg1, cfg2, d=3):
     """
     Ordered Crossover (Davis 1985)
-    Two parents exchange subpaths of the same length d while order the remaining
+    Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
     new1 = self.parent.copy(cfg1)

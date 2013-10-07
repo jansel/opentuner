@@ -172,7 +172,8 @@ class StatsMain(object):
         log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
         self.combined_stats_over_time(d, label, runs, objective, worst, best)
 
-        final_scores = list()
+##        final_scores = list()
+        final_configs = []
         for run, session in runs:
           try:
             final = (session.query(Result)
@@ -182,24 +183,10 @@ class StatsMain(object):
                     .one())
           except sqlalchemy.orm.exc.NoResultFound:
             continue
-          final_scores.append(objective.stats_quality_score(final, worst, best))
-        final_scores.sort()
-        if final_scores:
-          norm = objective.stats_quality_score(best, worst, best)
-          if norm > 0.00001:
-            summary_report[d][run_label(run, short=True)] = (
-                percentile(final_scores, 0.5) / norm,
-                percentile(final_scores, 0.1) / norm,
-                percentile(final_scores, 0.9) / norm,
-              )
-          else:
-            summary_report[d][run_label(run, short=True)] = (
-                percentile(final_scores, 0.5) + norm + 1.0,
-                percentile(final_scores, 0.1) + norm + 1.0,
-                percentile(final_scores, 0.9) + norm + 1.0,
-              )
-
-
+          final_configs.append(str(final.configuration.data))
+        with open("stats/final_cfg_"+label+".txt",'w') as o:
+          o.write('\t'.join(final_configs)+'\n')
+    
     with open("stats/summary.dat", 'w') as o:
       # make summary report
       keys = sorted(reduce(set.union,
@@ -228,38 +215,6 @@ class StatsMain(object):
                         4*n + 9,
                         k))
       self.gnuplot_summary_file('stats', 'summary', plotcmd)
-
-
-
-    for d, label_runs in dir_label_runs.iteritems():
-      labels = [k for k,v in label_runs.iteritems()
-                if len(v)>=self.args.min_runs]
-      self.gnuplot_file(d,
-                        "medianperfe",
-                        ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "meanperfe",
-                        ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "medianperfl",
-                        ['"%s_percentiles.dat" using 1:12 with lines title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "meanperfl",
-                        ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
-
-    # print
-    # print "10% Scores", d
-    # pprint(self.technique_scores(d, labels, '0.1'))
-    # print
-    # print "90% Scores", d
-    # pprint(self.technique_scores(d, labels, '0.9'))
-    # print
-    # print "Mean Scores", d
-    # pprint(self.technique_scores(d, labels, 'mean'))
-      print
-      print "Median Scores", d
-      pprint(self.technique_scores(d, labels, '0.5'))
-
 
   def technique_scores(self, directory, labels, ykey, xkey='#sec', factor=10.0):
     max_duration = None
@@ -315,7 +270,7 @@ class StatsMain(object):
     by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
               for run, session in runs]
     max_len = max(map(len, by_run))
-
+    
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
     by_quanta = zip(*by_run_streams[:])
