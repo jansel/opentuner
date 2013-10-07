@@ -190,20 +190,12 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
 
     def crossover(self, cfg1, cfg2):
         for p in self.params:
-            if p.is_permutation():
+            if p.is_permutation() and p.size>6:
                 # Select crossover operator
-                new = getattr(p, self.crossover_choice)(cfg1, cfg2)
-##            if isinstance(p, manipulator.PermutationParameter):
-##                new = p.OX1(cfg1, cfg2, 3)
-##                new = p.OX3(cfg1, cfg2, 5)
-##                new = p.PX(cfg1, cfg2)
-##                new = p.EX(cfg1, cfg2)
-##                new = p.CX(cfg1, cfg2)
+		new = getattr(p, self.crossover_choice)(cfg1, cfg2)[0]
             else:
                 # crossover undefined for non-permutations
                 pass 
-            if len(new)>1:    # the offspring from cfg1
-                new = new[0]
         return new        
         
             
