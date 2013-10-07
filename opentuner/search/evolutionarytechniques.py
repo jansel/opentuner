@@ -42,7 +42,7 @@ class EvolutionaryTechnique(SearchTechnique):
     '''
     mutate cfg in place
     '''
-    params = self.manipulator.parameters()
+    params = self.manipulator.parameters(cfg
     random.shuffle(params)
     for param in params[:self.must_mutate_count]:
       self.mutate_param(cfg, param)
@@ -134,11 +134,11 @@ class NormalGreedyMutation(NormalMutationMixin, GreedySelectionMixin, Evolutiona
 class GA(CrossoverMixin, UniformGreedyMutation):
   pass
 
-technique.register(GA(crossover = 'OX3', mutation_rate=0.01))
-technique.register(GA(crossover = 'OX1', mutation_rate=0.01))
-technique.register(GA(crossover = 'PX', mutation_rate=0.01))
-technique.register(GA(crossover = 'CX', mutation_rate=0.01))
-technique.register(GA(crossover = 'PMX', mutation_rate=0.01))
+technique.register(GA(crossover = 'OX3', mutation_rate=0.10))
+technique.register(GA(crossover = 'OX1', mutation_rate=0.10))
+technique.register(GA(crossover = 'PX', mutation_rate=0.10))
+technique.register(GA(crossover = 'CX', mutation_rate=0.10))
+technique.register(GA(crossover = 'PMX', mutation_rate=0.10))
 
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation10', mutation_rate=0.10))

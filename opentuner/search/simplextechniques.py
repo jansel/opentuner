@@ -39,13 +39,13 @@ class SimplexTechnique(SequentialSearchTechnique):
 
     for config in self.simplex_points:
       cfg = config.data
-      for param in self.manipulator.parameters():
+      for param in self.manipulator.parameters(cfg):
         if param.is_primitive():
           sums[param.name] += param.get_unit_value(cfg)
           counts[param.name] += 1
 
     centroid = self.manipulator.copy(self.simplex_points[0].data)
-    for param in self.manipulator.parameters():
+    for param in self.manipulator.parameters(centroid):
       if param.is_primitive():
         param.set_unit_value(centroid,
                              sums[param.name] / float(counts[param.name]))
@@ -54,7 +54,7 @@ class SimplexTechnique(SequentialSearchTechnique):
 
   def cfg_to_str(self, cfg):
     params = list(filter(Parameter.is_primitive,
-                         self.manipulator.parameters()))
+                         self.manipulator.parameters(cfg)))
     params.sort(key=_.name)
     return str(tuple(map(lambda x: x.get_unit_value(cfg), params)))
 
@@ -103,7 +103,7 @@ class RandomInitialMixin(object):
     # we implicitly assume number of parameters is fixed here, however 
     # it will work if it isn't (simplex size is undefined)
     cfg0 = self.initial_simplex_seed()
-    params = self.manipulator.parameters()
+    params = self.manipulator.parameters(cfg0)
     return [cfg0]+[self.manipulator.random()
                  for p in params
                  if p.is_primitive()]
@@ -120,7 +120,7 @@ class RightInitialMixin(object):
   def initial_simplex(self):
     cfg0 = self.initial_simplex_seed()
     simplex = [cfg0]
-    params = self.manipulator.parameters()
+    params = self.manipulator.parameters(cfg0)
     params = filter(lambda x: x.is_primitive(), params)
     for p in params:
       simplex.append(self.manipulator.copy(cfg0))
@@ -144,7 +144,7 @@ class RegularInitialMixin(object):
   def initial_simplex(self):
     cfg0 = self.initial_simplex_seed()
     simplex = [cfg0]
-    params = self.manipulator.parameters()
+    params = self.manipulator.parameters(cfg0)
     params = list(filter(lambda x: x.is_primitive(), params))
 
 
