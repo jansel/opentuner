@@ -23,7 +23,7 @@ argparser.add_argument('--parallelism', type=int, default=4,
     help='how many tests to support at once')
 argparser.add_argument('--pipelining', type=int, default=0,
     help='how long a delay (in generations) before results are available')
-argparser.add_argument('--bail-threshold', type=int, default=3,
+argparser.add_argument('--bail-threshold', type=int, default=500,
     help='abort if no requests have been made in X generations')
 argparser.add_argument('--no-dups', action='store_true',
     help='don\'t print out warnings for duplicate requests')
