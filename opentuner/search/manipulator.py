@@ -27,7 +27,7 @@ class ConfigurationManipulatorBase(object):
 
   def validate(self, config):
     '''is the given config valid???'''
-    return all(map(_.validate(config), self.parameters(config)))
+    return all(map(_.validate(config), self.parameters()))
 
   def normalize(self, config):
     '''mutate config into canonical form'''
@@ -131,6 +131,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
                 str(type(config)))
       raise TypeError()
     return self.params
+
 
   def hash_config(self, config):
     '''produce unique hash value for the given config'''
@@ -734,32 +735,28 @@ class PermutationParameter(ComplexParameter):
 
     
 
-
-
   # Crossover operators
   def PX(self, cfg1, cfg2, c1=None, c2=None):
     """
     Partition crossover (Whitley 2009?)
-    Change the order of items up to c1 in cfg1 according to their order in cfg2,
-    and those in cfg2 up to c2 according to cfg1. Return the two new resulting cfg.
+    Change the order of items up to c1 in cfg1 according to their order in cfg2.
     """
 
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     if not c1:
       c1 = random.randint(0,len(p1))
-    if not c2:
-      c2 = random.randint(0,len(p2))
-    print c1, c2
+##    if not c2:
+##      c2 = random.randint(0,len(p2))
 
     new1 = self.parent.copy(cfg1)
-    new2 = self.parent.copy(cfg2)
+##    new2 = self.parent.copy(cfg2)
 
     new1[self.name] = sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:]
-    new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
-    return new1, new2
+##    new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
+    return new1, None
 
-  def PMX(self, cfg1, cfg2,d):
+  def PMX(self, cfg1, cfg2, d=5):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
@@ -770,16 +767,34 @@ class PermutationParameter(ComplexParameter):
     p2 = self.get_value(new2)
     
     r = random.randint(0,len(p1)-d)
-
     c1 = p1[r:r+d]
     c2 = p2[r:r+d]
 
-    for i in range(d):
-      p1[p1.index(c2[i])]=c1[i]
-      p2[p2.index(c1[i])]=c2[i]
+    # Construct partial map
+    pm = dict([ (c1[i], c2[i]) for i in range(d)])
+    agenda = c1[:]
+    while agenda!=[]:
+      n = agenda.pop()
+      while pm[n] in pm:
+        if n == pm[n]:
+          pm.pop(n)
+          break
+        try:
+            agenda.remove(pm[n])
+        except:
+          pass
+        link = pm.pop(pm[n])
+        pm[n] = link
+    # Reversed partial map    
+    pm2 = {v:k for k,v in pm.items()}
+    # Fix conflicts
+    for k in pm:
+      p2[p2.index(k)]=pm[k]
+    for k in pm2:
+      p1[p1.index(k)]=pm2[k]        
+    # Cross over
     p1[r:r+d] = c2     
-    p2[r:r+d] = c1
-    
+    p2[r:r+d] = c1    
     return new1, new2
 
 
@@ -811,10 +826,10 @@ class PermutationParameter(ComplexParameter):
 ##    print new1
     return (new1, new2)
 
-  def OX1(self, cfg1, cfg2, d):
+  def OX1(self, cfg1, cfg2, d=3):
     """
     Ordered Crossover (Davis 1985)
-    Two parents exchange subpaths of the same length d while order the remaining
+    Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
     new1 = self.parent.copy(cfg1)
@@ -835,7 +850,7 @@ class PermutationParameter(ComplexParameter):
       
     
     
-  def OX3(self, cfg1, cfg2, d):
+  def OX3(self, cfg1, cfg2, d=3):
     """
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
@@ -1076,7 +1091,7 @@ class ManipulatorProxy(object):
   def __init__(self, manipulator, cfg):
     self.cfg = cfg
     self.manipulator = manipulator
-    self.params = manipulator.parameters_dict(self.cfg)
+    self.params = manipulator.parameters_dict()
 
   def keys(self):
     return self.params.keys()

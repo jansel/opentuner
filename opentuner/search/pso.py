@@ -2,49 +2,41 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=10
+N=3
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
-    def __init__(self,*pargs, **kwargs):
+    def __init__(self, crossover, *pargs, **kwargs):
+        """
+        crossover: name of crossover operator function
+        """
         super(PSO, self).__init__(*pargs, **kwargs)
-    
+        self.crossover = crossover
+        self.name = 'pso-'+crossover
+        
     def main_generator(self):
         
         objective   = self.objective
         driver      = self.driver
-        m = PSOmanipulator(self.manipulator.params)
+        m = PSOmanipulator(self.crossover, self.manipulator.params)
         def config(cfg):
             return driver.get_configuration(cfg)
 
-        population = [ParticleII(m) for i in range(N)]
+        population = [ParticleII(m, omega=0.5) for i in range(N)]
         for p in population:
-##            print p.position
             yield driver.get_configuration(p.position)
             
         while True:
             # For each particle
             for particle in population:
                 g = driver.best_result.configuration.data
-##                print "GLOBAL", g
-##                print "MOVE FROM", particle.position
                 particle.move(g)
-##                print "MOVE TO", particle.position
-
-##                print particle.velocity
-                
                 # send out for measurement
                 yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
                     particle.best = particle.position
-##                    print "UPDATE:", particle.position
-                    # update global best: done automatically by search driver?
-                    # TODO: swarm best == global best?
-##                print "POPULATION:"
-##                for p in population:
-##                    print p.position 
-                            
+                           
  
 
 
@@ -58,7 +50,7 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
         """
         
         self.manipulator = m
-        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
+#        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
         self.position = self.manipulator.random()   # whatever cfg is...
         self.best = self.position
         self.omega = omega
@@ -81,9 +73,6 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
 
 
 class ParticleII(Particle):
-    def __init__(self, m, omega=0.5, phi=0.5):
-        super(ParticleII, self).__init__(m, omega, phi, phi)        
-
     def move(self, global_best):
         m = self.manipulator
         # Decide if crossover happens
@@ -140,6 +129,10 @@ class ParticleIV(Particle):
         
     
 class PSOmanipulator(manipulator.ConfigurationManipulator):
+    def __init__(self, crossover, *pargs, **kwargs):
+        super(PSOmanipulator, self).__init__(*pargs, **kwargs)
+        self.crossover_choice = crossover
+
     def difference(self, cfg1, cfg2):
         """ Return the difference of two positions i.e. velocity """
         v = {}
@@ -153,16 +146,12 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                     
     def scale(self, dcfg, k):
         """ Scale a velocity by k """
-##        print 'scale', dcfg
         new = self.copy(dcfg)
         for p in self.params:
             if isinstance(p, manipulator.PermutationParameter):                   
-##                print 'scale', dcfg[p.name]
                 new[p.name]=p.scale_swaps(new[p.name], k)
-##                print 'to', dcfg[p.name]
             else:
                 p.scale(new, k)
-##        print 'to', new
         return new
 
     def split(self, dcfg, k):
@@ -170,12 +159,9 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         new2 = self.copy(dcfg)
         for p in self.params:
             if isinstance(p, manipulator.PermutationParameter):                   
-##                print 'scale', dcfg[p.name]
                 new1[p.name], new2[p.name]=p.split_swaps(dcfg[p.name], k)
-##                print 'to', dcfg[p.name]
             else:
                 pass
-##        print 'to', new
         return new1, new2           
 
     def sum_v(self, *vs):
@@ -204,9 +190,12 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
 
     def crossover(self, cfg1, cfg2):
         for p in self.params:
-            if isinstance(p, manipulator.PermutationParameter):
+            if p.is_permutation():
+                # Select crossover operator
+                new = getattr(p, self.crossover_choice)(cfg1, cfg2)
+##            if isinstance(p, manipulator.PermutationParameter):
 ##                new = p.OX1(cfg1, cfg2, 3)
-                new = p.OX3(cfg1, cfg2, 5)
+##                new = p.OX3(cfg1, cfg2, 5)
 ##                new = p.PX(cfg1, cfg2)
 ##                new = p.EX(cfg1, cfg2)
 ##                new = p.CX(cfg1, cfg2)
@@ -217,26 +206,11 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                 new = new[0]
         return new        
         
-        
-        
-class OXMixin(object):
-
-  def crossover(self, cfgs):
-    '''
-    Crossover the first permtation parameter, if found, of two parents and
-    return one offspring cfg
-    '''
-    
-    cfg1, cfg2, = cfgs
-    params = self.manipulator.parameters(cfg)
-    for param in params:
-      if param.is_permutation():
-        new = param.OX3(cfg1, cfg2)[0]  # TODO: take both offsprings
-        return new
-    return cfg1
-
-       
-                                
+            
                                 
 
-technique.register(PSO(name='pso-ox'))
+technique.register(PSO(crossover = 'OX3'))
+technique.register(PSO(crossover = 'OX1'))
+technique.register(PSO(crossover = 'PMX'))
+technique.register(PSO(crossover = 'PX'))
+technique.register(PSO(crossover = 'CX'))
