@@ -251,7 +251,7 @@ register(AUCBanditMetaTechnique([
         evolutionarytechniques.GA(crossover = 'CX', mutation_rate=0.01),
         evolutionarytechniques.GA(crossover = 'PX', mutation_rate=0.01),
         evolutionarytechniques.GA(crossover = 'PMX', mutation_rate=0.01)
-      ], name = "bandit"))
+      ], name = "PSO_GA_Bandit"))
 register(AUCBanditMetaTechnique([
 	differentialevolution.DifferentialEvolutionAlt(),
 	simulatedannealing.PseudoAnnealingSearch()
