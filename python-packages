@@ -1,6 +1,8 @@
 argparse
 fn
 importlib
+matplotlib
+numpy
 pysqlite
 sqlalchemy
 virtualenv
