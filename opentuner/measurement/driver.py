@@ -3,6 +3,7 @@ import logging
 import time
 import socket
 import os
+from multiprocessing.pool import ThreadPool
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,6 +20,13 @@ argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--machine-class',
                        help="name of the machine class being run on")
 
+def compile_result(args):
+  interface = args[0]
+  dr = args[1]
+  try:
+    return self.interface.compile()
+  except RuntimeError:
+    return ''
 
 class MeasurementDriver(DriverBase):
   '''
@@ -81,9 +89,10 @@ class MeasurementDriver(DriverBase):
     else:
       return self.default_limit_multiplier*best.time
 
-  def run_desired_result(self, desired_result):
+  def run_desired_result(self, desired_result, exec_id = None):
     '''
     create a new Result using input manager and measurment interface
+    Optional exec_id paramater can be passed to run_precompiled in case of locating a specific executable
     '''
     desired_result.limit = self.run_time_limit(desired_result)
 
@@ -95,7 +104,8 @@ class MeasurementDriver(DriverBase):
 
     self.input_manager.before_run(desired_result, input)
 
-    result = self.interface.run(desired_result, input, desired_result.limit)
+    result = self.interface.run_precompiled(desired_result, input, desired_result.limit, exec_id)
+    
     result.configuration    = desired_result.configuration
     result.input            = input
     result.machine          = self.machine
@@ -151,9 +161,45 @@ class MeasurementDriver(DriverBase):
                     state = 'REQUESTED')
          .order_by(DesiredResult.generation,
                    DesiredResult.priority.desc()))
-    for dr in q.all():
-      if self.claim_desired_result(dr):
-        self.run_desired_result(dr)
+
+    if self.interface.parallel_compile:
+      desired_results = []
+      thread_args = []
+      def compile_result(args):
+        interface, data, result_id = args
+        try:
+          return interface.compile(data, result_id)
+        except RuntimeError:
+          return interface.Status.ERROR
+      result_id = 0
+      for dr in q.all():
+        if self.claim_desired_result(dr):
+          desired_results.append(dr)
+          thread_args.append((self.interface, dr.configuration.data, result_id))
+          result_id += 1
+      thread_pool = ThreadPool(len(desired_results))
+      # print 'Compiling %d results' % len(thread_args)
+      try:
+        thread_pool.map_async(compile_result, thread_args).get(9999999)
+      except KeyboardInterrupt:
+        # Need to kill other processes because only one thread receives keyboardinterrupt
+        self.interface.kill_all()
+        raise
+      # print 'Running %d results' % len(thread_args)
+      result_id = 0
+      for dr in desired_results:
+        # Make sure compile was successful
+        self.run_desired_result(dr, result_id)
+        try:
+          self.interface.cleanup(result_id)
+        except RuntimeError, e:
+          print e
+        result_id += 1
+      # print 'Done!'
+    else:
+      for dr in q.all():
+        if self.claim_desired_result(dr):
+          self.run_desired_result(dr)
 
 
 def _cputype():
