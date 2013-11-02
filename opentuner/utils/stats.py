@@ -230,8 +230,8 @@ class StatsMain(object):
       labels = [k for k,v in label_runs.iteritems()
                 if len(v)>=self.args.min_runs]
       dir_name = "%s/" % d
-      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11])
-      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20])
+      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11], ylim=[0,2])
+      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20], ylim=[0,2])
       # Add remaining two graphs as well
       # self.gnuplot_file(d,
       #                   "medianperfe",
@@ -387,7 +387,7 @@ class StatsMain(object):
     except OSError:
       log.error("command gnuplot not found")
 
-  def matplotlibplot_file(self, input_dir, labels, output_dir, prefix, cols):
+  def matplotlibplot_file(self, input_dir, labels, output_dir, prefix, cols, xlim = None, ylim = None):
     output_file = "%s/%s" % (output_dir, prefix)
     plt.figure()
     index = 0
@@ -409,7 +409,10 @@ class StatsMain(object):
         args.append(to_plot)
       plt.plot(*args, label=labels[index])
       index += 1
-    plt.ylim([0,2])
+    if xlim is not None:
+      plt.xlim(xlim)
+    if ylim is not None:
+      plt.ylim(ylim)
     plt.xlabel('Autotuning Time (seconds)')
     plt.ylabel('Execution Time (seconds)')
     plt.legend(loc='upper right')
