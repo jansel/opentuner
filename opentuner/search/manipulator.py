@@ -787,7 +787,7 @@ class PermutationParameter(ComplexParameter):
         link = pm.pop(pm[n])
         pm[n] = link
     # Reversed partial map    
-    pm2 = {v:k for k,v in pm.items()}
+    pm2 = dict([(v, k) for k,v in pm.items()])
     # Fix conflicts
     for k in pm:
       p2[p2.index(k)]=pm[k]
@@ -806,7 +806,7 @@ class PermutationParameter(ComplexParameter):
     """
     new1 = self.parent.copy(cfg1)
     new2 = self.parent.copy(cfg2)
-    
+
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
 
