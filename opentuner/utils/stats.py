@@ -43,6 +43,8 @@ argparser.add_argument('--stats-dir', default='stats',
 argparser.add_argument('--stats-input', default="opentuner.db")
 argparser.add_argument('--min-runs',  type=int, default=1,
                        help="ignore series with less then N runs")
+argparser.add_argument('--ylimit', type=int, nargs=2, default=[0,2],
+                       help="Specify limit of y coordinates in graph")
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
@@ -230,8 +232,8 @@ class StatsMain(object):
       labels = [k for k,v in label_runs.iteritems()
                 if len(v)>=self.args.min_runs]
       dir_name = "%s/" % d
-      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11], ylim=[0,2])
-      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20], ylim=[0,2])
+      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11], ylim=self.args.ylimit)
+      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20], ylim=self.args.ylimit)
       # Add remaining two graphs as well
       # self.gnuplot_file(d,
       #                   "medianperfe",
@@ -503,9 +505,6 @@ set ytics 1
         value_by_quanta[-1] = combine_fn(value_by_quanta[-1], extract_fn(dr))
 
     return value_by_quanta
-
-
-
 
 
 if __name__ == '__main__':
