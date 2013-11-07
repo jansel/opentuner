@@ -178,6 +178,7 @@ class TuningRunMain(object):
     finally:
       self.tuning_run.end_date = datetime.now()
       self.commit(force=True)
+      self.session.close()
 
   def results_wait(self, generation):
     '''called by search_driver to wait for results'''
