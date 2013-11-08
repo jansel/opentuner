@@ -32,3 +32,12 @@ inline void _autotune_timing_stub(Halide::Func& func) {
     exit(0);
 }
 
+
+#ifndef AUTOTUNE_HOOK
+#define AUTOTUNE_HOOK(x)
+#endif
+
+#ifndef BASELINE_HOOK
+#define BASELINE_HOOK(x)
+#endif
+

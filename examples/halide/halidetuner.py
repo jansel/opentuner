@@ -354,7 +354,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
         log.info('program timeout %d (%.2f+%.2f cost)', math.ceil(limit),
                  compile_result['time'], result['time'])
         return None
-      elif returncode != 0 or stderr:
+      elif returncode != 0:
         log.error('invalid schedule (returncode=%d): %s', returncode,
                   stderr.strip())
         if args.debug_error is not None and (args.debug_error in stderr
