@@ -187,7 +187,19 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
   def run(self, desired_result, input, limit):
     pass
 
-  def run_precompiled(self, desired_result, input, limit, result_id):
+  compile_results = {
+    'ok': 0,
+    'timeout': 1,
+    'error': 2,
+  }
+
+  def run_precompiled(self, desired_result, input, limit, compile_result, result_id):
+    # Make sure compile was successful
+    if compile_result == self.compile_results['timeout']:
+      return Result(state='TIMEOUT', time=float('inf'))
+    elif compile_result == self.compile_results['error']:
+      return Result(state='ERROR', time=float('inf'))
+
     tmp_dir = self.get_tmpdir(result_id)
     output_dir = '%s/%s' % (tmp_dir, args.output)
     try:
@@ -245,9 +257,12 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     if compile_result['returncode'] != 0:
       if compile_result['timeout']:
         log.warning("gcc timeout")
+        return self.compile_results['timeout']
       else:
         log.warning("gcc error %s", compile_result['stderr'])
         self.debug_gcc_error(flags)
+        return self.compile_results['error']
+    return self.compile_results['ok']
 
   def save_final_config(self, configuration):
     """called at the end of tuning"""

@@ -62,15 +62,17 @@ class MeasurementInterface(object):
     '''
     Compiles according to the configuration in config_data (obtained from desired_result.configuration)
     Should use id paramater to determine output location of executable
+    Return value will be passed to run_precompiled as compile_result, useful for storing error/timeout information
     '''
-    return self.Status.OK
+    pass
 
-  def run_precompiled(self, desired_result, input, limit, id):
+  def run_precompiled(self, desired_result, input, limit, compile_result, id):
     '''
     Runs the given desired result on input and produce a Result()
     Abort early if limit (in seconds) is reached
     Assumes that the executable to be measured is already compiled
       in an executable corresponding to identifier id
+    compile_result is the return result of compile(), will be None if compile was not called
     If id = None, must call run()
     '''
     return self.run(desired_result, input, limit)
@@ -159,6 +161,7 @@ class MeasurementInterface(object):
     self.pid_lock.acquire()
     for pid in self.pids:
       goodkillpg(pid)
+    self.pids = []
     self.pid_lock.release()
 
   def call_program(self, cmd, limit=None, memory_limit=None, **kwargs):
