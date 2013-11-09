@@ -53,6 +53,18 @@ More coming soon!
 
 [technique-tutorial]:  https://github.com/jansel/opentuner/wiki/TechniqueTutorial
 
+
+Papers
+---------
+
+- [OpenTuner: An Extensible Framework for Program Autotuning][techreport1]. <br>
+  Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Una-May O'Reilly,  Saman Amarasinghe. <br>
+  MIT CSAIL Technical Report MIT-CSAIL-TR-2013-026.
+  November 1, 2013.
+
+[techreport1]: http://dspace.mit.edu/handle/1721.1/81958
+
+
 Contributing Code
 -----------------
 
