@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import shutil
 
 from opentuner.resultsdb.models import Result, TuningRun
 from opentuner.search import manipulator
@@ -47,7 +48,14 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     super(GccFlagsTuner, self).__init__(program_name = args.source, *pargs,
                                         **kwargs)
     self.extract_gcc_options()
-    self.run_baselines()
+    self.result_list = {}
+    self.parallel_compile = True
+    try:
+      os.stat('./tmp')
+    except:
+      os.mkdir('./tmp')
+    # TODO: Set up compile and run option
+    # self.run_baselines()
 
   def run_baselines(self):
     log.info("baseline perfs -O0=%.4f -O1=%.4f -O2=%.4f -O3=%.4f",
@@ -169,9 +177,45 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     return args.compile_template.format(source=args.source, output=args.output,
                                         flags=' '.join(self.cfg_to_flags(cfg)))
 
+  def get_tmpdir(self, result_id):
+    return './tmp/%d' % result_id
+
+  def cleanup(self, result_id):
+    tmp_dir = self.get_tmpdir(result_id)
+    shutil.rmtree(tmp_dir)
+
   def run(self, desired_result, input, limit):
-    flags = self.cfg_to_flags(desired_result.configuration.data)
-    return self.run_with_flags(flags, limit)
+    pass
+
+  compile_results = {
+    'ok': 0,
+    'timeout': 1,
+    'error': 2,
+  }
+
+  def run_precompiled(self, desired_result, input, limit, compile_result, result_id):
+    # Make sure compile was successful
+    if compile_result == self.compile_results['timeout']:
+      return Result(state='TIMEOUT', time=float('inf'))
+    elif compile_result == self.compile_results['error']:
+      return Result(state='ERROR', time=float('inf'))
+
+    tmp_dir = self.get_tmpdir(result_id)
+    output_dir = '%s/%s' % (tmp_dir, args.output)
+    try:
+      run_result = self.call_program([output_dir], limit=limit,
+                                     memory_limit=args.memory_limit)
+    except OSError:
+      return Result(state='ERROR', time=float('inf'))
+
+    if run_result['returncode'] != 0:
+      if run_result['timeout']:
+        return Result(state='TIMEOUT', time=float('inf'))
+      else:
+        log.error('program error')
+        return Result(state='ERROR', time=float('inf'))
+
+    return Result(time=run_result['time'])
 
   def debug_gcc_error(self, flags):
     def fails(flags):
@@ -194,8 +238,18 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
           minimal_flags.append(flags[i])
       log.error("compiler crashes/hangs with flags: %s", minimal_flags)
 
-  def run_with_flags(self, flags, limit):
-    cmd = args.compile_template.format(source=args.source, output=args.output,
+  def compile(self, config_data, result_id):
+    flags = self.cfg_to_flags(config_data)
+    return self.compile_with_flags(flags, result_id)
+
+  def compile_with_flags(self, flags, result_id):
+    tmp_dir = self.get_tmpdir(result_id)
+    try:
+      os.stat(tmp_dir)
+    except:
+      os.mkdir(tmp_dir)
+    output_dir = '%s/%s' % (tmp_dir, args.output)
+    cmd = args.compile_template.format(source=args.source, output=output_dir,
                                         flags=' '.join(flags))
 
     compile_result = self.call_program(cmd, limit=args.compile_limit,
@@ -203,21 +257,12 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     if compile_result['returncode'] != 0:
       if compile_result['timeout']:
         log.warning("gcc timeout")
+        return self.compile_results['timeout']
       else:
         log.warning("gcc error %s", compile_result['stderr'])
         self.debug_gcc_error(flags)
-      return Result(state='ERROR', time=float('inf'))
-
-    run_result = self.call_program([args.output], limit=limit,
-                                   memory_limit=args.memory_limit)
-    if run_result['returncode'] != 0:
-      if run_result['timeout']:
-        return Result(state='TIMEOUT', time=float('inf'))
-      else:
-        log.error('program error')
-        return Result(state='ERROR', time=float('inf'))
-
-    return Result(time=run_result['time'])
+        return self.compile_results['error']
+    return self.compile_results['ok']
 
   def save_final_config(self, configuration):
     """called at the end of tuning"""
