@@ -138,6 +138,7 @@ technique.register(GA(crossover = 'OX1', mutation_rate=0.10,crossover_rate=0.8))
 technique.register(GA(crossover = 'PX', mutation_rate=0.10, crossover_rate=0.8))
 technique.register(GA(crossover = 'CX', mutation_rate=0.10, crossover_rate=0.8))
 technique.register(GA(crossover = 'PMX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(UniformGreedyMutation(name='ga-base', mutation_rate=0.10))
 
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation10', mutation_rate=0.10))
