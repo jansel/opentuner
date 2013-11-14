@@ -2,7 +2,7 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=10
+N=100
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
@@ -22,7 +22,7 @@ class PSO(technique.SequentialSearchTechnique ):
         def config(cfg):
             return driver.get_configuration(cfg)
 
-        population = [ParticleII(m, omega=0.5) for i in range(N)]
+        population = [DiscreteParticle(m, omega=0.5) for i in range(N)]
         for p in population:
             yield driver.get_configuration(p.position)
             
@@ -50,8 +50,7 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
         """
         
         self.manipulator = m
-#        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
-        self.position = self.manipulator.random()   # whatever cfg is...
+        self.position = self.manipulator.random()   
         self.best = self.position
         self.omega = omega
         self.phi_l = phi_l
@@ -60,6 +59,14 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
     def __str__(self):
         return 'V:'+str(self.velocity)+'\tP:'+str(self.position)
 
+    def move(self, global_best):
+	pass
+
+class ContinuousParticle(Particle):     # should inherit from/link to ConfigurationManipulator? 
+    def __init__(self, *args):
+	super(ContinuousParticle, self).__init__(*args)      
+        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
+        
     def move(self, global_best):
         """ move the particle towards its historical best and global best """
         m = self.manipulator
@@ -72,7 +79,7 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
         self.position = m.add_v(self.position, v)
 
 
-class ParticleII(Particle):
+class DiscreteParticle(Particle):
     def move(self, global_best):
         m = self.manipulator
         # Decide if crossover happens
@@ -137,10 +144,10 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         """ Return the difference of two positions i.e. velocity """
         v = {}
         for p in self.params:
-            if isinstance(p, manipulator.PermutationParameter):
-                v[p.name]=p.swap_dist(cfg1, cfg2)       # no longer legal configuration
-            else:
-                p.difference(v, cfg1, cfg2)
+	    if p.is_numeric():
+		p.difference(v, cfg1, cfg2)
+	    else:
+		pass
 
         return v
                     
@@ -190,9 +197,9 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
 
     def crossover(self, cfg1, cfg2):
         for p in self.params:
-            if p.is_permutation() and p.size>6:
+            if p.is_permutation():
                 # Select crossover operator
-		new = getattr(p, self.crossover_choice)(cfg1, cfg2)[0]
+                new = getattr(p, self.crossover_choice)(cfg1, cfg2, d=p.size/3)[0]
             else:
                 # crossover undefined for non-permutations
                 pass 
