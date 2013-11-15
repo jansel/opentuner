@@ -222,7 +222,7 @@ import differentialevolution
 import simplextechniques
 import patternsearch
 import simulatedannealing
-from pso import PSO
+from pso import PSO, HybridParticle
 
 register(AUCBanditMutationTechnique())
 
@@ -246,11 +246,12 @@ register(AUCBanditMetaTechnique([
         PSO(crossover = 'CX'),
         PSO(crossover = 'PMX'),
         PSO(crossover = 'PX'),
-        evolutionarytechniques.GA(crossover = 'OX3', mutation_rate=0.01),
-        evolutionarytechniques.GA(crossover = 'OX1', mutation_rate=0.01),
-        evolutionarytechniques.GA(crossover = 'CX', mutation_rate=0.01),
-        evolutionarytechniques.GA(crossover = 'PX', mutation_rate=0.01),
-        evolutionarytechniques.GA(crossover = 'PMX', mutation_rate=0.01)
+        evolutionarytechniques.GA(crossover = 'OX3', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'OX1', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'CX', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'PX', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'PMX', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.UniformGreedyMutation(name='ga-base', mutation_rate=0.01)	
       ], name = "PSO_GA_Bandit"))
 register(AUCBanditMetaTechnique([
 	differentialevolution.DifferentialEvolutionAlt(),

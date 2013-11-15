@@ -815,7 +815,6 @@ class PermutationParameter(ComplexParameter):
       p[j]=p2[j]
     
     self.set_value(dest, p)
-    print (p==p1)
 
   def OX1(self, dest, cfg1, cfg2, d):
     """

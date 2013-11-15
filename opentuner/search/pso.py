@@ -2,18 +2,19 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=3
+N=100
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
-    def __init__(self, crossover, *pargs, **kwargs):
+    def __init__(self, crossover, init_pop=None, *pargs, **kwargs):
         """
         crossover: name of crossover operator function
         """
         super(PSO, self).__init__(*pargs, **kwargs)
         self.crossover = crossover
         self.name = 'pso-'+crossover
-        
+        self.init_pop = init_pop
+
     def main_generator(self):
         
         objective   = self.objective
@@ -21,8 +22,10 @@ class PSO(technique.SequentialSearchTechnique ):
         m = PSOmanipulator(self.crossover, self.manipulator.params)
         def config(cfg):
             return driver.get_configuration(cfg)
-
-        population = [HybridParticle(m, omega=0.5) for i in range(N)]
+	
+	population = self.init_pop
+        if not population:
+	    population = [HybridParticle(m, omega=0.5) for i in range(N)]
         for p in population:
             yield driver.get_configuration(p.position)
             

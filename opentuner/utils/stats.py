@@ -9,9 +9,6 @@ import hashlib
 import logging
 import re
 import math
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy
 import os
 import subprocess
 import sys
@@ -43,34 +40,39 @@ argparser.add_argument('--stats-dir', default='stats',
 argparser.add_argument('--stats-input', default="opentuner.db")
 argparser.add_argument('--min-runs',  type=int, default=1,
                        help="ignore series with less then N runs")
-argparser.add_argument('--ylimit', type=int, nargs=2, default=[0,2],
-                       help="Specify limit of y coordinates in graph")
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
 def mean(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  n = 0.0
+  d = 0.0
+  for v in vals:
+    if v is not None:
+      n += v
+      d += 1.0
+  if d == 0.0:
     return None
-  return numpy.mean(numpy.array(filtered_values))
+  return n/d
 
 def median(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.median(numpy.array(filtered_values))
+  vals = sorted(vals)
+  a = (len(vals)-1)/2
+  b = (len(vals))/2
+  return (vals[a]+vals[b])/2.0
 
 def percentile(vals, pct):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.percentile(numpy.array(filtered_values), pct)
+  vals = sorted(vals)
+  pos = (len(vals)-1) * pct
+  a = int(math.floor(pos))
+  b = min(len(vals) - 1, a + 1)
+  return (1.0-(pos-a))*vals[a] + (pos-a)*vals[b]
 
 def variance(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  vals = filter(lambda x: x is not None, vals)
+  avg = mean(vals)
+  if avg is None:
     return None
-  return numpy.var(numpy.array(filtered_values))
+  return mean(map((_ - avg) ** 2, vals))
 
 def stddev(vals):
   var = variance(vals)
@@ -170,7 +172,8 @@ class StatsMain(object):
         log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
         self.combined_stats_over_time(d, label, runs, objective, worst, best)
 
-        final_scores = list()
+##        final_scores = list()
+        final_configs = []
         for run, session in runs:
           try:
             final = (session.query(Result)
@@ -180,24 +183,10 @@ class StatsMain(object):
                     .one())
           except sqlalchemy.orm.exc.NoResultFound:
             continue
-          final_scores.append(objective.stats_quality_score(final, worst, best))
-        final_scores.sort()
-        if final_scores:
-          norm = objective.stats_quality_score(best, worst, best)
-          if norm > 0.00001:
-            summary_report[d][run_label(run, short=True)] = (
-                percentile(final_scores, 0.5) / norm,
-                percentile(final_scores, 0.1) / norm,
-                percentile(final_scores, 0.9) / norm,
-              )
-          else:
-            summary_report[d][run_label(run, short=True)] = (
-                percentile(final_scores, 0.5) + norm + 1.0,
-                percentile(final_scores, 0.1) + norm + 1.0,
-                percentile(final_scores, 0.9) + norm + 1.0,
-              )
-
-
+          final_configs.append(str(final.configuration.data))
+        with open("stats/final_cfg_"+label+".txt",'w') as o:
+          o.write('\t'.join(final_configs)+'\n')
+    
     with open("stats/summary.dat", 'w') as o:
       # make summary report
       keys = sorted(reduce(set.union,
@@ -226,41 +215,6 @@ class StatsMain(object):
                         4*n + 9,
                         k))
       self.gnuplot_summary_file('stats', 'summary', plotcmd)
-      self.matplotlibplot_summary_file(['stats/summary.dat'], [(3,5), (7,9), (11,13), (15,17)])
-
-    for d, label_runs in dir_label_runs.iteritems():
-      labels = [k for k,v in label_runs.iteritems()
-                if len(v)>=self.args.min_runs]
-      dir_name = "%s/" % d
-      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11], ylim=self.args.ylimit)
-      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20], ylim=self.args.ylimit)
-      # Add remaining two graphs as well
-      # self.gnuplot_file(d,
-      #                   "medianperfe",
-      #                   ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      # self.gnuplot_file(d,
-      #                   "meanperfe",
-      #                   ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "medianperfl",
-                        ['"%s_percentiles.dat" using 1:12 with lines title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "meanperfl",
-                        ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
-
-    # print
-    # print "10% Scores", d
-    # pprint(self.technique_scores(d, labels, '0.1'))
-    # print
-    # print "90% Scores", d
-    # pprint(self.technique_scores(d, labels, '0.9'))
-    # print
-    # print "Mean Scores", d
-    # pprint(self.technique_scores(d, labels, 'mean'))
-      print
-      print "Median Scores", d
-      pprint(self.technique_scores(d, labels, '0.5'))
-
 
   def technique_scores(self, directory, labels, ykey, xkey='#sec', factor=10.0):
     max_duration = None
@@ -316,11 +270,10 @@ class StatsMain(object):
     by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
               for run, session in runs]
     max_len = max(map(len, by_run))
-
+    
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
     by_quanta = zip(*by_run_streams[:])
-
     def data_file(suffix, headers, value_function):
       with open(os.path.join(output_dir, label+suffix), 'w') as fd:
         out = csv.writer(fd, delimiter=' ', lineterminator='\n')
@@ -339,42 +292,47 @@ class StatsMain(object):
    #                    ' with lines'
    #                    ' title "Run %d"'%i)
    #                   for i in xrange(max_len)])
-
-    data_file('_mean.dat',
+   
+    data_file('.dat',
               ['#sec', 'mean', 'stddev'],
-              lambda values: [mean(values), stddev(values)])
-    self.gnuplot_file(output_dir,
-                      label+'_mean',
-                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
+              lambda values: list(values)+[mean(values), stddev(values)])
+
+
+##    data_file('_mean.dat',
+##              ['#sec', 'mean', 'stddev'],
+##              lambda values: [mean(values), stddev(values)])
+##    self.gnuplot_file(output_dir,
+##                      label+'_mean',
+##                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
 
     def extract_percentiles(values):
       values = sorted(values)
       return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
              + [mean(values)])
-    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
-    self.gnuplot_file(output_dir,
-                      label+'_percentiles',
-                      reversed([
-                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
-                      # '""                          using 1:3  with lines title "5%"',
-                        '""                          using 1:4  with lines title "10%"',
-                      # '""                          using 1:5  with lines title "25%"',
-                        '""                          using 1:6  with lines title "20%"',
-                      # '""                          using 1:7  with lines title "35%"',
-                        '""                          using 1:8  with lines title "30%"',
-                      # '""                          using 1:9  with lines title "45%"',
-                        '""                          using 1:10 with lines title "40%"',
-                      # '""                          using 1:11 with lines title "55%"',
-                        '""                          using 1:12 with lines title "50%"',
-                      # '""                          using 1:13 with lines title "65%"',
-                        '""                          using 1:14 with lines title "70%"',
-                      # '""                          using 1:15 with lines title "75%"',
-                        '""                          using 1:16 with lines title "80%"',
-                      # '""                          using 1:17 with lines title "85%"',
-                        '""                          using 1:18 with lines title "90%"',
-                      # '""                          using 1:19 with lines title "95%"',
-                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
-                       ]))
+##    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
+##    self.gnuplot_file(output_dir,
+##                      label+'_percentiles',
+##                      reversed([
+##                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
+##                      # '""                          using 1:3  with lines title "5%"',
+##                        '""                          using 1:4  with lines title "10%"',
+##                      # '""                          using 1:5  with lines title "25%"',
+##                        '""                          using 1:6  with lines title "20%"',
+##                      # '""                          using 1:7  with lines title "35%"',
+##                        '""                          using 1:8  with lines title "30%"',
+##                      # '""                          using 1:9  with lines title "45%"',
+##                        '""                          using 1:10 with lines title "40%"',
+##                      # '""                          using 1:11 with lines title "55%"',
+##                        '""                          using 1:12 with lines title "50%"',
+##                      # '""                          using 1:13 with lines title "65%"',
+##                        '""                          using 1:14 with lines title "70%"',
+##                      # '""                          using 1:15 with lines title "75%"',
+##                        '""                          using 1:16 with lines title "80%"',
+##                      # '""                          using 1:17 with lines title "85%"',
+##                        '""                          using 1:18 with lines title "90%"',
+##                      # '""                          using 1:19 with lines title "95%"',
+##                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
+##                       ]))
 
   def gnuplot_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
@@ -388,37 +346,6 @@ class StatsMain(object):
       subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
     except OSError:
       log.error("command gnuplot not found")
-
-  def matplotlibplot_file(self, input_dir, labels, output_dir, prefix, cols, xlim = None, ylim = None):
-    output_file = "%s/%s" % (output_dir, prefix)
-    plt.figure()
-    index = 0
-    data_files = [(input_dir + '%s_percentiles.dat') % l for l in labels]
-    for data_file in data_files:
-      data = []
-      with open(data_file) as f:
-        for line in f:
-          data.append(line.strip().split(' '))
-      plotted_data = [[] for x in xrange(len(cols) - 1)]
-      x_indices = []
-      for data_point in data[1:]:
-        x_indices.append(int(data_point[cols[0]]))
-        for i in range(0, len(cols)-1):
-          plotted_data[i].append(float(data_point[cols[i+1]]))
-      args = []
-      for to_plot in plotted_data:
-        args.append(x_indices)
-        args.append(to_plot)
-      plt.plot(*args, label=labels[index])
-      index += 1
-    if xlim is not None:
-      plt.xlim(xlim)
-    if ylim is not None:
-      plt.ylim(ylim)
-    plt.xlabel('Autotuning Time (seconds)')
-    plt.ylabel('Execution Time (seconds)')
-    plt.legend(loc='upper right')
-    plt.savefig(prefix)
 
   def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
@@ -442,26 +369,6 @@ set ytics 1
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
     subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
 
-  def matplotlibplot_summary_file(self, data_files, cols):
-    for data_file in data_files:
-      data = []
-      with open(data_file) as f:
-        for line in f:
-          data.append(line.strip().split(' '))
-      plotted_data = []
-      err = []
-      bincenters = numpy.arange(4)
-      plt.figure()
-      for data_point in data[1:]:
-        for col in cols:
-          (lb, ub) = col
-          data_to_be_plotted = mean(data_point[lb-1:ub])
-          plotted_data.append(data_to_be_plotted)
-          err.append(5 * stddev(data_point[lb-1:ub]))
-        # Now plot the data in plotted_data and err
-        plt.bar(bincenters, plotted_data, width=0.25, yerr=err, color='r')
-        plt.xticks(numpy.arange(len(data[0][1:])), data[0][1:])
-        plt.savefig('summary')
 
   def stats_over_time(self,
                       session,
@@ -505,6 +412,9 @@ set ytics 1
         value_by_quanta[-1] = combine_fn(value_by_quanta[-1], extract_fn(dr))
 
     return value_by_quanta
+
+
+
 
 
 if __name__ == '__main__':
