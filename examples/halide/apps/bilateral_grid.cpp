@@ -1,9 +1,6 @@
 #include "Halide.h"
 #include <stdio.h>
 
-#define AUTOTUNE_HOOK(x)
-#define BASELINE_HOOK(x)
-
 using namespace Halide;
 
 int main(int argc, char **argv) {

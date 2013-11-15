@@ -9,6 +9,7 @@ import signal
 import subprocess
 import threading
 import time
+import argparse
 from multiprocessing.pool import ThreadPool
 
 try:
@@ -24,6 +25,10 @@ except:
 from opentuner import resultsdb
 
 log = logging.getLogger(__name__)
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--parallel-compile', action='store_true',
+                       help="present if compiling can be done in parallel")
 
 the_io_thread_pool = None
 
@@ -49,6 +54,34 @@ class MeasurementInterface(object):
     self._manipulator   = manipulator
     self._input_manager = input_manager
 
+    self.pids = []
+    self.pid_lock = threading.Lock()
+    self.parallel_compile = False
+
+  def compile(self, config_data, id):
+    '''
+    Compiles according to the configuration in config_data (obtained from desired_result.configuration)
+    Should use id paramater to determine output location of executable
+    Return value will be passed to run_precompiled as compile_result, useful for storing error/timeout information
+    '''
+    pass
+
+  def run_precompiled(self, desired_result, input, limit, compile_result, id):
+    '''
+    Runs the given desired result on input and produce a Result()
+    Abort early if limit (in seconds) is reached
+    Assumes that the executable to be measured is already compiled
+      in an executable corresponding to identifier id
+    compile_result is the return result of compile(), will be None if compile was not called
+    If id = None, must call run()
+    '''
+    return self.run(desired_result, input, limit)
+
+  def cleanup(self, id):
+    '''
+    Clean up any temporary files associated with the executable
+    '''
+    pass
 
   @abc.abstractmethod
   def run(self, desired_result, input, limit):
@@ -124,6 +157,13 @@ class MeasurementInterface(object):
       return FixedInputManager()
     return self._input_manager
 
+  def kill_all(self):
+    self.pid_lock.acquire()
+    for pid in self.pids:
+      goodkillpg(pid)
+    self.pids = []
+    self.pid_lock.release()
+
   def call_program(self, cmd, limit=None, memory_limit=None, **kwargs):
     '''
     call cmd and kill it if it runs for longer than limit
@@ -133,7 +173,7 @@ class MeasurementInterface(object):
        'stdout': '', 'stderr': '',
        'timeout': False, 'time': 1.89}
     '''
-    the_io_thread_pool_init()
+    the_io_thread_pool_init(self.args.parallelism)
     if limit is float('inf'):
       limit = None
     if type(cmd) in (str, unicode):
@@ -143,6 +183,11 @@ class MeasurementInterface(object):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          preexec_fn=preexec_setpgid_setrlimit(memory_limit),
                          **kwargs)
+    # Add p.pid to list of processes to kill in case of keyboardinterrupt
+    self.pid_lock.acquire()
+    self.pids.append(p.pid)
+    self.pid_lock.release()
+
     try:
       stdout_result = the_io_thread_pool.apply_async(p.stdout.read)
       stderr_result = the_io_thread_pool.apply_async(p.stderr.read)
@@ -168,6 +213,12 @@ class MeasurementInterface(object):
       if p.returncode is None:
         goodkillpg(p.pid)
       raise
+    finally:
+      # No longer need to kill p
+      self.pid_lock.acquire()
+      if p.pid in self.pids:
+        self.pids.remove(p.pid)
+      self.pid_lock.release()
 
     t1 = time.time()
     return {'time': float('inf') if killed else (t1 - t0),
@@ -184,7 +235,6 @@ class MeasurementInterface(object):
     from opentuner.tuningrunmain import TuningRunMain
     return TuningRunMain(cls(args, *pargs, **kwargs), args).main()
 
-
 def preexec_setpgid_setrlimit(memory_limit):
   if resource is not None:
     def _preexec():
@@ -194,12 +244,12 @@ def preexec_setpgid_setrlimit(memory_limit):
           resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
     return _preexec
 
-def the_io_thread_pool_init():
+def the_io_thread_pool_init(parallelism = 1):
   global the_io_thread_pool
   if the_io_thread_pool is None:
-    the_io_thread_pool = ThreadPool(2)
+    the_io_thread_pool = ThreadPool(2 * parallelism)
     # make sure the threads are started up
-    the_io_thread_pool.map(int, range(2))
+    the_io_thread_pool.map(int, range(2 * parallelism))
 
 def goodkillpg(pid):
   '''
