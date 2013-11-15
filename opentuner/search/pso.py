@@ -2,7 +2,7 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=10
+N=100
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
@@ -22,7 +22,7 @@ class PSO(technique.SequentialSearchTechnique ):
         def config(cfg):
             return driver.get_configuration(cfg)
 
-        population = [DiscreteParticle(m, omega=0.5) for i in range(N)]
+        population = [HybridParticle(m, omega=0.5) for i in range(N)]
         for p in population:
             yield driver.get_configuration(p.position)
             
@@ -30,10 +30,9 @@ class PSO(technique.SequentialSearchTechnique ):
             # For each particle
             for particle in population:
                 g = driver.best_result.configuration.data
-		old=m.copy(particle.position)
+                old=m.copy(particle.position)
                 particle.move(g)
-                print ((old==particle.position) or (g==particle.position))
-		# send out for measurement
+    # send out for measurement
                 yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
@@ -88,7 +87,7 @@ class DiscreteParticle(Particle):
         if random.uniform(0,1)<self.omega:
             return
         else:
-	    current = m.copy(self.position)
+            current = m.copy(self.position)
             if random.uniform(0,1)<self.phi_l:
                  m.crossover(self.position, current, global_best)
             else:
@@ -164,7 +163,7 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         return v
         
 
-    def mix(sel, dest, cfg1, cfg2):
+    def mix(self, dest, cfg1, cfg2):
         params = self.params
         params = random.shuffle(params)
         for p in self.params:
@@ -172,6 +171,7 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
             else:
+		# Temporary: randomize one random parameter as mutation
                 p.randomize(dest)
                 break 
     
@@ -223,7 +223,7 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         for p in self.params:
             if p.is_permutation():
                 # Select crossover operator
-		getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=5)
+                getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
          
                                 
 

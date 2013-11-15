@@ -846,9 +846,11 @@ class PermutationParameter(ComplexParameter):
 #    [p2.remove(i) for i in cfg1[self.name][r:r+d]]
 #    new2[self.name] = p2[:r]+cfg1[self.name][r:r+d]+p2[r:]
 
+
+
  #   return new1, new2
     
-  def OX3(self, cfg1, cfg2, d):
+  def OX3(self, dest, cfg1, cfg2, d):
     """
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
@@ -856,8 +858,10 @@ class PermutationParameter(ComplexParameter):
 #    new1 = self.parent.copy(cfg1)
 #    new2 = self.parent.copy(cfg2)
     
-    p1 = self.get_value(new1)
-    p2 = self.get_value(new2)
+    p1 = self.get_value(cfg1)
+    p2 = self.get_value(cfg2)
+    c1 = p1[:]
+    c2 = p2[:]
 ##    print 'PARENTS', p1, p2
     # Randomly find cut points
 # Todo: treat path as circle i.e. allow cross-boundary cuts
@@ -867,6 +871,7 @@ class PermutationParameter(ComplexParameter):
     self.set_value(dest, c1[:r1]+p2[r2:r2+d]+c1[r1:])
 #    [p2.remove(i) for i in cfg1[self.name][r1:r1+d]]
 #    new2[self.name] = p2[:r2]+cfg1[self.name][r1:r1+d]+p2[r2:]
+##    print 'CHILDREN', new1, new2
 ##    print 'CHILDREN', new1, new2
 #    return new1, new2
 
@@ -1065,6 +1070,5 @@ class ParameterProxy(object):
     else:
       # we should only hit this for key == 'name'
       return member
-
 
 
