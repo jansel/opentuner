@@ -2,7 +2,7 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=100
+N=10
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
@@ -30,8 +30,10 @@ class PSO(technique.SequentialSearchTechnique ):
             # For each particle
             for particle in population:
                 g = driver.best_result.configuration.data
+		old=m.copy(particle.position)
                 particle.move(g)
-                # send out for measurement
+                print ((old==particle.position) or (g==particle.position))
+		# send out for measurement
                 yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
@@ -60,11 +62,11 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
         return 'V:'+str(self.velocity)+'\tP:'+str(self.position)
 
     def move(self, global_best):
-	pass
+        pass
 
 class ContinuousParticle(Particle):     # should inherit from/link to ConfigurationManipulator? 
     def __init__(self, *args):
-	super(ContinuousParticle, self).__init__(*args)      
+        super(ContinuousParticle, self).__init__(*args)      
         self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
         
     def move(self, global_best):
@@ -86,14 +88,24 @@ class DiscreteParticle(Particle):
         if random.uniform(0,1)<self.omega:
             return
         else:
+	    current = m.copy(self.position)
             if random.uniform(0,1)<self.phi_l:
-                o = m.crossover(self.position, global_best)
+                 m.crossover(self.position, current, global_best)
             else:
-                o = m.crossover(self.position, self.best)
-            self.position = o
+                 m.crossover(self.position, current, self.best)
         
-
-
+class HybridParticle(Particle):
+    def move(self, global_best):
+        m = self.manipulator
+        if random.uniform(0,1)<self.omega:
+            return
+        else:
+            if random.uniform(0,1)<self.phi_l:
+                 m.mix(self.position, self.position, global_best)
+            else:
+                 m.mix(self.position, self.position, self.best)
+        
+         
 class ParticleIII(Particle):
     """
     At each step, randomly chooses one motion out of:
@@ -142,15 +154,27 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
 
     def difference(self, cfg1, cfg2):
         """ Return the difference of two positions i.e. velocity """
-        v = {}
+        v = self.copy(cfg1)
         for p in self.params:
-	    if p.is_numeric():
-		p.difference(v, cfg1, cfg2)
-	    else:
-		pass
+            if p.is_numeric():
+                p.difference(v, cfg1, cfg2)
+            else:
+                pass
 
         return v
-                    
+        
+
+    def mix(sel, dest, cfg1, cfg2):
+        params = self.params
+        params = random.shuffle(params)
+        for p in self.params:
+            if p.is_permutation():
+                # Select crossover operator
+                getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
+            else:
+                p.randomize(dest)
+                break 
+    
     def scale(self, dcfg, k):
         """ Scale a velocity by k """
         new = self.copy(dcfg)
@@ -195,17 +219,12 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         return new
         
 
-    def crossover(self, cfg1, cfg2):
+    def crossover(self, dest, cfg1, cfg2):
         for p in self.params:
             if p.is_permutation():
                 # Select crossover operator
-                new = getattr(p, self.crossover_choice)(cfg1, cfg2, d=p.size/3)[0]
-            else:
-                # crossover undefined for non-permutations
-                pass 
-        return new        
-        
-            
+		getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=5)
+         
                                 
 
 technique.register(PSO(crossover = 'OX3'))

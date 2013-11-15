@@ -656,6 +656,9 @@ class PermutationParameter(ComplexParameter):
   def get_value(self, config):
     return self._get(config)
 
+  def set_value(self, config, value):
+    self._set(config, value)
+
 # Swap-based operator
   def swap_dist(self, cfg1, cfg2):
     '''
@@ -668,12 +671,12 @@ class PermutationParameter(ComplexParameter):
     assert len(p1)==len(p2)
     swaps = []
     for i in range(len(p1)):
-        if p1[i]!=p2[i]:
-            j=p1.index(p2[i])
-            swaps.append( (i,j))
-            v = p1[i]
-            p1[i]=p1[j]
-            p1[j]=v
+      if p1[i]!=p2[i]:
+        j=p1.index(p2[i])
+        swaps.append( (i,j))
+        v = p1[i]
+        p1[i]=p1[j]
+        p1[j]=v
 
     return swaps
 
@@ -737,7 +740,7 @@ class PermutationParameter(ComplexParameter):
     
 
   # Crossover operators
-  def PX(self, cfg1, cfg2, c1=None, c2=None):
+  def PX(self, dest, cfg1, cfg2, d=None):
     """
     Partition crossover (Whitley 2009?)
     Change the order of items up to c1 in cfg1 according to their order in cfg2.
@@ -745,27 +748,17 @@ class PermutationParameter(ComplexParameter):
 
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
-    if not c1:
-      c1 = random.randint(0,len(p1))
-##    if not c2:
-##      c2 = random.randint(0,len(p2))
+    c1 = random.randint(0,len(p1))
+    self.set_value(dest, sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:])
+ 
 
-    new1 = self.parent.copy(cfg1)
-##    new2 = self.parent.copy(cfg2)
-
-    new1[self.name] = sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:]
-##    new2[self.name] = sorted(p2[:c2], key=lambda x: p1.index(x))+p2[c2:]
-    return new1, None
-
-  def PMX(self, cfg1, cfg2, d=5):
+  def PMX(self, dest, cfg1, cfg2, d=5):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
-    new1 = self.parent.copy(cfg1)
-    new2 = self.parent.copy(cfg2)
     
-    p1 = self.get_value(new1)
-    p2 = self.get_value(new2)
+    p1 = self.get_value(cfg1)[:]
+    p2 = self.get_value(cfg2)[:]
     
     r = random.randint(0,len(p1)-d)
     c1 = p1[r:r+d]
@@ -796,19 +789,21 @@ class PermutationParameter(ComplexParameter):
     # Cross over
     p1[r:r+d] = c2     
     p2[r:r+d] = c1    
-    return new1, new2
+  
+    self.set_value(dest, p1)
 
 
-  def CX(self, cfg1, cfg2):
+  def CX(self, dest, cfg1, cfg2, d=None):
     """
     Implementation of cyclic crossover. Exchange the items occupying the same positions
     in two permutations.
     """
-    new1 = self.parent.copy(cfg1)
-    new2 = self.parent.copy(cfg2)
+#    new1 = self.parent.copy(cfg1)
+#    new2 = self.parent.copy(cfg2)
 
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
+    p = p1[:]
 
     s=random.randint(0,len(p1)-1)
     i=s
@@ -821,108 +816,59 @@ class PermutationParameter(ComplexParameter):
 
 ##    print indices
     for j in indices:
-      new1[self.name][j]=p2[j]
-      new2[self.name][j]=p1[j]
+      p[j]=p2[j]
+#      new2[self.name][j]=p1[j]
 ##    print p1, p2
 ##    print new1
-    return (new1, new2)
+#    return (new1, new2)
+    
+    self.set_value(dest, p)
+    print (p==p1)
 
-  def OX1(self, cfg1, cfg2, d=3):
+  def OX1(self, dest, cfg1, cfg2, d):
     """
     Ordered Crossover (Davis 1985)
     Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
-    new1 = self.parent.copy(cfg1)
-    new2 = self.parent.copy(cfg2)
+#    new1 = self.parent.copy(cfg1)
+#    new2 = self.parent.copy(cfg2)
     
-    p1 = self.get_value(new1)
-    p2 = self.get_value(new2)
-    
+    p1 = self.get_value(cfg1)
+    p2 = self.get_value(cfg2)
+    c1 = p1[:]
+    c2 = p2[:]
+
     # Randomly find cut points
     r = random.randint(0, len(p1)-d)    # Todo: treat path as circle i.e. allow cross-boundary cuts
-    [p1.remove(i) for i in cfg2[self.name][r:r+d]]
-    new1[self.name] = p1[:r]+cfg2[self.name][r:r+d]+p1[r:]
-    [p2.remove(i) for i in cfg1[self.name][r:r+d]]
-    new2[self.name] = p2[:r]+cfg1[self.name][r:r+d]+p2[r:]
+    [c1.remove(i) for i in p2[r:r+d]]
+    self.set_value(dest, c1[:r]+p2[r:r+d]+c1[r:])
+#    [p2.remove(i) for i in cfg1[self.name][r:r+d]]
+#    new2[self.name] = p2[:r]+cfg1[self.name][r:r+d]+p2[r:]
 
-    return new1, new2
+ #   return new1, new2
     
-      
-    
-    
-  def OX3(self, cfg1, cfg2, d=3):
+  def OX3(self, cfg1, cfg2, d):
     """
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
     """
-    new1 = self.parent.copy(cfg1)
-    new2 = self.parent.copy(cfg2)
+#    new1 = self.parent.copy(cfg1)
+#    new2 = self.parent.copy(cfg2)
     
     p1 = self.get_value(new1)
     p2 = self.get_value(new2)
 ##    print 'PARENTS', p1, p2
     # Randomly find cut points
-    r1 = random.randint(0, len(p1)-d)    # Todo: treat path as circle i.e. allow cross-boundary cuts
+# Todo: treat path as circle i.e. allow cross-boundary cuts
+    r1 = random.randint(0, len(p1)-d)    
     r2 = random.randint(0, len(p1)-d)
-    [p1.remove(i) for i in cfg2[self.name][r2:r2+d]]
-    new1[self.name] = p1[:r1]+cfg2[self.name][r2:r2+d]+p1[r1:]
-    [p2.remove(i) for i in cfg1[self.name][r1:r1+d]]
-    new2[self.name] = p2[:r2]+cfg1[self.name][r1:r1+d]+p2[r2:]
+    [c1.remove(i) for i in p2[r2:r2+d]]
+    self.set_value(dest, c1[:r1]+p2[r2:r2+d]+c1[r1:])
+#    [p2.remove(i) for i in cfg1[self.name][r1:r1+d]]
+#    new2[self.name] = p2[:r2]+cfg1[self.name][r1:r1+d]+p2[r2:]
 ##    print 'CHILDREN', new1, new2
-    return new1, new2
-
-
-  def EX(self, cfg1, cfg2):
-    """
-    Edge crossover/recombination (Whitley 1989)
-    (inefficient for position representation)
-    
-    """
-##    new1 = self.parent.copy(cfg1)
-##    new2 = self.parent.copy(cfg2)
-    
-    p1 = self.get_value(cfg1)[:]
-    p1.append(p1[0])
-    p2 =self.get_value(cfg2)[:]
-    p2.append(p2[0])
-
-    # Transform two node lists into a single edge map
-    edges = {}
-    for i in p1:
-      edges[i]=set([])
-    for i in range(len(p1)-1):
-      edges[p1[i]].add(p1[i+1])
-      edges[p1[i+1]].add(p1[i])
-      edges[p2[i]].add(p2[i+1])
-      edges[p2[i+1]].add(p2[i])
-
-
-    p = [min(p1, key=lambda x: len(edges[x]))]
-
-    while len(p)<len(p1)-1:
-      # Get current node
-      n = p[-1]
-##      print 'CUR', n
-      # Update edge map
-      [edges[src].discard(n) for src in edges]
-##      print 'NEW MAP', edges
-      # Choose the node which is connect to current node and has the least usable edges in the edge map
-##      print p, edges
-##      print p, edges[n]
-      if len(edges[n])==0:
-        # restart with a node with the least connection
-        n = min(edges.keys(), key=lambda x: len(edges[x]))
-        continue
-##      for dst in edges[n]:
-##        print dst, edges[dst]
-##      print min(edges[n], key=lambda x: len(edges[x]))
-      p.append(min(edges[n], key=lambda x: len(edges[x])))    # todo: randomly break ties in min
-    
-    new = self.parent.copy(cfg1)
-    new[self.name]=p
-    return new
-
+#    return new1, new2
 
       
   def add_difference(self, cfg_dst, b, cfg_b, cfg_c):
