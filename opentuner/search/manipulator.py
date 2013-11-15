@@ -798,9 +798,6 @@ class PermutationParameter(ComplexParameter):
     Implementation of cyclic crossover. Exchange the items occupying the same positions
     in two permutations.
     """
-#    new1 = self.parent.copy(cfg1)
-#    new2 = self.parent.copy(cfg2)
-
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     p = p1[:]
@@ -814,13 +811,8 @@ class PermutationParameter(ComplexParameter):
       if i==s:
         break
 
-##    print indices
     for j in indices:
       p[j]=p2[j]
-#      new2[self.name][j]=p1[j]
-##    print p1, p2
-##    print new1
-#    return (new1, new2)
     
     self.set_value(dest, p)
     print (p==p1)
@@ -831,8 +823,6 @@ class PermutationParameter(ComplexParameter):
     Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
-#    new1 = self.parent.copy(cfg1)
-#    new2 = self.parent.copy(cfg2)
     
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
@@ -843,38 +833,22 @@ class PermutationParameter(ComplexParameter):
     r = random.randint(0, len(p1)-d)    # Todo: treat path as circle i.e. allow cross-boundary cuts
     [c1.remove(i) for i in p2[r:r+d]]
     self.set_value(dest, c1[:r]+p2[r:r+d]+c1[r:])
-#    [p2.remove(i) for i in cfg1[self.name][r:r+d]]
-#    new2[self.name] = p2[:r]+cfg1[self.name][r:r+d]+p2[r:]
-
-
-
- #   return new1, new2
     
   def OX3(self, dest, cfg1, cfg2, d):
     """
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
     """
-#    new1 = self.parent.copy(cfg1)
-#    new2 = self.parent.copy(cfg2)
-    
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
     c2 = p2[:]
-##    print 'PARENTS', p1, p2
     # Randomly find cut points
 # Todo: treat path as circle i.e. allow cross-boundary cuts
     r1 = random.randint(0, len(p1)-d)    
     r2 = random.randint(0, len(p1)-d)
     [c1.remove(i) for i in p2[r2:r2+d]]
     self.set_value(dest, c1[:r1]+p2[r2:r2+d]+c1[r1:])
-#    [p2.remove(i) for i in cfg1[self.name][r1:r1+d]]
-#    new2[self.name] = p2[:r2]+cfg1[self.name][r1:r1+d]+p2[r2:]
-##    print 'CHILDREN', new1, new2
-##    print 'CHILDREN', new1, new2
-#    return new1, new2
-
       
   def add_difference(self, cfg_dst, b, cfg_b, cfg_c):
     self.apply_swaps(self.scale_swaps(self.swap_dist(cfg_c, cfg_b), b), cfg_dst)

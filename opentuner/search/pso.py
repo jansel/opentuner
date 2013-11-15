@@ -2,7 +2,7 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=100
+N=3
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
@@ -165,15 +165,12 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
 
     def mix(self, dest, cfg1, cfg2):
         params = self.params
-        params = random.shuffle(params)
+        random.shuffle(params)
+	params[0].randomize(dest)
         for p in self.params:
             if p.is_permutation() and p.size>6:
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
-            else:
-		# Temporary: randomize one random parameter as mutation
-                p.randomize(dest)
-                break 
     
     def scale(self, dcfg, k):
         """ Scale a velocity by k """
