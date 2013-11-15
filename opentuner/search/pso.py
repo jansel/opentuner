@@ -167,7 +167,7 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         params = self.params
         params = random.shuffle(params)
         for p in self.params:
-            if p.is_permutation():
+            if p.is_permutation() and p.size>6:
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
             else:
