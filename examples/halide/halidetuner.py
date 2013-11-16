@@ -577,7 +577,7 @@ def post_dominators(settings):
   call graph defined in settings
   """
   functions = [f['name'] for f in settings['functions']]
-  calls = {f['name']: set(f['calls']) for f in settings['functions']}
+  calls = dict([(f['name'], set(f['calls'])) for f in settings['functions']])
   inverse_calls = collections.defaultdict(set)
   for k, callees in calls.items():
     for v in callees:
