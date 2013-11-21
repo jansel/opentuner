@@ -2,11 +2,10 @@
 from opentuner.search import technique, manipulator
 import random
 
-N=100
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
-    def __init__(self, crossover, init_pop=None, *pargs, **kwargs):
+    def __init__(self, crossover, N = 5, init_pop=None, *pargs, **kwargs):
         """
         crossover: name of crossover operator function
         """
@@ -14,18 +13,21 @@ class PSO(technique.SequentialSearchTechnique ):
         self.crossover = crossover
         self.name = 'pso-'+crossover
         self.init_pop = init_pop
+	self.N = N
 
     def main_generator(self):
         
         objective   = self.objective
         driver      = self.driver
-        m = PSOmanipulator(self.crossover, self.manipulator.params)
+#        m = PSOmanipulator(self.crossover, self.manipulator.params)
+	m = self.manipulator
         def config(cfg):
             return driver.get_configuration(cfg)
-	
-	population = self.init_pop
+    
+        population = self.init_pop
         if not population:
-	    population = [HybridParticle(m, omega=0.5) for i in range(N)]
+            population = [HybridParticle(m, self.crossover, omega=0.5) for i in range(self.N)]
+
         for p in population:
             yield driver.get_configuration(p.position)
             
@@ -97,17 +99,37 @@ class DiscreteParticle(Particle):
                  m.crossover(self.position, current, self.best)
         
 class HybridParticle(Particle):
+    def __init__(self, m, crossover_choice, omega=1, phi_l=0.5, phi_g=0.5):
+
+        """
+        m: a configuraiton manipulator
+        omega: influence of the particle's last velocity, a float in range [0,1] ; omega=1 means even speed
+        phi_l: influence of the particle's distance to its historial best position, a float in range [0,1] 
+        phi_g: influence of the particle's distance to the global best position, a float in range [0,1]
+        """
+        
+        self.manipulator = m
+        self.position = self.manipulator.random()   
+        self.best = self.position
+        self.omega = omega
+        self.phi_l = phi_l
+        self.phi_g = phi_g
+        self.crossover_choice = crossover_choice
+        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
+
     def move(self, global_best):
         m = self.manipulator
-        if random.uniform(0,1)<self.omega:
-            return
-        else:
-            if random.uniform(0,1)<self.phi_l:
-                 m.mix(self.position, self.position, global_best)
+        for p in m.params:
+            if p.is_permutation():
+                if random.uniform(0,1)>self.omega:
+                    if random.uniform(0,1)<self.phi_l:
+                        # Select crossover operator
+                        getattr(p, self.crossover_choice)(self.position, self.position, global_best, d=p.size/3)
+                    else:
+                        getattr(p, self.crossover_choice)(self.position, self.position, self.best, d=p.size/3)
             else:
-                 m.mix(self.position, self.position, self.best)
-        
-         
+                    p.set_linear(dest, 1-self.phi_l-self.phi_g, self.position, self.phi_l, self.best, self.phi_g, global_best)
+
 class ParticleIII(Particle):
     """
     At each step, randomly chooses one motion out of:
@@ -169,11 +191,13 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
     def mix(self, dest, cfg1, cfg2):
         params = self.params
         random.shuffle(params)
-	params[0].randomize(dest)
+        params[0].randomize(dest)
         for p in self.params:
             if p.is_permutation() and p.size>6:
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
+            elif p.is_numeric():
+                p.set_linear(dest, cfg1, cfg2)
     
     def scale(self, dcfg, k):
         """ Scale a velocity by k """
