@@ -150,6 +150,15 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     '''estimate the size of the search space, not precise'''
     return reduce(_ * _, [x.search_space_size() for x in self.params])
 
+  def difference(self, cfg1, cfg2):
+    cfg = self.copy(cfg1)   
+    for param in self.parameters(cfg1):
+      if param.is_primitive(cfg1):
+        #TODO: check range
+        param.set_value(cfg, param.get_value(cfg1)-param.get_value(cfg2))
+      else:
+        pass
+    return cfg
 #####
 
 class Parameter(object):
