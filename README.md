@@ -54,8 +54,7 @@ Checking Installation
 Quickly checking that a successful installation has been made, may be performed
 by running an example program such as:
 
-    cd examples/gccflags/
-    ./gccflags_minimal.py
+    ./examples/rosenbrock/rosenbrock.py
 
 Tutorials
 ---------
