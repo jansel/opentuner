@@ -1,5 +1,5 @@
 git
 gnuplot
-libpython-dev
+python-dev
 libsqlite3-dev
 sqlite3

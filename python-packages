@@ -1,6 +1,5 @@
 argparse
 fn
-importlib
 matplotlib
 numpy
 pysqlite

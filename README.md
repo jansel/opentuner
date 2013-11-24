@@ -19,23 +19,27 @@ poorly will be disabled.
 System dependencies
 -------------------
 
-A list of system dependencies can be found in [debian-package-deps][]
+A list of system dependencies can be found in [debian-packages-deps][]
 which are primarily python 2.6+ (not 3.x) and sqlite3 (or your
 [supported][sqlalchemy-dialects] database backend of choice).
 
 On Ubuntu/Debian there can be installed with:
 
-    sudo apt-get install `cat debian-package-deps`
+    sudo apt-get install `cat debian-packages-deps | tr '\n' ' '`
 
-[debian-package-deps]: https://raw.github.com/jansel/opentuner/master/debian-packages-deps
+[debian-packages-deps]: https://raw.github.com/jansel/opentuner/master/debian-packages-deps
 [sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
 
 Python dependencies
 -------------------
 
 A list of python dependencies can be found in [python-packages][] these can
-either be installed system-wide with `pip` or `easy_install`, or you can
-use virtual env to create a isolated python environment by running:
+either be installed system-wide with `pip` or `easy_install`.
+
+    sudo apt-get install python-pip
+    sudo pip install -r python-packages
+
+Or you can use virtual env to create a isolated python environment by running:
 
     python ./venv-bootstrap.py
 
@@ -43,6 +47,15 @@ which will create a ./venv/bin/python (./venv/Scripts/python.exe on windows)
 with all the required packages installed.
 
 [python-packages]: https://raw.github.com/jansel/opentuner/master/python-packages
+
+Checking Installation
+---------------------
+
+Quickly checking that a successful installation has been made, may be performed
+by running an example program such as:
+
+    cd examples/gccflags/
+    ./gccflags_minimal.py
 
 Tutorials
 ---------
