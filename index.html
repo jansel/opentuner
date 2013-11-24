@@ -49,27 +49,41 @@ poorly will be disabled.</p>
 <h2>
 <a name="system-dependencies" class="anchor" href="#system-dependencies"><span class="octicon octicon-link"></span></a>System dependencies</h2>
 
-<p>A list of system dependencies can be found in <a href="https://raw.github.com/jansel/opentuner/master/debian-packages-deps">debian-package-deps</a>
+<p>A list of system dependencies can be found in <a href="https://raw.github.com/jansel/opentuner/master/debian-packages-deps">debian-packages-deps</a>
 which are primarily python 2.6+ (not 3.x) and sqlite3 (or your
 <a href="http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html">supported</a> database backend of choice).</p>
 
 <p>On Ubuntu/Debian there can be installed with:</p>
 
-<pre><code>sudo apt-get install `cat debian-package-deps`
+<pre><code>sudo apt-get install `cat debian-packages-deps | tr '\n' ' '`
 </code></pre>
 
 <h2>
 <a name="python-dependencies" class="anchor" href="#python-dependencies"><span class="octicon octicon-link"></span></a>Python dependencies</h2>
 
 <p>A list of python dependencies can be found in <a href="https://raw.github.com/jansel/opentuner/master/python-packages">python-packages</a> these can
-either be installed system-wide with <code>pip</code> or <code>easy_install</code>, or you can
-use virtual env to create a isolated python environment by running:</p>
+either be installed system-wide with <code>pip</code> or <code>easy_install</code>.</p>
+
+<pre><code>sudo apt-get install python-pip
+sudo pip install -r python-packages
+</code></pre>
+
+<p>Or you can use virtual env to create a isolated python environment by running:</p>
 
 <pre><code>python ./venv-bootstrap.py
 </code></pre>
 
 <p>which will create a ./venv/bin/python (./venv/Scripts/python.exe on windows)
 with all the required packages installed.</p>
+
+<h2>
+<a name="checking-installation" class="anchor" href="#checking-installation"><span class="octicon octicon-link"></span></a>Checking Installation</h2>
+
+<p>Quickly checking that a successful installation has been made, may be performed
+by running an example program such as:</p>
+
+<pre><code>./examples/rosenbrock/rosenbrock.py
+</code></pre>
 
 <h2>
 <a name="tutorials" class="anchor" href="#tutorials"><span class="octicon octicon-link"></span></a>Tutorials</h2>
@@ -83,10 +97,10 @@ with all the required packages installed.</p>
 
 <ul>
 <li>
-<a href="http://dspace.mit.edu/handle/1721.1/81958">OpenTuner: An Extensible Framework for Program Autotuning</a>.
-Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Una-May O'Reilly,  Saman Amarasinghe.
+<a href="http://dspace.mit.edu/handle/1721.1/81958">OpenTuner: An Extensible Framework for Program Autotuning</a>. <br>
+Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Una-May O'Reilly,  Saman Amarasinghe. <br>
 MIT CSAIL Technical Report MIT-CSAIL-TR-2013-026.
-November, 2013.</li>
+November 1, 2013.</li>
 </ul><h2>
 <a name="contributing-code" class="anchor" href="#contributing-code"><span class="octicon octicon-link"></span></a>Contributing Code</h2>
 
