@@ -219,14 +219,16 @@ class StatsMain(object):
     if keys:
       plotcmd = ["""1 w lines lt 1 lc rgb "black" notitle""",
                  """'summary.dat' using 3:4:5:xtic(1) ti "%s" """ % keys[0]]
+      tuples = [(3,5)]
       for n, k in enumerate(keys[1:]):
         plotcmd.append("""'' using %d:%d:%d ti "%s" """ % (
                         4*n + 7,
                         4*n + 8,
                         4*n + 9,
                         k))
+        tuples.append((4*n + 7, 4*n + 9))
       self.gnuplot_summary_file('stats', 'summary', plotcmd)
-      self.matplotlibplot_summary_file(['stats/summary.dat'], [(3,5), (7,9), (11,13), (15,17)])
+      self.matplotlibplot_summary_file(['stats/summary.dat'], tuples)
 
     for d, label_runs in dir_label_runs.iteritems():
       labels = [k for k,v in label_runs.iteritems()
@@ -450,7 +452,7 @@ set ytics 1
           data.append(line.strip().split(' '))
       plotted_data = []
       err = []
-      bincenters = numpy.arange(4)
+      bincenters = numpy.arange(len(cols))
       plt.figure()
       for data_point in data[1:]:
         for col in cols:
