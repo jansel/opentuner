@@ -1,4 +1,5 @@
 argparse
+django
 fn
 importlib
 matplotlib

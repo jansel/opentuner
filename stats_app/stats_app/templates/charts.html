@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>{% block title %}Graph{% endblock %}</title>
+</head>
+
+<body>
+  <img src="http://localhost:8080/charts/graph.png?{{ params }}" />
+  <form method = "GET" action="http://localhost:8080/charts.html">
+    X Limits:
+    <input type="range" name="xlim" min="0" max="10000">
+    <br>Y Limits:
+    <input type="range" name="ylim" min="0" max="20">
+    <br>
+    <input type="submit" value="Graph!">
+  </form>
+</body>
+</html>
