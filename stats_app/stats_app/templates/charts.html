@@ -5,12 +5,21 @@
 </head>
 
 <body>
-  <img src="http://localhost:8080/charts/graph.png?{{ params }}" />
+  <img src="http://localhost:8080/graph.png?{{ params }}" />
   <form method = "GET" action="http://localhost:8080/charts.html">
     X Limits:
     <input type="range" name="xlim" min="0" max="10000">
     <br>Y Limits:
     <input type="range" name="ylim" min="0" max="20">
+    <br>
+    {0}
+    <br>
+    Mean:
+    <input type="checkbox" name="disp_type" value="mean">
+    Median:
+    <input type="checkbox" name="disp_type" value="median">
+    All percentiles:
+    <input type="checkbox" name="disp_type" value="all_percentiles">
     <br>
     <input type="submit" value="Graph!">
   </form>
