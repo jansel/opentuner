@@ -54,6 +54,7 @@ def matplotlibplot_file(labels, xlim = None, ylim = None, disp_types=['median'])
       for disp_type in disp_types:
         cols = None
         data = percentile_values
+
         if disp_type == 'median':
           cols = [11]
         elif disp_type == 'mean':
@@ -61,7 +62,9 @@ def matplotlibplot_file(labels, xlim = None, ylim = None, disp_types=['median'])
           data = mean_values
         elif disp_type == 'all_percentiles':
           cols = range(1,22)
+
         plotted_data = [[] for x in xrange(len(cols))]
+
         x_indices = []
         for data_point in data[1:]:
           x_indices.append(int(data_point[0]))
@@ -71,11 +74,14 @@ def matplotlibplot_file(labels, xlim = None, ylim = None, disp_types=['median'])
         for to_plot in plotted_data:
           args.append(x_indices)
           args.append(to_plot)
+
         plt.plot(*args, label='%s(%s)' % (label, disp_type))
+
     if xlim is not None:
       plt.xlim(xlim)
     if ylim is not None:
       plt.ylim(ylim)
+
     plt.xlabel('Autotuning Time (seconds)')
     plt.ylabel('Execution Time (seconds)')
     plt.legend(loc='upper right')
@@ -92,34 +98,27 @@ def display_graph(request):
     from matplotlib.dates import DateFormatter
 
     request_dict = dict(request.GET.iterlists())
+
     xlim = request_dict.get('xlim', None)
     if xlim:
-      xlim = xlim[0]
-      if xlim == 'None':
-        xlim = [0, 5000]
-      else:
-        xlim = [0, int(xlim)]
+      xlim = int(xlim[0])
     else:
-      xlim = [0, 5000]
+      xlim = 5000
+    xlim = [0, xlim]
+
     ylim = request_dict.get('ylim', None)
     if ylim:
-      ylim = ylim[0]
-      if ylim == 'None':
-        ylim = [0, 10]
-      else:
-        ylim = [0, int(ylim)]
+      ylim = int(ylim[0])
     else:
-      ylim = [0, 10]
+      ylim = 10
+    ylim = [0, ylim]
+
     labels = request_dict.get('labels', None)
-    if labels:
-      if labels == ['None']:
-        labels = None
+    
     disp_types = request_dict.get('disp_type', None)
-    if disp_types:
-      if disp_types == ['None']:
-        disp_types = ['median'] # Default value is median
-    else:
+    if not disp_types:
       disp_types = ['median']
+
     fig = matplotlibplot_file(labels, xlim=xlim, ylim=ylim, disp_types=disp_types)
     canvas=FigureCanvas(fig)
     response=django.http.HttpResponse(content_type='image/png')
@@ -132,7 +131,7 @@ def display_full_page(request):
     from django.shortcuts import render
 
     all_labels = get_all_labels()
-    label_list = get_list(all_labels)
+    label_list = get_label_list(all_labels)
     html = render(request, 'charts.html')
     content = html.content
     content = content.format(label_list)
@@ -140,7 +139,7 @@ def display_full_page(request):
     return html
 
 
-def get_list(all_labels):
+def get_label_list(all_labels):
   label_list = ''
   for label in all_labels:
     label_list += '<b>%s</b>:<input type="checkbox" name="labels" value="%s">' % (label, label)
