@@ -4,8 +4,8 @@ import os
 import urllib
 
 import sys
-sys.path.append('../../..')
-sys.path.append('..')
+# sys.path.append('../../..')
+# sys.path.append('..')
 import opentuner
 from opentuner import resultsdb
 
@@ -91,30 +91,33 @@ def display_graph(request):
     from matplotlib.figure import Figure
     from matplotlib.dates import DateFormatter
 
-    xlim = request.GET.get('xlim')
+    request_dict = dict(request.GET.iterlists())
+    xlim = request_dict.get('xlim', None)
     if xlim:
+      xlim = xlim[0]
       if xlim == 'None':
         xlim = [0, 5000]
       else:
         xlim = [0, int(xlim)]
-    ylim = request.GET.get('ylim')
+    else:
+      xlim = [0, 5000]
+    ylim = request_dict.get('ylim', None)
     if ylim:
+      ylim = ylim[0]
       if ylim == 'None':
         ylim = [0, 10]
       else:
         ylim = [0, int(ylim)]
-    labels = request.GET.get('labels', None)
+    else:
+      ylim = [0, 10]
+    labels = request_dict.get('labels', None)
     if labels:
-      if labels == 'None':
+      if labels == ['None']:
         labels = None
-      else:
-        labels = labels.split(',')
-    disp_types = request.GET.get('disp_type', None)
+    disp_types = request_dict.get('disp_type', None)
     if disp_types:
-      if disp_types == 'None':
+      if disp_types == ['None']:
         disp_types = ['median'] # Default value is median
-      else:
-        disp_types = disp_types.split(',')
     else:
       disp_types = ['median']
     fig = matplotlibplot_file(labels, xlim=xlim, ylim=ylim, disp_types=disp_types)
@@ -128,24 +131,9 @@ def display_full_page(request):
     import django
     from django.shortcuts import render
 
-    request_dict = dict(request.GET.iterlists())
     all_labels = get_all_labels()
     label_list = get_list(all_labels)
-    xlim = request_dict.get('xlim')
-    if xlim:
-      xlim = xlim[0]
-    ylim = request_dict.get('ylim')
-    if ylim:
-      ylim = ylim[0]
-    labels = request_dict.get('labels')
-    if labels:
-      labels = ','.join(labels)
-    disp_type = request_dict.get('disp_type')
-    if disp_type:
-      disp_type = ','.join(disp_type)
-    params = { 'xlim': xlim, 'ylim': ylim, 'labels': labels, 'disp_type': disp_type }
-    params = urllib.urlencode(params)
-    html = render(request, 'charts.html', { 'params': params } )
+    html = render(request, 'charts.html')
     content = html.content
     content = content.format(label_list)
     html.content = content
@@ -155,7 +143,7 @@ def display_full_page(request):
 def get_list(all_labels):
   label_list = ''
   for label in all_labels:
-    label_list += '%s:<input type="checkbox" name="labels" value="%s">' % (label, label)
+    label_list += '<b>%s</b>:<input type="checkbox" name="labels" value="%s">' % (label, label)
   return label_list
 
 
@@ -254,18 +242,23 @@ def stats_over_time(session,
 
 
 def get_all_labels():
-  dbs = get_dbs('/afs/csail.mit.edu/u/d/deepakn/opentuner/examples/halide/opentuner.db')
+  # dbs = get_dbs('/afs/csail.mit.edu/u/d/deepakn/opentuner/examples/halide/opentuner.db')
+  dbs = get_dbs(os.getcwd())
   all_labels = list()
   for db in dbs:
-    all_labels.extend(db.query(resultsdb.models.TuningRun.name).distinct()
-                      .all())
+    all_labels.extend(db.query(resultsdb.models.TuningRun.name)
+                        .filter_by(state='COMPLETE')
+                        .distinct()
+                        .all())
   all_labels = [str(element[0]) for element in all_labels]
   return all_labels
 
 
 def get_values(labels):
-    dbs = get_dbs('/afs/csail.mit.edu/u/d/deepakn/opentuner/examples/halide/opentuner.db')
+    directory = os.getcwd()
+    # dbs = get_dbs('/afs/csail.mit.edu/u/d/deepakn/opentuner/examples/halide/opentuner.db')
     # dbs = get_dbs('opentuner.db')
+    dbs = get_dbs(directory)
     dir_label_runs = defaultdict(lambda: defaultdict(list))
     for db in dbs:
       q = (db.query(resultsdb.models.TuningRun)
