@@ -2,54 +2,54 @@ from opentuner.utils import stats_matplotlib as stats
 
 
 def display_graph(request):
-    import random
-    import django
-    import datetime
-    
-    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-    from matplotlib.figure import Figure
-    from matplotlib.dates import DateFormatter
+  import random
+  import django
+  import datetime
 
-    request_dict = dict(request.GET.iterlists())
+  from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+  from matplotlib.figure import Figure
+  from matplotlib.dates import DateFormatter
 
-    xlim = request_dict.get('xlim', None)
-    if xlim:
-      xlim = int(xlim[0])
-    else:
-      xlim = 5000
-    xlim = [0, xlim]
+  request_dict = dict(request.GET.iterlists())
 
-    ylim = request_dict.get('ylim', None)
-    if ylim:
-      ylim = int(ylim[0])
-    else:
-      ylim = 10
-    ylim = [0, ylim]
+  xlim = request_dict.get('xlim', None)
+  if xlim:
+    xlim = int(xlim[0])
+  else:
+    xlim = 5000
+  xlim = [0, xlim]
 
-    labels = request_dict.get('labels', None)
-    
-    disp_types = request_dict.get('disp_type', None)
-    if not disp_types:
-      disp_types = ['median']
+  ylim = request_dict.get('ylim', None)
+  if ylim:
+    ylim = int(ylim[0])
+  else:
+    ylim = 10
+  ylim = [0, ylim]
 
-    fig = stats.matplotlibplot_file(labels, xlim=xlim, ylim=ylim, disp_types=disp_types)
-    canvas = FigureCanvas(fig)
-    response = django.http.HttpResponse(content_type='image/png')
-    canvas.print_png(response)
-    return response
+  labels = request_dict.get('labels', None)
+
+  disp_types = request_dict.get('disp_type', None)
+  if not disp_types:
+    disp_types = ['median']
+
+  fig = stats.matplotlibplot_file(labels, xlim=xlim, ylim=ylim, disp_types=disp_types)
+  canvas = FigureCanvas(fig)
+  response = django.http.HttpResponse(content_type='image/png')
+  canvas.print_png(response)
+  return response
 
 
 def display_full_page(request):
-    import django
-    from django.shortcuts import render
+  import django
+  from django.shortcuts import render
 
-    all_labels = stats.get_all_labels()
-    label_list = get_label_list(all_labels)
-    html = render(request, 'charts.html')
-    content = html.content
-    content = content.format(label_list)
-    html.content = content
-    return html
+  all_labels = stats.get_all_labels()
+  label_list = get_label_list(all_labels)
+  html = render(request, 'charts.html')
+  content = html.content
+  content = content.format(label_list)
+  html.content = content
+  return html
 
 
 def get_label_list(all_labels):
