@@ -2,6 +2,9 @@ from opentuner.utils import stats_matplotlib as stats
 
 
 def display_graph(request):
+  """
+  Handles request to display graph with provided parameters
+  """
   import random
   import django
   import datetime
@@ -40,6 +43,9 @@ def display_graph(request):
 
 
 def display_full_page(request):
+  """
+  Handles request to display the full page
+  """
   import django
   from django.shortcuts import render
 
@@ -53,6 +59,10 @@ def display_full_page(request):
 
 
 def get_label_list(all_labels):
+  """
+  Returns list of html form inputs corresponding to the different
+  labels in the provided db file
+  """
   label_list = ''
   for label in all_labels:
     label_list += '<b>%s</b>:<input type="checkbox" name="labels" value="%s">' % (label, label)

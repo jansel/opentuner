@@ -15,6 +15,13 @@ PCTSTEPS = map(_/20.0, xrange(21))
 
 
 def mean(vals):
+  """
+  Arguments,
+    vals: List of floating point numbers
+  Returns,
+    The mean of the numbers in the input list
+    None if all values in the list are None
+  """
   filtered_values = [float(x) for x in vals if x is not None]
   if (len(filtered_values) == 0):
     return None
@@ -22,6 +29,13 @@ def mean(vals):
 
 
 def stddev(vals):
+  """
+  Arguments,
+    vals: List of floating point numbers
+  Returns,
+    The standard deviation of numbers in the input list
+    None if all values in the list are None
+  """
   filtered_values = [float(x) for x in vals if x is not None]
   if (len(filtered_values) == 0):
     return None
@@ -29,6 +43,13 @@ def stddev(vals):
 
 
 def get_dbs(path):
+  """
+  Arguments,
+    path: Path of directory containing .db files
+  Returns,
+    A list of (engine, session) pairs to the dbs pointed to by
+    the db files
+  """
   dbs = list()
   for f in os.listdir(path):
     if 'journal' in f:
@@ -44,6 +65,16 @@ def get_dbs(path):
 
 
 def matplotlibplot_file(labels, xlim = None, ylim = None, disp_types=['median']):
+  """
+  Arguments,
+    labels: List of labels that need to be included in the plot
+    xlim: Integer denoting the maximum X-coordinate in the plot
+    ylim: Integer denoting the maximum Y-coordinate in the plot
+    disp_types: List of measures that are to be displayed in the plot
+  Returns,
+    A figure object representing the required plot
+  """
+
   figure = plt.figure()
   values = get_values(labels)
   for label in values:
@@ -180,6 +211,10 @@ def stats_over_time(session,
 
 
 def get_all_labels():
+  """
+  Returns,
+    List of labels that are in the complete state
+  """
   dbs = get_dbs(os.getcwd())
   all_labels = list()
   for db in dbs:
@@ -192,6 +227,13 @@ def get_all_labels():
 
 
 def get_values(labels):
+  """
+  Arguments,
+    labels: List of labels whose values are of interest
+  Returns,
+    A list of (mean, percentile) tuples, corresponding to the
+    provided list of labels
+  """
   dbs = get_dbs(os.getcwd())
   dir_label_runs = defaultdict(lambda: defaultdict(list))
   for db in dbs:
