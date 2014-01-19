@@ -9,11 +9,12 @@ ADMINS = (
 )
 
 MANAGERS = ADMINS
+DIRECTORY_NAME = os.path.dirname(os.path.realpath(__file__))
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',  # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': '/afs/csail.mit.edu/u/d/deepakn/opentuner/stats_app/db',      # Or path to database file if using sqlite3.
+        'NAME': DIRECTORY_NAME + '/db',      # Or path to database file if using sqlite3.
         # The following settings are not used with sqlite3:
         'USER': '',
         'PASSWORD': '',
@@ -73,7 +74,7 @@ STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    '/afs/csail.mit.edu/u/d/deepakn/opentuner/stats_app/stats_app/static',
+    DIRECTORY_NAME + '/static',
 )
 
 # List of finder classes that know how to find static files in
@@ -113,7 +114,7 @@ TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    '/afs/csail.mit.edu/u/d/deepakn/opentuner/stats_app/stats_app/templates',
+    DIRECTORY_NAME + '/templates',
 )
 
 INSTALLED_APPS = (
