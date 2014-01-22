@@ -1,15 +1,16 @@
-import matplotlib.pyplot as plt
-import os
+#!usr/bin/python
 
-from opentuner import resultsdb
-
-import itertools
 from collections import defaultdict
 from fn import _
 from fn import Stream
 from fn.iters import repeat
+import itertools
 import math
+import matplotlib.pyplot as plt
 import numpy
+import os
+
+from opentuner import resultsdb
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
@@ -23,7 +24,7 @@ def mean(vals):
     None if all values in the list are None
   """
   filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  if len(filtered_values) == 0:
     return None
   return numpy.mean(numpy.array(filtered_values))
 
@@ -37,7 +38,7 @@ def stddev(vals):
     None if all values in the list are None
   """
   filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  if len(filtered_values) == 0:
     return None
   return math.sqrt(numpy.var(numpy.array(filtered_values)))
 

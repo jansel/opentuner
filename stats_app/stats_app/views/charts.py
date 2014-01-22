@@ -1,3 +1,11 @@
+import datetime
+import django
+from django.shortcuts import render
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.dates import DateFormatter
+from matplotlib.figure import Figure
+import random
+
 from opentuner.utils import stats_matplotlib as stats
 
 
@@ -5,14 +13,6 @@ def display_graph(request):
   """
   Handles request to display graph with provided parameters
   """
-  import random
-  import django
-  import datetime
-
-  from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-  from matplotlib.figure import Figure
-  from matplotlib.dates import DateFormatter
-
   request_dict = dict(request.GET.iterlists())
 
   xlim = request_dict.get('xlim', None)
@@ -46,9 +46,6 @@ def display_full_page(request):
   """
   Handles request to display the full page
   """
-  import django
-  from django.shortcuts import render
-
   all_labels = stats.get_all_labels()
   label_list = get_label_list(all_labels)
   html = render(request, 'charts.html')
