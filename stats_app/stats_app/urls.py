@@ -16,5 +16,5 @@ urlpatterns = patterns('',
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
     url(r'^graph.png$', views.charts.display_graph, name='graph'),
-    url(r'^charts.html$', views.charts.display_full_page, name='graph_page'),
+    url(r'^$', views.charts.display_full_page, name='graph_page'),
 )
