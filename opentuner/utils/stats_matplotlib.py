@@ -1,516 +1,288 @@
-#!/usr/bin/python
+#!usr/bin/python
 
 if __name__ == '__main__':
   import adddeps
 
-import argparse
-import csv
-import hashlib
-import logging
-import re
+from collections import defaultdict
+from fn import _
+from fn import Stream
+from fn.iters import repeat
+import itertools
 import math
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy
 import os
-import subprocess
-import sys
-import itertools
 
-from collections import defaultdict
-from datetime import datetime, timedelta
-from fn import _, F
-from fn import Stream
-from fn.iters import repeat
-from pprint import pprint
-
-import opentuner
 from opentuner import resultsdb
-from opentuner.resultsdb.models import *
-
-log = logging.getLogger('opentuner.utils.stats')
-
-argparser = argparse.ArgumentParser()
-argparser.add_argument('--label')
-argparser.add_argument('--stats', action='store_true',
-                       help="run in stats mode")
-argparser.add_argument('--by-request-count', action='store_true',
-                       help='report stats by request count')
-argparser.add_argument('--stats-quanta', type=float, default=10,
-                       help="step size in seconds for binning with --stats")
-argparser.add_argument('--stats-dir', default='stats',
-                       help="directory to output --stats to")
-argparser.add_argument('--stats-input', default="opentuner.db")
-argparser.add_argument('--min-runs',  type=int, default=1,
-                       help="ignore series with less then N runs")
-argparser.add_argument('--ylimit', type=int, nargs=2, default=[0,2],
-                       help="Specify limit of y coordinates in graph")
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
+
 def mean(vals):
+  """
+  Arguments,
+    vals: List of floating point numbers
+  Returns,
+    The mean of the numbers in the input list
+    None if all values in the list are None
+  """
   filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  if len(filtered_values) == 0:
     return None
   return numpy.mean(numpy.array(filtered_values))
 
-def median(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.median(numpy.array(filtered_values))
-
-def percentile(vals, pct):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.percentile(numpy.array(filtered_values), pct)
-
-def variance(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.var(numpy.array(filtered_values))
 
 def stddev(vals):
-  var = variance(vals)
-  if var is None:
+  """
+  Arguments,
+    vals: List of floating point numbers
+  Returns,
+    The standard deviation of numbers in the input list
+    None if all values in the list are None
+  """
+  filtered_values = [float(x) for x in vals if x is not None]
+  if len(filtered_values) == 0:
     return None
-  return math.sqrt(var)
-
-def hash_args(x):
-  d = dict(vars(x))
-  for k in ('database', 'results_log', 'results_log_details'):
-    d[k] = None
-  return hashlib.sha256(str(sorted(d.items()))).hexdigest()[:20]
-
-def run_label(tr, short = False):
-  techniques = ','.join(tr.args.technique)
-  if not tr.name or tr.name=='unnamed':
-    if short:
-      return techniques
-    else:
-      return "%s_%s" % (techniques, hash_args(tr.args)[:6])
-  else:
-    return tr.name
-
-def run_dir(base, tr):
-  return os.path.join(base,
-                      tr.program.project,
-                      tr.program.name,
-                      tr.program_version.version[:16])
-
-class StatsMain(object):
-  def __init__(self, args):
-    self.args = args
-    path = args.stats_input
-    self.dbs = list()
-    for f in os.listdir(path):
-      if 'journal' in f:
-        continue
-      try:
-        e, sm = resultsdb.connect('sqlite:///'+os.path.join(path, f))
-        self.dbs.append(sm())
-      except:
-        log.error('failed to load database: %s', 
-                  os.path.join(path, f),
-                  exc_info=True)
-
-  def main(self):
-    dir_label_runs = defaultdict(lambda: defaultdict(list))
-    for session in self.dbs:
-      q = (session.query(resultsdb.models.TuningRun)
-          .filter_by(state='COMPLETE')
-          .order_by('name'))
-
-      if self.args.label:
-        q = q.filter(TuningRun.name.in_(
-          map(str.strip,self.args.label.split(','))))
-
-      for tr in q:
-        d = run_dir(self.args.stats_dir, tr)
-        d = os.path.normpath(d)
-        dir_label_runs[d][run_label(tr)].append((tr, session))
-
-    summary_report = defaultdict(lambda: defaultdict(list))
-    for d, label_runs in dir_label_runs.iteritems():
-      if not os.path.isdir(d):
-        os.makedirs(d)
-      session = label_runs.values()[0][0][1]
-      objective = label_runs.values()[0][0][0].objective
-      all_run_ids = map(_[0].id, itertools.chain(*label_runs.values()))
-      q = (session.query(Result)
-           .filter(Result.tuning_run_id.in_(all_run_ids))
-           .filter(Result.time < float('inf'))
-           .filter_by(was_new_best=True, state='OK'))
-      total = q.count()
-      q = objective.filter_acceptable(q)
-      acceptable = q.count()
-      q = q.order_by(*objective.result_order_by_terms())
-      best = q.limit(1).one()
-      worst = q.offset(acceptable-1).limit(1).one()
-
-      map(len, label_runs.values())
-
-      log.info("%s -- best %.4f / worst %.f4 "
-               "-- %d of %d acceptable -- %d techniques with %d to %d runs",
-               d,
-               best.time,
-               worst.time,
-               acceptable,
-               total,
-               len(label_runs.values()),
-               min(map(len, label_runs.values())),
-               max(map(len, label_runs.values())))
-
-      for label, runs in sorted(label_runs.items()):
-        if len(runs) < self.args.min_runs:
-          print len(runs) ,self.args.min_runs
-          continue
-        log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
-        self.combined_stats_over_time(d, label, runs, objective, worst, best)
-
-        final_scores = list()
-        for run, session in runs:
-          try:
-            final = (session.query(Result)
-                    .filter_by(tuning_run=run,
-                               configuration=run.final_config)
-                    .limit(1)
-                    .one())
-          except sqlalchemy.orm.exc.NoResultFound:
-            continue
-          final_scores.append(objective.stats_quality_score(final, worst, best))
-        final_scores.sort()
-        if final_scores:
-          norm = objective.stats_quality_score(best, worst, best)
-          if norm > 0.00001:
-            summary_report[d][run_label(run, short=True)] = (
-                percentile(final_scores, 0.5) / norm,
-                percentile(final_scores, 0.1) / norm,
-                percentile(final_scores, 0.9) / norm,
-              )
-          else:
-            summary_report[d][run_label(run, short=True)] = (
-                percentile(final_scores, 0.5) + norm + 1.0,
-                percentile(final_scores, 0.1) + norm + 1.0,
-                percentile(final_scores, 0.9) + norm + 1.0,
-              )
+  return math.sqrt(numpy.var(numpy.array(filtered_values)))
 
 
-    with open("stats/summary.dat", 'w') as o:
-      # make summary report
-      keys = sorted(reduce(set.union,
-                           [set(x.keys()) for x in summary_report.values()],
-                           set()))
-      print >>o, '#####',
-      for k in keys:
-        print >>o, k,
-      print >>o
-      for d, label_vals in sorted(summary_report.items()):
-        print >>o, d.split('/')[-2],
-        for k in keys:
-          if k in label_vals:
-            print >>o, '-', label_vals[k][0], label_vals[k][1], label_vals[k][2],
-          else:
-            print >>o, '-', '-', '-', '-',
-        print >>o
-
-    if keys:
-      plotcmd = ["""1 w lines lt 1 lc rgb "black" notitle""",
-                 """'summary.dat' using 3:4:5:xtic(1) ti "%s" """ % keys[0]]
-      tuples = [(3,5)]
-      for n, k in enumerate(keys[1:]):
-        plotcmd.append("""'' using %d:%d:%d ti "%s" """ % (
-                        4*n + 7,
-                        4*n + 8,
-                        4*n + 9,
-                        k))
-        tuples.append((4*n + 7, 4*n + 9))
-      self.gnuplot_summary_file('stats', 'summary', plotcmd)
-      self.matplotlibplot_summary_file(['stats/summary.dat'], tuples)
-
-    for d, label_runs in dir_label_runs.iteritems():
-      labels = [k for k,v in label_runs.iteritems()
-                if len(v)>=self.args.min_runs]
-      dir_name = "%s/" % d
-      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11], ylim=self.args.ylimit)
-      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20], ylim=self.args.ylimit)
-      # Add remaining two graphs as well
-      # self.gnuplot_file(d,
-      #                   "medianperfe",
-      #                   ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      # self.gnuplot_file(d,
-      #                   "meanperfe",
-      #                   ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "medianperfl",
-                        ['"%s_percentiles.dat" using 1:12 with lines title "%s"' % (l,l) for l in labels])
-      self.gnuplot_file(d,
-                        "meanperfl",
-                        ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
-
-    # print
-    # print "10% Scores", d
-    # pprint(self.technique_scores(d, labels, '0.1'))
-    # print
-    # print "90% Scores", d
-    # pprint(self.technique_scores(d, labels, '0.9'))
-    # print
-    # print "Mean Scores", d
-    # pprint(self.technique_scores(d, labels, 'mean'))
-      print
-      print "Median Scores", d
-      pprint(self.technique_scores(d, labels, '0.5'))
-
-
-  def technique_scores(self, directory, labels, ykey, xkey='#sec', factor=10.0):
-    max_duration = None
-    min_value = float('inf')
-    for label in labels:
-      try:
-        dr = csv.DictReader(open(os.path.join(directory,label+"_percentiles.dat")), delimiter=' ', lineterminator='\n')
-        lastrow = list(dr)[-1]
-        max_duration = max(max_duration, float(lastrow[xkey]))
-        min_value = min(min_value, float(lastrow[ykey]))
-      except:
-        log.exception("failed computing score")
-
-    scores = list()
-
-    for label in labels:
-      try:
-        dr = csv.DictReader(open(os.path.join(directory,label+"_percentiles.dat")), delimiter=' ', lineterminator='\n')
-        score = 0.0
-        lastsec = 0.0
-        value = float('inf')
-        for row in dr:
-          duration = float(row[xkey]) - lastsec
-          lastsec = float(row[xkey])
-          value = float(row[ykey])
-          score += duration * (value - min_value)
-        score += (factor*max_duration - lastsec) * (value - min_value)
-        scores.append((score, label))
-      except:
-        log.exception("failed computing score")
-
-    return sorted(scores)
-
-
-  def combined_stats_over_time(self,
-                               output_dir,
-                               label,
-                               runs,
-                               objective,
-                               worst,
-                               best,
-                               ):
-    '''
-    combine stats_over_time() vectors for multiple runs
-    '''
-
-    #extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
-    extract_fn = _.result.time
-    combine_fn = min
-    no_data = 999
-
-    log.debug("writing stats for %s to %s", label, output_dir)
-    by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
-              for run, session in runs]
-    max_len = max(map(len, by_run))
-
-    by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
-                      for x in by_run]
-    by_quanta = zip(*by_run_streams[:])
-
-    def data_file(suffix, headers, value_function):
-      with open(os.path.join(output_dir, label+suffix), 'w') as fd:
-        out = csv.writer(fd, delimiter=' ', lineterminator='\n')
-        out.writerow(['#sec'] + headers)
-        for quanta, values in enumerate(by_quanta):
-          sec = quanta*self.args.stats_quanta
-          out.writerow([sec] + value_function(values))
-
-   #data_file('_details.dat',
-   #          map(lambda x: 'run%d'%x, xrange(max_len)),
-   #          list)
-   #self.gnuplot_file(output_dir,
-   #                  label+'_details',
-   #                  [('"'+label+'_details.dat"'
-   #                    ' using 1:%d'%i +
-   #                    ' with lines'
-   #                    ' title "Run %d"'%i)
-   #                   for i in xrange(max_len)])
-
-    data_file('_mean.dat',
-              ['#sec', 'mean', 'stddev'],
-              lambda values: [mean(values), stddev(values)])
-    self.gnuplot_file(output_dir,
-                      label+'_mean',
-                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
-
-    def extract_percentiles(values):
-      values = sorted(values)
-      return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
-             + [mean(values)])
-    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
-    self.gnuplot_file(output_dir,
-                      label+'_percentiles',
-                      reversed([
-                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
-                      # '""                          using 1:3  with lines title "5%"',
-                        '""                          using 1:4  with lines title "10%"',
-                      # '""                          using 1:5  with lines title "25%"',
-                        '""                          using 1:6  with lines title "20%"',
-                      # '""                          using 1:7  with lines title "35%"',
-                        '""                          using 1:8  with lines title "30%"',
-                      # '""                          using 1:9  with lines title "45%"',
-                        '""                          using 1:10 with lines title "40%"',
-                      # '""                          using 1:11 with lines title "55%"',
-                        '""                          using 1:12 with lines title "50%"',
-                      # '""                          using 1:13 with lines title "65%"',
-                        '""                          using 1:14 with lines title "70%"',
-                      # '""                          using 1:15 with lines title "75%"',
-                        '""                          using 1:16 with lines title "80%"',
-                      # '""                          using 1:17 with lines title "85%"',
-                        '""                          using 1:18 with lines title "90%"',
-                      # '""                          using 1:19 with lines title "95%"',
-                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
-                       ]))
-
-  def gnuplot_file(self, output_dir, prefix, plotcmd):
-    with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
-      print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.eps')
-      print >>fd, 'set ylabel "Execution Time (seconds)"'
-      print >>fd, 'set xlabel "Autotuning Time (seconds)"'
-      print >>fd, 'plot', ',\\\n'.join(plotcmd)
-
+def get_dbs(path, db_type='sqlite:///'):
+  """
+  Arguments,
+    path: Path of directory containing .db files
+  Returns,
+    A list of (engine, session) pairs to the dbs pointed to by
+    the db files
+  """
+  dbs = list()
+  for f in os.listdir(path):
+    if 'journal' in f:
+      continue
     try:
-      subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
-    except OSError:
-      log.error("command gnuplot not found")
+      db_path = os.path.join(path, f)
+      e, sm = resultsdb.connect(db_type + db_path)
+      dbs.append(sm())
+    except Exception as e:
+      print e
+      print "Error encountered while connecting to db"
+  return dbs
 
-  def matplotlibplot_file(self, input_dir, labels, output_dir, prefix, cols, xlim = None, ylim = None):
-    output_file = "%s/%s" % (output_dir, prefix)
-    plt.figure()
-    index = 0
-    data_files = [(input_dir + '%s_percentiles.dat') % l for l in labels]
-    for data_file in data_files:
-      data = []
-      with open(data_file) as f:
-        for line in f:
-          data.append(line.strip().split(' '))
-      plotted_data = [[] for x in xrange(len(cols) - 1)]
+
+def matplotlibplot_file(labels, xlim = None, ylim = None, disp_types=['median']):
+  """
+  Arguments,
+    labels: List of labels that need to be included in the plot
+    xlim: Integer denoting the maximum X-coordinate in the plot
+    ylim: Integer denoting the maximum Y-coordinate in the plot
+    disp_types: List of measures that are to be displayed in the plot
+  Returns,
+    A figure object representing the required plot
+  """
+
+  figure = plt.figure()
+  values = get_values(labels)
+  for label in values:
+    (mean_values, percentile_values) = values[label]
+    for disp_type in disp_types:
+      cols = None
+      data = percentile_values
+
+      if disp_type == 'median':
+        cols = [11]
+      elif disp_type == 'mean':
+        cols = [1]
+        data = mean_values
+      elif disp_type == 'all_percentiles':
+        cols = range(1,22)
+
+      plotted_data = [[] for x in xrange(len(cols))]
+
       x_indices = []
       for data_point in data[1:]:
-        x_indices.append(int(data_point[cols[0]]))
-        for i in range(0, len(cols)-1):
-          plotted_data[i].append(float(data_point[cols[i+1]]))
+        x_indices.append(int(data_point[0]))
+        for i in range(0, len(cols)):
+          plotted_data[i].append(float(data_point[cols[i]]))
       args = []
       for to_plot in plotted_data:
         args.append(x_indices)
         args.append(to_plot)
-      plt.plot(*args, label=labels[index])
-      index += 1
-    if xlim is not None:
-      plt.xlim(xlim)
-    if ylim is not None:
-      plt.ylim(ylim)
-    plt.xlabel('Autotuning Time (seconds)')
-    plt.ylabel('Execution Time (seconds)')
-    plt.legend(loc='upper right')
-    plt.savefig(prefix)
 
-  def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
-    with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
-      print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.pdf')
-      print >>fd, '''
-set boxwidth 0.9
-set style fill solid 1.00 border 0
-set style histogram errorbars gap 2 lw 1
-set style data histograms
-set xtics rotate by -45
-set bars 0.5
-set yrange [0:20]
+      plt.plot(*args, label='%s(%s)' % (label, disp_type))
 
-set yrange [0:10]
-set key out vert top left
-set size 1.5,1
-set ytics 1
+  if xlim is not None:
+    plt.xlim(xlim)
+  if ylim is not None:
+    plt.ylim(ylim)
 
-'''
-      print >>fd, 'plot', ',\\\n'.join(plotcmd)
-    subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
+  plt.xlabel('Autotuning Time (seconds)')
+  plt.ylabel('Execution Time (seconds)')
+  plt.legend(loc='upper right')
+  return figure
 
-  def matplotlibplot_summary_file(self, data_files, cols):
-    for data_file in data_files:
-      data = []
-      with open(data_file) as f:
-        for line in f:
-          data.append(line.strip().split(' '))
-      plotted_data = []
-      err = []
-      bincenters = numpy.arange(len(cols))
-      plt.figure()
-      for data_point in data[1:]:
-        for col in cols:
-          (lb, ub) = col
-          data_to_be_plotted = mean(data_point[lb-1:ub])
-          plotted_data.append(data_to_be_plotted)
-          err.append(5 * stddev(data_point[lb-1:ub]))
-        # Now plot the data in plotted_data and err
-        plt.bar(bincenters, plotted_data, width=0.25, yerr=err, color='r')
-        plt.xticks(numpy.arange(len(data[0][1:])), data[0][1:])
-        plt.savefig('summary')
 
-  def stats_over_time(self,
-                      session,
-                      run,
-                      extract_fn,
-                      combine_fn,
-                      no_data = None):
-    '''
-    return reduce(combine_fn, map(extract_fn, data)) for each quanta of the
-    tuning run
-    '''
-    value_by_quanta = [ no_data ]
-    start_date = run.start_date
+def run_label(tr):
+  techniques = ','.join(tr.args.technique)
+  if not tr.name or tr.name == 'unnamed':
+    return techniques
+  return tr.name
 
-    subq = (session.query(Result.id)
-           .filter_by(tuning_run = run, was_new_best = True, state='OK'))
 
-    q = (session.query(DesiredResult)
-         .join(Result)
-         .filter(DesiredResult.state=='COMPLETE',
-                 DesiredResult.tuning_run == run,
-                 DesiredResult.result_id.in_(subq.subquery()))
-         .order_by(DesiredResult.request_date))
+def combined_stats_over_time(label,
+                             runs,
+                             objective,
+                             worst,
+                             best,
+                             ):
+  '''
+  combine stats_over_time() vectors for multiple runs
+  '''
 
-    first_id = None
-    for dr in q:
-      if first_id is None:
-        first_id = dr.id
-      td = (dr.request_date - start_date)
-      duration = td.seconds + (td.days * 24 * 3600.0)
-      if self.args.by_request_count:
-        quanta = dr.id - first_id
-      else:
-        quanta = int(duration / self.args.stats_quanta)
-      while len(value_by_quanta) <= quanta:
-        value_by_quanta.append(value_by_quanta[-1])
+  extract_fn = _.result.time
+  combine_fn = min
+  no_data = 999
 
-      if value_by_quanta[-1] is no_data:
-        value_by_quanta[-1] = extract_fn(dr)
-      else:
-        value_by_quanta[-1] = combine_fn(value_by_quanta[-1], extract_fn(dr))
+  by_run = [stats_over_time(session, run, extract_fn, combine_fn, no_data)
+            for run, session in runs]
+  max_len = max(map(len, by_run))
 
-    return value_by_quanta
+  by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
+                    for x in by_run]
+  by_quanta = zip(*by_run_streams[:])
 
+  # TODO: Fix this, this variable should be configurable
+  stats_quanta = 10
+  def get_data(value_function):
+    final_values = []
+    for quanta, values in enumerate(by_quanta):
+      sec = quanta*stats_quanta
+      final_values.append([sec] + value_function(values))
+    return final_values
+
+  mean_values = get_data(lambda values: [mean(values), stddev(values)])
+
+  def extract_percentiles(values):
+    values = sorted(values)
+    return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
+           + [mean(values)])
+  percentile_values = get_data(extract_percentiles)
+  return (mean_values, percentile_values)
+
+
+def stats_over_time(session,
+                    run,
+                    extract_fn,
+                    combine_fn,
+                    no_data = None):
+  '''
+  return reduce(combine_fn, map(extract_fn, data)) for each quanta of the
+  tuning run
+  '''
+  value_by_quanta = [ no_data ]
+  start_date = run.start_date
+
+  subq = (session.query(resultsdb.models.Result.id)
+         .filter_by(tuning_run = run, was_new_best = True, state='OK'))
+
+  q = (session.query(resultsdb.models.DesiredResult)
+       .join(resultsdb.models.Result)
+       .filter(resultsdb.models.DesiredResult.state=='COMPLETE',
+               resultsdb.models.DesiredResult.tuning_run == run,
+               resultsdb.models.DesiredResult.result_id.in_(subq.subquery()))
+       .order_by(resultsdb.models.DesiredResult.request_date))
+
+  first_id = None
+  for dr in q:
+    if first_id is None:
+      first_id = dr.id
+    td = (dr.request_date - start_date)
+    duration = td.seconds + (td.days * 24 * 3600.0)
+    # TODO: Make this variable configurable
+    by_request_count = True
+    stats_quanta = 10
+    if by_request_count:
+      quanta = dr.id - first_id
+    else:
+      quanta = int(duration / stats_quanta)
+    while len(value_by_quanta) <= quanta:
+      value_by_quanta.append(value_by_quanta[-1])
+
+    if value_by_quanta[-1] is no_data:
+      value_by_quanta[-1] = extract_fn(dr)
+    else:
+      value_by_quanta[-1] = combine_fn(value_by_quanta[-1], extract_fn(dr))
+
+  return value_by_quanta
+
+
+def get_all_labels():
+  """
+  Returns,
+    List of labels that are in the complete state
+  """
+  dbs = get_dbs(os.getcwd())
+  all_labels = list()
+  for db in dbs:
+    all_labels.extend(db.query(resultsdb.models.TuningRun.name)
+                        .filter_by(state='COMPLETE')
+                        .distinct()
+                        .all())
+  all_labels = [str(element[0]) for element in all_labels]
+  return all_labels
+
+
+def get_values(labels):
+  """
+  Arguments,
+    labels: List of labels whose values are of interest
+  Returns,
+    A list of (mean, percentile) tuples, corresponding to the
+    provided list of labels
+  """
+  dbs = get_dbs(os.getcwd())
+  dir_label_runs = defaultdict(lambda: defaultdict(list))
+  for db in dbs:
+    q = (db.query(resultsdb.models.TuningRun)
+            .filter_by(state='COMPLETE')
+            .order_by('name'))
+    if labels:
+      q = q.filter(resultsdb.models.TuningRun.name.in_(labels))
+    for tr in q:
+      dir_label_runs[run_label(tr)][run_label(tr)].append((tr, db))
+  all_run_ids = list()
+  returned_values = {}
+  for d, label_runs in dir_label_runs.iteritems():
+    all_run_ids = map(_[0].id, itertools.chain(*label_runs.values()))
+    session = label_runs.values()[0][0][1]
+    objective = label_runs.values()[0][0][0].objective
+
+    q = (session.query(resultsdb.models.Result)
+         .filter(resultsdb.models.Result.tuning_run_id.in_(all_run_ids))
+         .filter(resultsdb.models.Result.time < float('inf'))
+         .filter_by(was_new_best=True, state='OK'))
+    total = q.count()
+    q = objective.filter_acceptable(q)
+    acceptable = q.count()
+    q = q.order_by(*objective.result_order_by_terms())
+    best = q.limit(1).one()
+    worst = q.offset(acceptable - 1).limit(1).one()
+
+    for label, runs in sorted(label_runs.items()):
+      (mean_values, percentile_values) = combined_stats_over_time(label, runs, objective, worst, best)
+      returned_values[label] = (mean_values, percentile_values)
+      final_scores = list()
+      for run, session in runs:
+        try:
+          final = (session.query(resultsdb.models.Result)
+                  .filter_by(tuning_run = run,
+                             configuration = run.final_config)
+                  .limit(1).one())
+        except sqlalchemy.orm.exc.NoResultFound:
+          continue
+        final_scores.append(objective.stats_quality_score(final, worst, best))
+      final_scores.sort()
+  return returned_values
 
 if __name__ == '__main__':
-  opentuner.tuningrunmain.init_logging()
-  sys.exit(StatsMain(argparser.parse_args()).main())
-
-
+    labels = [u'timeouts', u'always_reorder', u'add_store_at', u'all_options']
+    get_values(labels)
+    print get_all_labels()
