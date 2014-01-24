@@ -43,7 +43,7 @@ def stddev(vals):
   return math.sqrt(numpy.var(numpy.array(filtered_values)))
 
 
-def get_dbs(path):
+def get_dbs(path, db_type='sqlite:///'):
   """
   Arguments,
     path: Path of directory containing .db files
@@ -57,7 +57,7 @@ def get_dbs(path):
       continue
     try:
       db_path = os.path.join(path, f)
-      e, sm = resultsdb.connect('sqlite:///' + db_path)
+      e, sm = resultsdb.connect(db_type + db_path)
       dbs.append(sm())
     except Exception as e:
       print e
