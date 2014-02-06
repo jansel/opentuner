@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from opentuner.search import technique, manipulator
 import random
-
+import math
 
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
-    def __init__(self, crossover, N = 5, init_pop=None, *pargs, **kwargs):
+    def __init__(self, crossover, N = 3, init_pop=None, *pargs, **kwargs):
         """
         crossover: name of crossover operator function
         """
@@ -45,60 +45,7 @@ class PSO(technique.SequentialSearchTechnique ):
                            
  
 
-
-class Particle(object):     # should inherit from/link to ConfigurationManipulator? 
-    def __init__(self, m, omega=1, phi_l=0.5, phi_g=0.5):
-        """
-        m: a configuraiton manipulator
-        omega: influence of the particle's last velocity, a float in range [0,1] ; omega=1 means even speed
-        phi_l: influence of the particle's distance to its historial best position, a float in range [0,1] 
-        phi_g: influence of the particle's distance to the global best position, a float in range [0,1]
-        """
-        
-        self.manipulator = m
-        self.position = self.manipulator.random()   
-        self.best = self.position
-        self.omega = omega
-        self.phi_l = phi_l
-        self.phi_g = phi_g
-        
-    def __str__(self):
-        return 'V:'+str(self.velocity)+'\tP:'+str(self.position)
-
-    def move(self, global_best):
-        pass
-
-class ContinuousParticle(Particle):     # should inherit from/link to ConfigurationManipulator? 
-    def __init__(self, *args):
-        super(ContinuousParticle, self).__init__(*args)      
-        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
-        
-    def move(self, global_best):
-        """ move the particle towards its historical best and global best """
-        m = self.manipulator
-        v = m.sum_v(
-            m.scale(self.velocity,random.uniform(0,self.omega)),
-            m.scale(m.difference(self.best, self.position),random.uniform(0,self.phi_l)),
-            m.scale(m.difference(global_best, self.position),random.uniform(0,self.phi_g))
-                  )
-        self.velocity = v
-        self.position = m.add_v(self.position, v)
-
-
-class DiscreteParticle(Particle):
-    def move(self, global_best):
-        m = self.manipulator
-        # Decide if crossover happens
-        if random.uniform(0,1)<self.omega:
-            return
-        else:
-            current = m.copy(self.position)
-            if random.uniform(0,1)<self.phi_l:
-                 m.crossover(self.position, current, global_best)
-            else:
-                 m.crossover(self.position, current, self.best)
-        
-class HybridParticle(Particle):
+class HybridParticle(object):
     def __init__(self, m, crossover_choice, omega=1, phi_l=0.5, phi_g=0.5):
 
         """
@@ -115,11 +62,16 @@ class HybridParticle(Particle):
         self.phi_l = phi_l
         self.phi_g = phi_g
         self.crossover_choice = crossover_choice
-        self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
+        self.velocity = {}
+        for p in self.manipulator.params:
+            #if p.is_primitive():
+            self.velocity[p.name]=0  
 
     def move(self, global_best):
         m = self.manipulator
+        #print "cfg length check:", len(self.velocity), len(self.position)
         for p in m.params:
+            print "moving", p.name, p
             if p.is_permutation():
                 if random.uniform(0,1)>self.omega:
                     if random.uniform(0,1)<self.phi_l:
@@ -127,66 +79,50 @@ class HybridParticle(Particle):
                         getattr(p, self.crossover_choice)(self.position, self.position, global_best, d=p.size/3)
                     else:
                         getattr(p, self.crossover_choice)(self.position, self.position, self.best, d=p.size/3)
+            elif p.is_boolean(): #fixed at the moment
+                    #print "can't move boolean", p.name
+                    pass
+            elif p.is_continuous():
+                    print "local best", p._get(self.best), "position", p._get(self.position), "velocity", p._get(self.velocity)
+                    p.weighted_sum(self.velocity, [self.velocity, self.position, self.best, global_best],[self.omega, -self.phi_l-self.phi_g, self.phi_l, self.phi_g])
+                    p.weighted_sum(self.position, [self.position,self.velocity],[1,1])
+                    print "local best", p._get(self.best), "global", p._get(global_best), "position", p._get(self.position), "velocity", p._get(self.velocity)
+        
+class Position(object):
+    def __init__(self, manipulator):
+        self.manipulator = manipulator
+        self.dimensions = {}
+        dscale = 100
+        r = manipulator.random()
+        for p in manipulator.params:
+            if p.is_continuous():
+                # Map discrete values to continuous domain
+                self.dimensions[p.name]= random.uniform(*p.legal_range())
             else:
-                    p.set_linear(dest, 1-self.phi_l-self.phi_g, self.position, self.phi_l, self.best, self.phi_g, global_best)
+                self.dimensions[p.name] = p.get_value(r)
+"""
+     def to_cfg(self):
+         for p in self.manipulator.params:
+             v = self.dimensions[p.name]
+             if p.is_continuous():
+                 v = self.discretize(v, *p.legal_range())
+             p.set_value(cfg, v)
 
-class ParticleIII(Particle):
-    """
-    At each step, randomly chooses one motion out of:
-    (i) continuing previous motion
-    (ii) moving towards local best
-    (iii) moving towards global best
-    """
-
-    def move(self, global_best):
-        m = self.manipulator
-        # Randomly choose one direction instead of combining all three
-        vs= [
-            m.scale(self.velocity,random.uniform(0,self.omega)),
-            m.scale(m.difference(self.best, self.position),random.uniform(0,self.phi_l)),
-            m.scale(m.difference(global_best, self.position),random.uniform(0,self.phi_g))
-            ]
-                
-        choice = random.randint(0,2)
-        self.velocity = vs[choice]
-        self.position = m.add_v(self.position, vs[choice])
-        
-        
-class ParticleIV(Particle):
-    """
-    Similar to ParticleIII except that velocity can only be a subsequence of the swap sequence
-    velocity, and the unused portion of the swap sequence is stored as the particle's velocity
-    """
-    def move(self, global_best):
-        m = self.manipulator
-        # Randomly choose one direction instead of combining all three
-        vs= [
-            m.split(self.velocity,random.uniform(0,self.omega)),
-            m.split(m.difference(self.best, self.position),random.uniform(0,self.phi_l)),
-            m.split(m.difference(global_best, self.position),random.uniform(0,self.phi_g))
-            ]
-                
-        choice = random.randint(0,2)
-        self.velocity = vs[choice][1]
-        self.position = m.add_v(self.position, vs[choice][0])
-        
-    
+     def discretize(self, v, dmin, dmax, sigma=0.01):
+         ''' Convert from continuous to discrete ordinal values based on method described by Veeramachaneni 2007 
+             v: a continuous value
+             dmin, dmax: min and max values in the discrete space
+             sigma: variance introduced by gaussian noise
+             return: dicrete value in range [dmin, dmax]
+         '''
+         M = dmax - dmin + 1
+         m = round(math.gauss(M/(1+math.exp(-v)), sigma))
+         return max(dmin, min(dmax, m))
+"""         
 class PSOmanipulator(manipulator.ConfigurationManipulator):
     def __init__(self, crossover, *pargs, **kwargs):
         super(PSOmanipulator, self).__init__(*pargs, **kwargs)
         self.crossover_choice = crossover
-
-    def difference(self, cfg1, cfg2):
-        """ Return the difference of two positions i.e. velocity """
-        v = self.copy(cfg1)
-        for p in self.params:
-            if p.is_numeric():
-                p.difference(v, cfg1, cfg2)
-            else:
-                pass
-
-        return v
-        
 
     def mix(self, dest, cfg1, cfg2):
         params = self.params
