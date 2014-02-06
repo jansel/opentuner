@@ -9,9 +9,6 @@ import hashlib
 import logging
 import re
 import math
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy
 import os
 import subprocess
 import sys
@@ -43,34 +40,41 @@ argparser.add_argument('--stats-dir', default='stats',
 argparser.add_argument('--stats-input', default="opentuner.db")
 argparser.add_argument('--min-runs',  type=int, default=1,
                        help="ignore series with less then N runs")
-argparser.add_argument('--ylimit', type=int, nargs=2, default=[0,2],
-                       help="Specify limit of y coordinates in graph")
 
 PCTSTEPS = map(_/20.0, xrange(21))
 
 def mean(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  n = 0.0
+  d = 0.0
+  for v in vals:
+    if v is not None:
+      n += v
+      d += 1.0
+  if d == 0.0:
     return None
-  return numpy.mean(numpy.array(filtered_values))
+  return n/d
 
 def median(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.median(numpy.array(filtered_values))
+  vals = sorted(vals)
+  a = (len(vals)-1)/2
+  b = (len(vals))/2
+  return (vals[a]+vals[b])/2.0
 
 def percentile(vals, pct):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
-    return None
-  return numpy.percentile(numpy.array(filtered_values), pct)
+  vals = sorted(vals)
+  pos = (len(vals)-1) * pct
+  a = int(math.floor(pos))
+  b = min(len(vals) - 1, a + 1)
+  return (1.0-(pos-a))*vals[a] + (pos-a)*vals[b]
 
 def variance(vals):
-  filtered_values = [float(x) for x in vals if x is not None]
-  if (len(filtered_values) == 0):
+  vals = filter(lambda x: x is not None, vals)
+  avg = mean(vals)
+  if avg is None:
     return None
-  return numpy.var(numpy.array(filtered_values))
+  if avg in (float('inf'), float('-inf')):
+    return avg
+  return mean(map((_ - avg) ** 2, vals))
 
 def stddev(vals):
   var = variance(vals)
@@ -226,21 +230,18 @@ class StatsMain(object):
                         4*n + 9,
                         k))
       self.gnuplot_summary_file('stats', 'summary', plotcmd)
-      self.matplotlibplot_summary_file(['stats/summary.dat'], [(3,5), (7,9), (11,13), (15,17)])
+
+
 
     for d, label_runs in dir_label_runs.iteritems():
       labels = [k for k,v in label_runs.iteritems()
                 if len(v)>=self.args.min_runs]
-      dir_name = "%s/" % d
-      self.matplotlibplot_file(dir_name, labels, d, "medianperfe", [0,11], ylim=self.args.ylimit)
-      self.matplotlibplot_file(dir_name, labels, d, "meanperfe", [0,20], ylim=self.args.ylimit)
-      # Add remaining two graphs as well
-      # self.gnuplot_file(d,
-      #                   "medianperfe",
-      #                   ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
-      # self.gnuplot_file(d,
-      #                   "meanperfe",
-      #                   ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "medianperfe",
+                        ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "meanperfe",
+                        ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
       self.gnuplot_file(d,
                         "medianperfl",
                         ['"%s_percentiles.dat" using 1:12 with lines title "%s"' % (l,l) for l in labels])
@@ -389,37 +390,6 @@ class StatsMain(object):
     except OSError:
       log.error("command gnuplot not found")
 
-  def matplotlibplot_file(self, input_dir, labels, output_dir, prefix, cols, xlim = None, ylim = None):
-    output_file = "%s/%s" % (output_dir, prefix)
-    plt.figure()
-    index = 0
-    data_files = [(input_dir + '%s_percentiles.dat') % l for l in labels]
-    for data_file in data_files:
-      data = []
-      with open(data_file) as f:
-        for line in f:
-          data.append(line.strip().split(' '))
-      plotted_data = [[] for x in xrange(len(cols) - 1)]
-      x_indices = []
-      for data_point in data[1:]:
-        x_indices.append(int(data_point[cols[0]]))
-        for i in range(0, len(cols)-1):
-          plotted_data[i].append(float(data_point[cols[i+1]]))
-      args = []
-      for to_plot in plotted_data:
-        args.append(x_indices)
-        args.append(to_plot)
-      plt.plot(*args, label=labels[index])
-      index += 1
-    if xlim is not None:
-      plt.xlim(xlim)
-    if ylim is not None:
-      plt.ylim(ylim)
-    plt.xlabel('Autotuning Time (seconds)')
-    plt.ylabel('Execution Time (seconds)')
-    plt.legend(loc='upper right')
-    plt.savefig(prefix)
-
   def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
       print >>fd, 'set terminal postscript eps enhanced color'
@@ -442,26 +412,6 @@ set ytics 1
       print >>fd, 'plot', ',\\\n'.join(plotcmd)
     subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
 
-  def matplotlibplot_summary_file(self, data_files, cols):
-    for data_file in data_files:
-      data = []
-      with open(data_file) as f:
-        for line in f:
-          data.append(line.strip().split(' '))
-      plotted_data = []
-      err = []
-      bincenters = numpy.arange(4)
-      plt.figure()
-      for data_point in data[1:]:
-        for col in cols:
-          (lb, ub) = col
-          data_to_be_plotted = mean(data_point[lb-1:ub])
-          plotted_data.append(data_to_be_plotted)
-          err.append(5 * stddev(data_point[lb-1:ub]))
-        # Now plot the data in plotted_data and err
-        plt.bar(bincenters, plotted_data, width=0.25, yerr=err, color='r')
-        plt.xticks(numpy.arange(len(data[0][1:])), data[0][1:])
-        plt.savefig('summary')
 
   def stats_over_time(self,
                       session,
@@ -505,6 +455,9 @@ set ytics 1
         value_by_quanta[-1] = combine_fn(value_by_quanta[-1], extract_fn(dr))
 
     return value_by_quanta
+
+
+
 
 
 if __name__ == '__main__':

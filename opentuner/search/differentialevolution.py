@@ -1,17 +1,16 @@
-import abc
-import copy
 import random
 import time
 import logging
 from fn import _
-from opentuner.resultsdb.models import *
-from technique import SearchTechnique, register
+from technique import register
+from technique import SearchTechnique
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARNING)
 
+
 class PopulationMember(object):
-  def __init__(self, config, submitted = True):
+  def __init__(self, config, submitted=True):
     self.config = config
     self.submitted = submitted
     self.timestamp = time.time()
@@ -20,15 +19,18 @@ class PopulationMember(object):
   def touch(self):
     self.timestamp = time.time()
 
+
 class DifferentialEvolution(SearchTechnique):
-  '''
+  """
   based on http://cci.lbl.gov/cctbx_sources/scitbx/differential_evolution.py
-  '''
+  """
+
   def __init__(self,
                population_size=30,
-               cr=0.9, # crossover rate
-               n_cross=1, # force at least 1 to crossover
-               information_sharing=1, # number token sharing pop members
+               cr=0.9,  # crossover rate
+               n_cross=1,  # force at least 1 to crossover
+               information_sharing=1,  # number token sharing pop members
+               duplicate_retries=5,  # how many times to retry on duplicate
                *pargs, **kwargs):
 
     self.population_size = population_size
@@ -36,15 +38,15 @@ class DifferentialEvolution(SearchTechnique):
     self.n_cross = n_cross
     self.information_sharing = information_sharing
     self.population = None
+    self.duplicate_retries = duplicate_retries
+    self.limit = None
     super(DifferentialEvolution, self).__init__(*pargs, **kwargs)
 
   def initial_population(self):
-    self.population = [
-        PopulationMember(self.driver.get_configuration(
-                                            self.manipulator.random()),
-                         submitted = False)
-        for z in xrange(self.population_size)
-      ]
+    self.population = [PopulationMember(
+        self.driver.get_configuration(
+            self.manipulator.random()), submitted=False)
+        for z in xrange(self.population_size)]
 
   def oldest_pop_member(self):
     # since tests are run in parallel, exclude things with a replacement pending
@@ -53,15 +55,13 @@ class DifferentialEvolution(SearchTechnique):
     if not pop_without_replacements:
       # everything has a pending replacement
       return None
-    pop_without_replacements.sort(key = _.timestamp)
+    pop_without_replacements.sort(key=_.timestamp)
     return pop_without_replacements[0]
 
   def desired_configuration(self):
-    '''
+    """
     return a cfg that we should test,
-    '''
-    manipulator = self.manipulator
-
+    """
     if not self.population:
       # first time called
       self.initial_population()
@@ -71,17 +71,33 @@ class DifferentialEvolution(SearchTechnique):
       if not p.submitted:
         p.submitted = True
         if p is self.population[-1]:
-          log.info("initial population testing done")
+          log.info('initial population testing done')
         return p.config
 
     # pp is member of population to be replaced
-    pp = self.oldest_pop_member()
-    if not pp: return None
-    cfg = manipulator.copy(pp.config.data)
-    cfg_params = manipulator.proxy(cfg)
+    oldest_pop_member = self.oldest_pop_member()
+    if not oldest_pop_member:
+      return None
+
+    for retry in xrange(self.duplicate_retries):
+      config = self.driver.get_configuration(
+          self.create_new_configuration(oldest_pop_member))
+      if not self.driver.has_results(config):
+        break
+      # new configuration would have been a duplicate, try again
+
+    oldest_pop_member.touch()  # move to back of the line for next replacement
+    oldest_pop_member.candidate_replacement = config
+    self.limit = self.driver.objective.limit_from_config(
+        oldest_pop_member.config)
+    return oldest_pop_member.candidate_replacement
+
+  def create_new_configuration(self, parent_pop_member):
+    cfg = self.manipulator.copy(parent_pop_member.config.data)
+    cfg_params = self.manipulator.proxy(cfg)
 
     # pick 3 random parents, not pp
-    shuffled_pop = list(set(self.population) - set([pp]))
+    shuffled_pop = list(set(self.population) - set([parent_pop_member]))
 
     # share information with other techniques
     if self.driver.best_result:
@@ -91,29 +107,27 @@ class DifferentialEvolution(SearchTechnique):
     random.shuffle(shuffled_pop)
     x1, x2, x3 = map(_.config.data, shuffled_pop[0:3])
 
-    use_f = random.random()/2.0 + 0.5
+    use_f = random.random() / 2.0 + 0.5
 
-    params = manipulator.param_names(cfg, x1, x2, x3)
+    params = self.manipulator.param_names(cfg, x1, x2, x3)
     random.shuffle(params)
     for i, k in enumerate(params):
-      if i<self.n_cross or random.random() < self.cr:
+      if i < self.n_cross or random.random() < self.cr:
         # cfg = x1 + use_f*(x2 - x3)
         cfg_params[k].set_linear(1.0, x1, use_f, x2, -use_f, x3)
 
-    pp.touch() # move to back of the line for next replacement
-    pp.candidate_replacement = self.driver.get_configuration(cfg)
-    self.limit = self.driver.objective.limit_from_config(pp.config)
-    return pp.candidate_replacement
+    return cfg
 
   def handle_requested_result(self, result):
-    '''called when new results are added'''
+    """called when new results are added"""
     for p in self.population:
       if p.candidate_replacement == result.configuration:
         if self.objective.lt(p.candidate_replacement, p.config):
           # candidate replacement was better, replace it!
           p.config = p.candidate_replacement
-          log.info("better point")
+          log.info('better point')
         p.candidate_replacement = None
+
 
 class DifferentialEvolutionAlt(DifferentialEvolution):
   def __init__(self, cr=0.2, **kwargs):
@@ -121,7 +135,7 @@ class DifferentialEvolutionAlt(DifferentialEvolution):
     super(DifferentialEvolutionAlt, self).__init__(**kwargs)
 
 
-register(DifferentialEvolution(name='de'))
+register(DifferentialEvolution())
 register(DifferentialEvolutionAlt())
 
 
