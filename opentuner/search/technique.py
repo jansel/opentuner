@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 #log.setLevel(logging.DEBUG)
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--technique', action='append',
+argparser.add_argument('--technique','-t', action='append',
                        help="which technique to use")
 argparser.add_argument('--list-techniques', action='store_true',
                        help="list techniques available and exit")
