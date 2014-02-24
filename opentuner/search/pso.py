@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from opentuner.search import technique, manipulator
+from manipulator import *
+from opentuner.search import technique
 import random
 import math
 
@@ -13,14 +14,14 @@ class PSO(technique.SequentialSearchTechnique ):
         self.crossover = crossover
         self.name = 'pso-'+crossover
         self.init_pop = init_pop
-	self.N = N
+        self.N = N
 
     def main_generator(self):
         
         objective   = self.objective
         driver      = self.driver
 #        m = PSOmanipulator(self.crossover, self.manipulator.params)
-	m = self.manipulator
+        m = self.manipulator
         def config(cfg):
             return driver.get_configuration(cfg)
     
@@ -43,7 +44,6 @@ class PSO(technique.SequentialSearchTechnique ):
                 if objective.lt(config(particle.position), config(particle.best)):
                     particle.best = particle.position
                            
- 
 
 class HybridParticle(object):
     def __init__(self, m, crossover_choice, omega=1, phi_l=0.5, phi_g=0.5):
@@ -64,30 +64,71 @@ class HybridParticle(object):
         self.crossover_choice = crossover_choice
         self.velocity = {}
         for p in self.manipulator.params:
-            #if p.is_primitive():
+			# Probablistic update: currently only permutation
+			if p.is_permutation():
+				self.velocity=None
+				self.position=None
+			# Deterministc update
+				# Continuous
+			
+
+				# Discrete: need mapping
+
+
+
             self.velocity[p.name]=0  
+            p.continuous = False
+            p.nominal = False
+            p.ordinal = False
+            for t in continous_params:
+                if isinstance(p, t):
+                    p.continous = True
+            for t in nominal_params:
+                if isinstance(p, t):
+                    p.nominal = True
+            for t in ordinal_params:
+                if isinstance(p, t):
+                    p.ordinal = True     
+
 
     def move(self, global_best):
+        """
+        Update parameter values using corresponding operators. 
+        TODO: introduce operator choice map
+        """
         m = self.manipulator
         #print "cfg length check:", len(self.velocity), len(self.position)
         for p in m.params:
-            print "moving", p.name, p
-            if p.is_permutation():
+            if p.is_permutation(): #or other parameter that requirs probablistic intepretation
                 if random.uniform(0,1)>self.omega:
                     if random.uniform(0,1)<self.phi_l:
                         # Select crossover operator
                         getattr(p, self.crossover_choice)(self.position, self.position, global_best, d=p.size/3)
                     else:
                         getattr(p, self.crossover_choice)(self.position, self.position, self.best, d=p.size/3)
-            elif p.is_boolean(): #fixed at the moment
-                    #print "can't move boolean", p.name
-                    pass
-            elif p.is_continuous():
-                    print "local best", p._get(self.best), "position", p._get(self.position), "velocity", p._get(self.velocity)
-                    p.weighted_sum(self.velocity, [self.velocity, self.position, self.best, global_best],[self.omega, -self.phi_l-self.phi_g, self.phi_l, self.phi_g])
+            else:
+                # Continuous velocity representation regardless of param type
+				v = self.velocity+(-self.phi_l-self.phi_g)*self.position+ self.best*self.phi_l+ global_best*self.phi_g
+
+                if p.is_continuous():
+                # If continuous, update position directly
                     p.weighted_sum(self.position, [self.position,self.velocity],[1,1])
+
+                # Discrete parameters
+                elif p.is_ordinal():        
+                    k = p.nvalues()         
+                    # Map position to discrete space
+                    n1 = k/(1+exp(-self.position))
+                    # Add Gaussian noise and round
+                    n2 = round(random.gauss(c, sigma*(k-1)))
+                    n3 = min(k, max(n2, 1)) 
+                    p.set_value(n3, self.position)
+                     
+    #               print "local best", p._get(self.best), "position", p._get(self.position), "velocity", p._get(self.velocity)
                     print "local best", p._get(self.best), "global", p._get(global_best), "position", p._get(self.position), "velocity", p._get(self.velocity)
-        
+                else:
+                    print "behavior undefined for", p
+
 class Position(object):
     def __init__(self, manipulator):
         self.manipulator = manipulator
@@ -99,7 +140,7 @@ class Position(object):
                 # Map discrete values to continuous domain
                 self.dimensions[p.name]= random.uniform(*p.legal_range())
             else:
-                self.dimensions[p.name] = p.get_value(r)
+                self.dimensions[p.name] = None
 """
      def to_cfg(self):
          for p in self.manipulator.params:
@@ -119,7 +160,7 @@ class Position(object):
          m = round(math.gauss(M/(1+math.exp(-v)), sigma))
          return max(dmin, min(dmax, m))
 """         
-class PSOmanipulator(manipulator.ConfigurationManipulator):
+class PSOmanipulator(ConfigurationManipulator):
     def __init__(self, crossover, *pargs, **kwargs):
         super(PSOmanipulator, self).__init__(*pargs, **kwargs)
         self.crossover_choice = crossover
@@ -185,7 +226,16 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
          
-                                
+
+    
+continous_params = [FloatParameter]
+ordinal_params = [BooleanParameter, IntegerParameter]
+nominal_params = [SwitchParameter, EnumParameter]
+discrete_params = ordinal_params+nominal_params
+
+params1D = continous_params+discrete_params
+paramsND = [PermutationParameter, ArrayParameter]
+
 
 technique.register(PSO(crossover = 'OX3'))
 technique.register(PSO(crossover = 'OX1'))
