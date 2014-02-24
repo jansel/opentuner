@@ -116,12 +116,13 @@ class CrossoverMixin(object):
     return one offspring cfg
     '''
     cfg1, cfg2, = cfgs
+    new = self.manipulator.copy(cfg1)
     params = self.manipulator.parameters(cfg1)
     for param in params:
       if param.is_permutation() and param.size>6:
-        new = getattr(param, self.crossover_op)(cfg1, cfg2)[0]
-	return new
-    return cfg1
+        getattr(param, self.crossover_op)(new, cfg1, cfg2, d=param.size/3)
+	break
+    return new
 
 
 class UniformGreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):
@@ -138,6 +139,7 @@ technique.register(GA(crossover = 'OX1', mutation_rate=0.10,crossover_rate=0.8))
 technique.register(GA(crossover = 'PX', mutation_rate=0.10, crossover_rate=0.8))
 technique.register(GA(crossover = 'CX', mutation_rate=0.10, crossover_rate=0.8))
 technique.register(GA(crossover = 'PMX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(UniformGreedyMutation(name='ga-base', mutation_rate=0.10))
 
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation10', mutation_rate=0.10))

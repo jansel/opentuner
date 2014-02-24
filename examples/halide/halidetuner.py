@@ -241,14 +241,16 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
             last_var_name, var_name, split_factor)
 
       # drop unused variables and truncate (Halide supports only 10 reorders)
-      print >> o, '.reorder({0})'.format(
-        ', '.join(reversed(var_name_order[name][:10])))
+      if len(var_name_order[name]) > 1:
+        print >> o, '.reorder({0})'.format(
+            ', '.join(reversed(var_name_order[name][:10])))
 
       # reorder_storage
       store_order_enabled = cfg['{0}_store_order_enabled'.format(name)]
       if store_order_enabled or not self.args.gated_store_reorder:
         store_order = cfg['{0}_store_order'.format(name)]
-        print >> o, '.reorder_storage({0})'.format(', '.join(store_order))
+        if len(store_order) > 1:
+          print >> o, '.reorder_storage({0})'.format(', '.join(store_order))
 
       if unroll > 1:
         print >> o, '.unroll({0}, {1})'.format(
