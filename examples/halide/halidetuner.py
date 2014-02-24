@@ -41,7 +41,7 @@ from opentuner.search.manipulator import ScheduleParameter
 
 COMPILE_CMD = (
   '{args.cxx} "{cpp}" -o "{bin}" -I "{args.halide_dir}/include" '
-  '"{args.halide_dir}/bin/libHalide.a" -ldl -lpthread {args.cxxflags} '
+  '"{args.halide_dir}/bin/$BUILD_PREFIX/libHalide.a" -ldl -lpthread {args.cxxflags} '
   '-DAUTOTUNE_N="{args.input_size}" -DAUTOTUNE_TRIALS={args.trials} '
   '-DAUTOTUNE_LIMIT={limit} -fno-rtti')
 
@@ -411,7 +411,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
                                        'dump-call-graph')
     if not os.path.isdir(dump_call_graph_dir):
       subprocess.check_call(['git', 'clone',
-                             'git@github.com:jansel/dump-call-graph.git'])
+                             'http://github.com/halide/dump-call-graph.git'])
       assert os.path.isdir(dump_call_graph_dir)
 
     dump_call_graph_cpp = os.path.join(dump_call_graph_dir, 'DumpCallGraph.cpp')
