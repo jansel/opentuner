@@ -41,7 +41,7 @@ from opentuner.search.manipulator import ScheduleParameter
 
 COMPILE_CMD = (
   '{args.cxx} "{cpp}" -o "{bin}" -I "{args.halide_dir}/include" '
-  '"{args.halide_dir}/bin/libHalide.a" -ldl -lpthread {args.cxxflags} '
+  '"{args.halide_dir}/bin/$BUILD_PREFIX/libHalide.a" -ldl -lpthread {args.cxxflags} '
   '-DAUTOTUNE_N="{args.input_size}" -DAUTOTUNE_TRIALS={args.trials} '
   '-DAUTOTUNE_LIMIT={limit} -fno-rtti')
 
