@@ -409,7 +409,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
                                        'dump-call-graph')
     if not os.path.isdir(dump_call_graph_dir):
       subprocess.check_call(['git', 'clone',
-                             'git@github.com:jansel/dump-call-graph.git'])
+                             'http://github.com/halide/dump-call-graph.git'])
       assert os.path.isdir(dump_call_graph_dir)
 
     dump_call_graph_cpp = os.path.join(dump_call_graph_dir, 'DumpCallGraph.cpp')
