@@ -214,7 +214,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       else:
         unroll = 1
 
-      print >> o, name
+      print >> o, 'Halide::Func(funcs["%s"])' % name
 
       for var in func['vars']:
         # handle all splits
@@ -298,8 +298,15 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     """
 
     def repl_autotune_hook(match):
-      return '\n\n%s\n\n_autotune_timing_stub(%s);' % (
-        schedule, match.group(1))
+      tmpl = '''
+    {
+        std::map<std::string, Halide::Internal::Function> funcs = Halide::Internal::find_transitive_calls((%(func)s).function());
+
+        %(sched)s
+
+        _autotune_timing_stub(%(func)s);
+    }'''
+      return tmpl % {"sched": schedule.replace('\n', '\n        '), "func": match.group(1)}
 
     source = re.sub(r'\n\s*AUTOTUNE_HOOK\(\s*([a-zA-Z0-9_]+)\s*\)',
                     repl_autotune_hook, self.template)

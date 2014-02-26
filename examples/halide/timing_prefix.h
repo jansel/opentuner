@@ -3,6 +3,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <map>
+#include <string>
+
 // How many times to run (and take min)
 // #define AUTOTUNE_TRIALS 3
 
