@@ -1,4 +1,4 @@
-{"input_size": "1024, 1024",
+{"input_size": "4096, 4096",
  "functions": [
                {"name": "blur_x", "vars": ["x", "y"], "calls": []},
                {"name": "blur_y", "vars": ["x", "y"], "calls": ["blur_x"]}]}
