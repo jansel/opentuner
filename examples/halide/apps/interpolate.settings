@@ -1,51 +1,612 @@
-{"input_size": "2048, 2048, 3",
- "functions": [{"name": "clamped", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[0]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[1]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[2]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[3]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[4]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[5]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[6]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[7]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[8]", "vars": ["x", "y", "c"]},
-               {"name": "downsampled[9]", "vars": ["x", "y", "c"]},
-               {"name": "downx[1]", "vars": ["x", "y", "c"]},
-               {"name": "downx[2]", "vars": ["x", "y", "c"]},
-               {"name": "downx[3]", "vars": ["x", "y", "c"]},
-               {"name": "downx[4]", "vars": ["x", "y", "c"]},
-               {"name": "downx[5]", "vars": ["x", "y", "c"]},
-               {"name": "downx[6]", "vars": ["x", "y", "c"]},
-               {"name": "downx[7]", "vars": ["x", "y", "c"]},
-               {"name": "downx[8]", "vars": ["x", "y", "c"]},
-               {"name": "downx[9]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[0]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[1]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[2]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[3]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[4]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[5]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[6]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[7]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[8]", "vars": ["x", "y", "c"]},
-               {"name": "interpolated[9]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[0]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[1]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[2]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[3]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[4]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[5]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[6]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[7]", "vars": ["x", "y", "c"]},
-               {"name": "upsampled[8]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[0]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[1]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[2]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[3]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[4]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[5]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[6]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[7]", "vars": ["x", "y", "c"]},
-               {"name": "upsampledx[8]", "vars": ["x", "y", "c"]},
-               {"name": "normalize", "vars": ["x", "y", "c"]},
-               {"name": "final", "vars": ["x", "y", "c"]}]}
+{
+  "functions": [
+    {
+      "calls": [
+        "f50"
+      ], 
+      "name": "f0", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f11"
+      ], 
+      "name": "f1", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f0"
+      ], 
+      "name": "f11", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f1"
+      ], 
+      "name": "f12", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f2"
+      ], 
+      "name": "f13", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f3"
+      ], 
+      "name": "f14", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f4"
+      ], 
+      "name": "f15", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f5"
+      ], 
+      "name": "f16", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f6"
+      ], 
+      "name": "f17", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f7"
+      ], 
+      "name": "f18", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f8"
+      ], 
+      "name": "f19", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f12"
+      ], 
+      "name": "f2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f0", 
+        "f30"
+      ], 
+      "name": "f20", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f1", 
+        "f31"
+      ], 
+      "name": "f21", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f2", 
+        "f32"
+      ], 
+      "name": "f22", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f3", 
+        "f33"
+      ], 
+      "name": "f23", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f34", 
+        "f4"
+      ], 
+      "name": "f24", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f35", 
+        "f5"
+      ], 
+      "name": "f25", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f36", 
+        "f6"
+      ], 
+      "name": "f26", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f37", 
+        "f7"
+      ], 
+      "name": "f27", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f38", 
+        "f8"
+      ], 
+      "name": "f28", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f9"
+      ], 
+      "name": "f29", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f13"
+      ], 
+      "name": "f3", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f40"
+      ], 
+      "name": "f30", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f41"
+      ], 
+      "name": "f31", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f42"
+      ], 
+      "name": "f32", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f43"
+      ], 
+      "name": "f33", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f44"
+      ], 
+      "name": "f34", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f45"
+      ], 
+      "name": "f35", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f46"
+      ], 
+      "name": "f36", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f47"
+      ], 
+      "name": "f37", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f48"
+      ], 
+      "name": "f38", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f14"
+      ], 
+      "name": "f4", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f21"
+      ], 
+      "name": "f40", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f22"
+      ], 
+      "name": "f41", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f23"
+      ], 
+      "name": "f42", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f24"
+      ], 
+      "name": "f43", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f25"
+      ], 
+      "name": "f44", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f26"
+      ], 
+      "name": "f45", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f27"
+      ], 
+      "name": "f46", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f28"
+      ], 
+      "name": "f47", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f29"
+      ], 
+      "name": "f48", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f15"
+      ], 
+      "name": "f5", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [], 
+      "name": "f50", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f16"
+      ], 
+      "name": "f6", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f17"
+      ], 
+      "name": "f7", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f18"
+      ], 
+      "name": "f8", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f19"
+      ], 
+      "name": "f9", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "f20"
+      ], 
+      "name": "normalize", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "normalize"
+      ], 
+      "name": "final", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }
+  ], 
+  "input_size": "2048, 2048, 3"
+}

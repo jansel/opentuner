@@ -265,7 +265,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
         at_func, at_idx = compute_at[name]
         try:
           at_var = var_name_order[at_func][-at_idx]
-          print >> o, '.compute_at({0}, {1})'.format(at_func, at_var)
+          print >> o, '.compute_at(Halide::Func(funcs["{0}"]), {1})'.format(at_func, at_var)
           if not self.args.enable_store_at:
             pass  # disabled
           elif store_at[name] is None:
@@ -273,7 +273,7 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           elif store_at[name] != compute_at[name]:
             at_func, at_idx = store_at[name]
             at_var = var_name_order[at_func][-at_idx]
-            print >> o, '.store_at({0}, {1})'.format(at_func, at_var)
+            print >> o, '.store_at(Halide::Func(funcs["{0}"]), {1})'.format(at_func, at_var)
         except IndexError:
           # this is expected when at_idx is too large
           # TODO: implement a cleaner fix
@@ -431,6 +431,9 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
 
     source = re.sub(r'\n\s*AUTOTUNE_HOOK\(\s*([a-zA-Z0-9_]+)\s*\)',
                     repl_autotune_hook, self.template)
+    # TODO: BUG! - this only works correctly if given an absolute path to the
+    # program (or explicit settings file). Otherwise it generates the callgraph
+    # in a tmp dir somewhere and fails to find it in a local path here.
     source = open(dump_call_graph_cpp).read() + source
     self.run_source(source, extra_args='-I{0}'.format(dump_call_graph_dir))
     callgraph = json.load(open(callgraph_file))

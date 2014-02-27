@@ -75,7 +75,9 @@ int main(int argc, char **argv) {
 
 //std::cout << "Finished function setup." << std::endl;
 
+    {
     AUTOTUNE_HOOK(final);
+    }
 
     int sched;
     char *target = getenv("HL_TARGET");
@@ -162,7 +164,9 @@ int main(int argc, char **argv) {
         assert(0 && "No schedule with this number.");
     }
 
+    {
     BASELINE_HOOK(final);
+    }
 
     /*
     // JIT compile the pipeline eagerly, so we don't interfere with timing

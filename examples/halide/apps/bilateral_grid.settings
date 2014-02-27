@@ -1,4 +1,4 @@
-{"input_size": "512, 512",
+{"input_size": "2048, 2048",
  "functions": [
   {"name": "clamped", "vars": ["x", "y"], "calls": []},
   {"name": "histogram", "vars": ["x", "y", "c"], "calls": ["clamped"]},
