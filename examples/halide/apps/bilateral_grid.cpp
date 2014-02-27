@@ -17,17 +17,17 @@ int main(int argc, char **argv) {
     int s_sigma = 4;
     Var x("x"), y("y"), z("z"), c("c");
 
-    // Add a boundary condition 
+    // Add a boundary condition
     Func clamped("clamped");
     clamped(x, y) = input(clamp(x, 0, input.width()-1),
                           clamp(y, 0, input.height()-1));
 
-    // Construct the bilateral grid 
+    // Construct the bilateral grid
     RDom r(0, s_sigma, 0, s_sigma);
     Expr val = clamped(x * s_sigma + r.x - s_sigma/2, y * s_sigma + r.y - s_sigma/2);
     val = clamp(val, 0.0f, 1.0f);
     Expr zi = cast<int>(val * (1.0f/r_sigma) + 0.5f);
-    Func grid("grid"), histogram("histogram");    
+    Func grid("grid"), histogram("histogram");
     histogram(x, y, zi, c) += select(c == 0, val, 1.0f);
 
     // Introduce a dummy function, so we can schedule the histogram within it
@@ -35,9 +35,9 @@ int main(int argc, char **argv) {
 
     // Blur the grid using a five-tap filter
     Func blurx("blurx"), blury("blury"), blurz("blurz");
-    blurx(x, y, z) = grid(x-2, y, z) + grid(x-1, y, z)*4 + grid(x, y, z)*6 + grid(x+1, y, z)*4 + grid(x+2, y, z);
-    blury(x, y, z) = blurx(x, y-2, z) + blurx(x, y-1, z)*4 + blurx(x, y, z)*6 + blurx(x, y+1, z)*4 + blurx(x, y+2, z);
-    blurz(x, y, z) = blury(x, y, z-2) + blury(x, y, z-1)*4 + blury(x, y, z)*6 + blury(x, y, z+1)*4 + blury(x, y, z+2);
+    blurx(x, y, z, _) = grid(x-2, y, z, _) + grid(x-1, y, z, _)*4 + grid(x, y, z, _)*6 + grid(x+1, y, z, _)*4 + grid(x+2, y, z, _);
+    blury(x, y, z, _) = blurx(x, y-2, z, _) + blurx(x, y-1, z, _)*4 + blurx(x, y, z, _)*6 + blurx(x, y+1, z, _)*4 + blurx(x, y+2, z, _);
+    blurz(x, y, z, _) = blury(x, y, z-2, _) + blury(x, y, z-1, _)*4 + blury(x, y, z, _)*6 + blury(x, y, z+1, _)*4 + blury(x, y, z+2, _);
 
     // Take trilinear samples to compute the output
     val = clamp(clamped(x, y), 0.0f, 1.0f);
@@ -49,11 +49,11 @@ int main(int argc, char **argv) {
     Expr xi = x/s_sigma;
     Expr yi = y/s_sigma;
     Func interpolated("interpolated");
-    interpolated(x, y) = 
-        lerp(lerp(lerp(blurz(xi, yi, zi), blurz(xi+1, yi, zi), xf),
-                  lerp(blurz(xi, yi+1, zi), blurz(xi+1, yi+1, zi), xf), yf),
-             lerp(lerp(blurz(xi, yi, zi+1), blurz(xi+1, yi, zi+1), xf),
-                  lerp(blurz(xi, yi+1, zi+1), blurz(xi+1, yi+1, zi+1), xf), yf), zf);
+    interpolated(x, y, _) =
+        lerp(lerp(lerp(blurz(xi, yi, zi, _), blurz(xi+1, yi, zi, _), xf),
+                  lerp(blurz(xi, yi+1, zi, _), blurz(xi+1, yi+1, zi, _), xf), yf),
+             lerp(lerp(blurz(xi, yi, zi+1, _), blurz(xi+1, yi, zi+1, _), xf),
+                  lerp(blurz(xi, yi+1, zi+1, _), blurz(xi+1, yi+1, zi+1, _), xf), yf), zf);
 
     // Normalize
     Func bilateral_grid("bilateral_grid");
@@ -91,6 +91,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-
-
