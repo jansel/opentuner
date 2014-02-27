@@ -393,7 +393,7 @@ class StatsMain(object):
   def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
       print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.pdf')
+      print >>fd, 'set output "%s"' % (prefix+'.eps')
       print >>fd, '''
 set boxwidth 0.9
 set style fill solid 1.00 border 0
