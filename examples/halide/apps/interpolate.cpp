@@ -168,14 +168,15 @@ int main(int argc, char **argv) {
     BASELINE_HOOK(final);
     }
 
-    /*
+#if 0
     // JIT compile the pipeline eagerly, so we don't interfere with timing
     final.compile_jit();
 
-    Image<float> in_png = load<float>(argv[1]);
-    Image<float> out(in_png.width(), in_png.height(), 3);
-    assert(in_png.channels() == 4);
-    input.set(in_png);
+    // Image<float> in_png = load<float>(argv[1]);
+    Image<float> out(2048, 2048, 3);
+    // assert(in_png.channels() == 4);
+    // input.set(in_png);
+    final.infer_input_bounds(out);
 
     std::cout << "Running... " << std::endl;
     double min = std::numeric_limits<double>::infinity();
@@ -193,10 +194,9 @@ int main(int argc, char **argv) {
     }
     std::cout << " took " << min * 1000 << " msec." << std::endl;
 
-    vector<Argument> args;
-    args.push_back(input);
-    final.compile_to_assembly("test.s", args);
-
-    save(out, argv[2]);
-    */
+    // vector<Argument> args;
+    // args.push_back(input);
+    // final.compile_to_assembly("test.s", args);
+    // save(out, argv[2]);
+#endif
 }
