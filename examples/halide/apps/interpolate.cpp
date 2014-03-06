@@ -26,7 +26,7 @@ double now() {
 }
 
 int main(int argc, char **argv) {
-    ImageParam input(Float(32), 3);
+    ImageParam input(Float(32), 3, "input");
 
     const unsigned int levels = 10;
 
@@ -37,7 +37,13 @@ int main(int argc, char **argv) {
     Func upsampledx[levels];
     Var x("x"), y("y"), c("c");
 
-    Func clamped;
+    downsampled[0] = Func("downsampled");
+    downx[0] = Func("downx");
+    interpolated[0] = Func("interpolated");
+    upsampled[0] = Func("upsampled");
+    upsampledx[0] = Func("upsampledx");
+
+    Func clamped("clamped");
     clamped(x, y, c) = input(clamp(x, 0, input.width()-1), clamp(y, 0, input.height()-1), c);
 
     // This triggers a bug in llvm 3.3 (3.2 and trunk are fine), so we
@@ -47,6 +53,8 @@ int main(int argc, char **argv) {
     downsampled[0](x, y, c) = clamped(x, y, c) * clamped(x, y, 3);
 
     for (unsigned int l = 1; l < levels; ++l) {
+        downx[l] = Func("downx");
+        downsampled[l] = Func("downsampled");
         downx[l](x, y, c) = (downsampled[l-1](x*2-1, y, c) +
                              2.0f * downsampled[l-1](x*2, y, c) +
                              downsampled[l-1](x*2+1, y, c)) * 0.25f;
@@ -54,8 +62,12 @@ int main(int argc, char **argv) {
                                    2.0f * downx[l](x, y*2, c) +
                                    downx[l](x, y*2+1, c)) * 0.25f;
     }
+    interpolated[levels-1] = Func("interpolated");
     interpolated[levels-1](x, y, c) = downsampled[levels-1](x, y, c);
     for (unsigned int l = levels-2; l < levels; --l) {
+        upsampledx[l] = Func("upsampledx");
+        upsampled[l] = Func("upsampled");
+        interpolated[l] = Func("interpolated");
         upsampledx[l](x, y, c) = select((x % 2) == 0,
                                         interpolated[l+1](x/2, y, c),
                                         0.5f * (interpolated[l+1](x/2, y, c) +
@@ -73,11 +85,7 @@ int main(int argc, char **argv) {
     Func final("final");
     final(x, y, c) = normalize(x, y, c);
 
-//std::cout << "Finished function setup." << std::endl;
-
-    {
     AUTOTUNE_HOOK(final);
-    }
 
     int sched;
     char *target = getenv("HL_TARGET");
@@ -164,9 +172,7 @@ int main(int argc, char **argv) {
         assert(0 && "No schedule with this number.");
     }
 
-    {
     BASELINE_HOOK(final);
-    }
 
 #if 0
     // JIT compile the pipeline eagerly, so we don't interfere with timing
