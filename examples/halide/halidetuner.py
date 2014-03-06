@@ -205,9 +205,10 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       var_name_order[name] = [var_names[(name, v, n)] for v, n in compute_order
                               if (name, v, n) in var_names]
 
+    # set a schedule for each function
     for func in self.settings['functions']:
       name = func['name']
-      inner_var_name = var_name_order[name][-1]
+      inner_var_name = var_name_order[name][-1] # innermost variable in the reordered list for this func
       vectorize = cfg['{0}_vectorize'.format(name)]
       if self.args.enable_unroll:
         unroll = cfg['{0}_unroll'.format(name)]
@@ -232,7 +233,8 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
             split_factor *= split_factor2
           var_name = var_names[(name, var, nesting)]
           last_var_name = var_names[(name, var, nesting - 1)]
-
+          
+          # apply unroll, vectorize factors to all surrounding splits iff we're the innermost var
           if var_name == inner_var_name:
             split_factor *= unroll
             split_factor *= vectorize
@@ -253,13 +255,16 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           print >> o, '.reorder_storage({0})'.format(', '.join(store_order))
 
       if unroll > 1:
+        # apply unrolling to innermost var
         print >> o, '.unroll({0}, {1})'.format(
           var_name_order[name][-1], unroll * vectorize)
 
       if vectorize > 1:
+        # apply vectorization to innermost var
         print >> o, '.vectorize({0}, {1})'.format(
           var_name_order[name][-1], vectorize)
-
+      
+      # compute_at(not root)
       if (compute_at[name] is not None and
               len(var_name_order[compute_at[name][0]]) >= compute_at[name][1]):
         at_func, at_idx = compute_at[name]
@@ -278,9 +283,11 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           # this is expected when at_idx is too large
           # TODO: implement a cleaner fix
           pass
+      # compute_root
       else:
         parallel = cfg['{0}_parallel'.format(name)]
         if parallel:
+          # only apply parallelism to outermost var of root funcs
           print >> o, '.parallel({0})'.format(var_name_order[name][0])
         print >> o, '.compute_root()'
 
