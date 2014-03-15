@@ -62,8 +62,8 @@ parser.add_argument('--max-split-factor', default=8, type=int,
                     help='The largest value a single split() can add')
 parser.add_argument('--compile-command', default=COMPILE_CMD,
                     help='How to compile generated C++ code')
-parser.add_argument('--cxx', default='clang++',
-                    help='C++ compiler to use (g++ or clang++)')
+parser.add_argument('--cxx', default='c++',
+                    help='C++ compiler to use (e.g., g++ or clang++)')
 parser.add_argument('--cxxflags', default='',
                     help='Extra flags to the C++ compiler')
 parser.add_argument('--tmp-dir',
