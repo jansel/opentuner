@@ -132,6 +132,13 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       self.settings = None
       self.post_dominators = None
       args.input_size = '1, 1'
+    # set "program_version" based on hash of halidetuner.py, program source
+    h = hashlib.md5()
+    #with open(__file__) as src:
+    #  h.update(src.read())
+    with open(args.source) as src:
+      h.update(src.read())
+    self._version = h.hexdigest()
 
   def compute_order_parameter(self, func):
     name = func['name']
