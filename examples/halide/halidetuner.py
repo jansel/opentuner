@@ -62,8 +62,8 @@ parser.add_argument('--max-split-factor', default=8, type=int,
                     help='The largest value a single split() can add')
 parser.add_argument('--compile-command', default=COMPILE_CMD,
                     help='How to compile generated C++ code')
-parser.add_argument('--cxx', default='clang++',
-                    help='C++ compiler to use (g++ or clang++)')
+parser.add_argument('--cxx', default='c++',
+                    help='C++ compiler to use (e.g., g++ or clang++)')
 parser.add_argument('--cxxflags', default='',
                     help='Extra flags to the C++ compiler')
 parser.add_argument('--tmp-dir',
@@ -132,6 +132,13 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       self.settings = None
       self.post_dominators = None
       args.input_size = '1, 1'
+    # set "program_version" based on hash of halidetuner.py, program source
+    h = hashlib.md5()
+    #with open(__file__) as src:
+    #  h.update(src.read())
+    with open(args.source) as src:
+      h.update(src.read())
+    self._version = h.hexdigest()
 
   def compute_order_parameter(self, func):
     name = func['name']
@@ -205,9 +212,10 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
       var_name_order[name] = [var_names[(name, v, n)] for v, n in compute_order
                               if (name, v, n) in var_names]
 
+    # set a schedule for each function
     for func in self.settings['functions']:
       name = func['name']
-      inner_var_name = var_name_order[name][-1]
+      inner_var_name = var_name_order[name][-1] # innermost variable in the reordered list for this func
       vectorize = cfg['{0}_vectorize'.format(name)]
       if self.args.enable_unroll:
         unroll = cfg['{0}_unroll'.format(name)]
@@ -232,7 +240,8 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
             split_factor *= split_factor2
           var_name = var_names[(name, var, nesting)]
           last_var_name = var_names[(name, var, nesting - 1)]
-
+          
+          # apply unroll, vectorize factors to all surrounding splits iff we're the innermost var
           if var_name == inner_var_name:
             split_factor *= unroll
             split_factor *= vectorize
@@ -253,13 +262,16 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           print >> o, '.reorder_storage({0})'.format(', '.join(store_order))
 
       if unroll > 1:
+        # apply unrolling to innermost var
         print >> o, '.unroll({0}, {1})'.format(
           var_name_order[name][-1], unroll * vectorize)
 
       if vectorize > 1:
+        # apply vectorization to innermost var
         print >> o, '.vectorize({0}, {1})'.format(
           var_name_order[name][-1], vectorize)
-
+      
+      # compute_at(not root)
       if (compute_at[name] is not None and
               len(var_name_order[compute_at[name][0]]) >= compute_at[name][1]):
         at_func, at_idx = compute_at[name]
@@ -278,9 +290,11 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
           # this is expected when at_idx is too large
           # TODO: implement a cleaner fix
           pass
+      # compute_root
       else:
         parallel = cfg['{0}_parallel'.format(name)]
         if parallel:
+          # only apply parallelism to outermost var of root funcs
           print >> o, '.parallel({0})'.format(var_name_order[name][0])
         print >> o, '.compute_root()'
 
@@ -333,12 +347,19 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     return self.run_source(source)
 
   def run_source(self, source, limit=0, extra_args=''):
+    cmd = ''
     with tempfile.NamedTemporaryFile(suffix='.cpp', prefix='halide',
                                      dir=self.args.tmp_dir) as cppfile:
       cppfile.write(source)
       cppfile.flush()
       # binfile = os.path.splitext(cppfile.name)[0] + '.bin'
-      binfile = '/tmp/halide.bin'
+      # binfile = '/tmp/halide.bin'
+      binfile = ''
+      with tempfile.NamedTemporaryFile(suffix='.bin', prefix='halide',
+                                               dir=self.args.tmp_dir, delete=False) as binfiletmp:
+
+        binfile = binfiletmp.name # unique temp file to allow multiple concurrent tuner runs
+      assert(binfile)
       cmd = self.args.compile_command.format(
         cpp=cppfile.name, bin=binfile, args=self.args,
         limit=math.ceil(limit) if limit < float('inf') else 0)
@@ -361,13 +382,17 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
         log.info('compiler timeout %d (%.2f+%.0f cost)', self.args.limit,
                  compile_result['time'], self.args.limit)
         return float('inf')
-      elif returncode == 142:
+      elif returncode == 142 or returncode == -14:
         log.info('program timeout %d (%.2f+%.2f cost)', math.ceil(limit),
                  compile_result['time'], result['time'])
         return None
       elif returncode != 0:
         log.error('invalid schedule (returncode=%d): %s', returncode,
                   stderr.strip())
+        with tempfile.NamedTemporaryFile(suffix='.cpp', prefix='halide-error',
+                                         dir=self.args.tmp_dir, delete=False) as errfile:
+          errfile.write(source)
+          log.error('failed schedule logged to %s.\ncompile as `%s`.', errfile.name, cmd)
         if self.args.debug_error is not None and (
             self.args.debug_error in stderr
         or self.args.debug_error == ""):
@@ -408,10 +433,13 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     print 'Final Configuration:'
     print self.cfg_to_schedule(configuration.data)
 
-  def debug_schedule(self, filename, source):
+  def debug_log_schedule(self, filename, source):
     open(filename, 'w').write(source)
-    raw_input('offending schedule written to {0} press ENTER to continue'.
-              format(filename))
+    print 'offending schedule written to {0}'.format(filename)
+
+  def debug_schedule(self, filename, source):
+    self.debug_log_schedule(filename, source)
+    raw_input('press ENTER to continue')
 
   def make_settings_file(self):
     dump_call_graph_dir = os.path.join(os.path.dirname(__file__),

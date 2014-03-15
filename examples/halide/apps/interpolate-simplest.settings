@@ -1,0 +1,124 @@
+{
+  "functions": [
+    {
+      "calls": [], 
+      "name": "clamped", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "clamped"
+      ], 
+      "name": "downsampled", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downx$2"
+      ], 
+      "name": "downsampled$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled"
+      ], 
+      "name": "downx$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$2"
+      ], 
+      "name": "interpolated$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled", 
+        "upsampled$2"
+      ], 
+      "name": "interpolated$3", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$3"
+      ], 
+      "name": "normalize", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$2"
+      ], 
+      "name": "upsampled$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$2"
+      ], 
+      "name": "upsampledx$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "normalize"
+      ], 
+      "name": "final", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }
+  ], 
+  "input_size": "2048, 2048, 3"
+}

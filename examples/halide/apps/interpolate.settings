@@ -1,533 +1,8 @@
 {
   "functions": [
     {
-      "calls": [
-        "f50"
-      ], 
-      "name": "f0", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f11"
-      ], 
-      "name": "f1", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f0"
-      ], 
-      "name": "f11", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f1"
-      ], 
-      "name": "f12", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f2"
-      ], 
-      "name": "f13", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f3"
-      ], 
-      "name": "f14", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f4"
-      ], 
-      "name": "f15", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f5"
-      ], 
-      "name": "f16", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f6"
-      ], 
-      "name": "f17", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f7"
-      ], 
-      "name": "f18", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f8"
-      ], 
-      "name": "f19", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f12"
-      ], 
-      "name": "f2", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f0", 
-        "f30"
-      ], 
-      "name": "f20", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f1", 
-        "f31"
-      ], 
-      "name": "f21", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f2", 
-        "f32"
-      ], 
-      "name": "f22", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f3", 
-        "f33"
-      ], 
-      "name": "f23", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f34", 
-        "f4"
-      ], 
-      "name": "f24", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f35", 
-        "f5"
-      ], 
-      "name": "f25", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f36", 
-        "f6"
-      ], 
-      "name": "f26", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f37", 
-        "f7"
-      ], 
-      "name": "f27", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f38", 
-        "f8"
-      ], 
-      "name": "f28", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f9"
-      ], 
-      "name": "f29", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f13"
-      ], 
-      "name": "f3", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f40"
-      ], 
-      "name": "f30", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f41"
-      ], 
-      "name": "f31", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f42"
-      ], 
-      "name": "f32", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f43"
-      ], 
-      "name": "f33", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f44"
-      ], 
-      "name": "f34", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f45"
-      ], 
-      "name": "f35", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f46"
-      ], 
-      "name": "f36", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f47"
-      ], 
-      "name": "f37", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f48"
-      ], 
-      "name": "f38", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f14"
-      ], 
-      "name": "f4", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f21"
-      ], 
-      "name": "f40", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f22"
-      ], 
-      "name": "f41", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f23"
-      ], 
-      "name": "f42", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f24"
-      ], 
-      "name": "f43", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f25"
-      ], 
-      "name": "f44", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f26"
-      ], 
-      "name": "f45", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f27"
-      ], 
-      "name": "f46", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f28"
-      ], 
-      "name": "f47", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f29"
-      ], 
-      "name": "f48", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
-      "calls": [
-        "f15"
-      ], 
-      "name": "f5", 
-      "update_calls": [], 
-      "vars": [
-        "x", 
-        "y", 
-        "c"
-      ]
-    }, 
-    {
       "calls": [], 
-      "name": "f50", 
+      "name": "clamped", 
       "update_calls": [], 
       "vars": [
         "x", 
@@ -537,9 +12,9 @@
     }, 
     {
       "calls": [
-        "f16"
+        "clamped"
       ], 
-      "name": "f6", 
+      "name": "downsampled", 
       "update_calls": [], 
       "vars": [
         "x", 
@@ -549,9 +24,9 @@
     }, 
     {
       "calls": [
-        "f17"
+        "downx$10"
       ], 
-      "name": "f7", 
+      "name": "downsampled$10", 
       "update_calls": [], 
       "vars": [
         "x", 
@@ -561,9 +36,9 @@
     }, 
     {
       "calls": [
-        "f18"
+        "downx$2"
       ], 
-      "name": "f8", 
+      "name": "downsampled$2", 
       "update_calls": [], 
       "vars": [
         "x", 
@@ -573,9 +48,9 @@
     }, 
     {
       "calls": [
-        "f19"
+        "downx$3"
       ], 
-      "name": "f9", 
+      "name": "downsampled$3", 
       "update_calls": [], 
       "vars": [
         "x", 
@@ -585,9 +60,534 @@
     }, 
     {
       "calls": [
-        "f20"
+        "downx$4"
+      ], 
+      "name": "downsampled$4", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downx$5"
+      ], 
+      "name": "downsampled$5", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downx$6"
+      ], 
+      "name": "downsampled$6", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downx$7"
+      ], 
+      "name": "downsampled$7", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downx$8"
+      ], 
+      "name": "downsampled$8", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downx$9"
+      ], 
+      "name": "downsampled$9", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$9"
+      ], 
+      "name": "downx$10", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled"
+      ], 
+      "name": "downx$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$2"
+      ], 
+      "name": "downx$3", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$3"
+      ], 
+      "name": "downx$4", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$4"
+      ], 
+      "name": "downx$5", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$5"
+      ], 
+      "name": "downx$6", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$6"
+      ], 
+      "name": "downx$7", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$7"
+      ], 
+      "name": "downx$8", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$8"
+      ], 
+      "name": "downx$9", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$2", 
+        "upsampled$9"
+      ], 
+      "name": "interpolated$10", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled", 
+        "upsampled$10"
+      ], 
+      "name": "interpolated$11", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$10"
+      ], 
+      "name": "interpolated$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$9", 
+        "upsampled$2"
+      ], 
+      "name": "interpolated$3", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$8", 
+        "upsampled$3"
+      ], 
+      "name": "interpolated$4", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$7", 
+        "upsampled$4"
+      ], 
+      "name": "interpolated$5", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$6", 
+        "upsampled$5"
+      ], 
+      "name": "interpolated$6", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$5", 
+        "upsampled$6"
+      ], 
+      "name": "interpolated$7", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$4", 
+        "upsampled$7"
+      ], 
+      "name": "interpolated$8", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "downsampled$3", 
+        "upsampled$8"
+      ], 
+      "name": "interpolated$9", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$11"
       ], 
       "name": "normalize", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$10"
+      ], 
+      "name": "upsampled$10", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$2"
+      ], 
+      "name": "upsampled$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$3"
+      ], 
+      "name": "upsampled$3", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$4"
+      ], 
+      "name": "upsampled$4", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$5"
+      ], 
+      "name": "upsampled$5", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$6"
+      ], 
+      "name": "upsampled$6", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$7"
+      ], 
+      "name": "upsampled$7", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$8"
+      ], 
+      "name": "upsampled$8", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "upsampledx$9"
+      ], 
+      "name": "upsampled$9", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$10"
+      ], 
+      "name": "upsampledx$10", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$2"
+      ], 
+      "name": "upsampledx$2", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$3"
+      ], 
+      "name": "upsampledx$3", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$4"
+      ], 
+      "name": "upsampledx$4", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$5"
+      ], 
+      "name": "upsampledx$5", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$6"
+      ], 
+      "name": "upsampledx$6", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$7"
+      ], 
+      "name": "upsampledx$7", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$8"
+      ], 
+      "name": "upsampledx$8", 
+      "update_calls": [], 
+      "vars": [
+        "x", 
+        "y", 
+        "c"
+      ]
+    }, 
+    {
+      "calls": [
+        "interpolated$9"
+      ], 
+      "name": "upsampledx$9", 
       "update_calls": [], 
       "vars": [
         "x", 
@@ -608,5 +608,5 @@
       ]
     }
   ], 
-  "input_size": "2048, 2048, 3"
+  "input_size": "1024, 1024, 3"
 }
