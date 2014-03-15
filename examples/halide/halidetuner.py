@@ -347,12 +347,19 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     return self.run_source(source)
 
   def run_source(self, source, limit=0, extra_args=''):
+    cmd = ''
     with tempfile.NamedTemporaryFile(suffix='.cpp', prefix='halide',
                                      dir=self.args.tmp_dir) as cppfile:
       cppfile.write(source)
       cppfile.flush()
       # binfile = os.path.splitext(cppfile.name)[0] + '.bin'
-      binfile = '/tmp/halide.bin'
+      # binfile = '/tmp/halide.bin'
+      binfile = ''
+      with tempfile.NamedTemporaryFile(suffix='.bin', prefix='halide',
+                                               dir=self.args.tmp_dir, delete=False) as binfiletmp:
+
+        binfile = binfiletmp.name # unique temp file to allow multiple concurrent tuner runs
+      assert(binfile)
       cmd = self.args.compile_command.format(
         cpp=cppfile.name, bin=binfile, args=self.args,
         limit=math.ceil(limit) if limit < float('inf') else 0)
@@ -375,13 +382,17 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
         log.info('compiler timeout %d (%.2f+%.0f cost)', self.args.limit,
                  compile_result['time'], self.args.limit)
         return float('inf')
-      elif returncode == 142:
+      elif returncode == 142 or returncode == -14:
         log.info('program timeout %d (%.2f+%.2f cost)', math.ceil(limit),
                  compile_result['time'], result['time'])
         return None
       elif returncode != 0:
         log.error('invalid schedule (returncode=%d): %s', returncode,
                   stderr.strip())
+        with tempfile.NamedTemporaryFile(suffix='.cpp', prefix='halide-error',
+                                         dir=self.args.tmp_dir, delete=False) as errfile:
+          errfile.write(source)
+          log.error('failed schedule logged to %s.\ncompile as `%s`.', errfile.name, cmd)
         if self.args.debug_error is not None and (
             self.args.debug_error in stderr
         or self.args.debug_error == ""):
@@ -422,10 +433,13 @@ class HalideTuner(opentuner.measurement.MeasurementInterface):
     print 'Final Configuration:'
     print self.cfg_to_schedule(configuration.data)
 
-  def debug_schedule(self, filename, source):
+  def debug_log_schedule(self, filename, source):
     open(filename, 'w').write(source)
-    raw_input('offending schedule written to {0} press ENTER to continue'.
-              format(filename))
+    print 'offending schedule written to {0}'.format(filename)
+
+  def debug_schedule(self, filename, source):
+    self.debug_log_schedule(filename, source)
+    raw_input('press ENTER to continue')
 
   def make_settings_file(self):
     dump_call_graph_dir = os.path.join(os.path.dirname(__file__),
