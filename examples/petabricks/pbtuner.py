@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import adddeps #fix sys.path
+import adddeps  # fix sys.path
 
 import re
 import argparse
@@ -10,7 +10,6 @@ import tempfile
 import json
 from pprint import pprint
 
-
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           IntegerParameter,
@@ -19,9 +18,7 @@ from opentuner.search.manipulator import (ConfigurationManipulator,
                                           LogFloatParameter,
                                           SelectorParameter,
                                           SwitchParameter,
-                                          PermutationParameter,)
-
-
+                                          PermutationParameter, )
 
 try:
   from lxml import etree
@@ -30,7 +27,6 @@ except ImportError:
 
 from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
-from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import ThresholdAccuracyMinimizeTime
 
 log = logging.getLogger("pbtuner")
@@ -51,6 +47,7 @@ parser.add_argument('--upper-limit', type=float, default=90,
 
 parser.add_argument('--test-config', action='store_true')
 
+
 class PetaBricksInterface(MeasurementInterface):
   def __init__(self, args):
     self.program_settings = json.load(open(args.program_settings))
@@ -59,11 +56,11 @@ class PetaBricksInterface(MeasurementInterface):
 
     # pass many settings to parent constructor
     super(PetaBricksInterface, self).__init__(
-        args,
-        program_name = args.program,
-        program_version = self.file_hash(args.program),
-        input_manager = input_manager,
-        objective = objective)
+      args,
+      program_name=args.program,
+      program_version=self.file_hash(args.program),
+      input_manager=input_manager,
+      objective=objective)
 
   def build_config(self, cfg):
     r = dict()
@@ -87,11 +84,11 @@ class PetaBricksInterface(MeasurementInterface):
   def run(self, desired_result, input, limit):
     limit = min(limit, self.args.upper_limit)
     with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
-      for k,v in self.build_config(desired_result.configuration.data).items():
-        print >>cfgtmp, k, '=', v
+      for k, v in self.build_config(desired_result.configuration.data).items():
+        print >> cfgtmp, k, '=', v
       cfgtmp.flush()
       if args.program_input:
-        input_opts = ['--iogen-run='+args.program_input,
+        input_opts = ['--iogen-run=' + args.program_input,
                       '--iogen-n=%d' % input.input_class.size]
       else:
         input_opts = ['-n=%d' % input.input_class.size]
@@ -100,7 +97,7 @@ class PetaBricksInterface(MeasurementInterface):
              '--time',
              '--accuracy',
              '--max-sec=%.8f' % limit,
-             '--config='+cfgtmp.name] + input_opts
+             '--config=' + cfgtmp.name] + input_opts
       log.debug("cmd: %s", ' '.join(cmd))
       p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
       out, err = p.communicate()
@@ -108,7 +105,7 @@ class PetaBricksInterface(MeasurementInterface):
     result = opentuner.resultsdb.models.Result()
     try:
       root = etree.XML(out)
-      result.time     = float(root.find('stats/timing').get('average'))
+      result.time = float(root.find('stats/timing').get('average'))
       result.accuracy = float(root.find('stats/accuracy').get('average'))
       if result.time < limit + 3600:
         result.state = 'OK'
@@ -117,8 +114,8 @@ class PetaBricksInterface(MeasurementInterface):
         result.state = 'TIMEOUT'
     except:
       log.warning("program crash, out = %s / err = %s", out, err)
-      result.state    = 'ERROR'
-      result.time     = float('inf')
+      result.state = 'ERROR'
+      result.time = float('inf')
       result.accuracy = float('-inf')
     return result
 
@@ -127,13 +124,14 @@ class PetaBricksInterface(MeasurementInterface):
     called at the end of autotuning with the best resultsdb.models.Configuration
     '''
     with open(args.program_cfg_output, 'w') as fd:
-      for k,v in sorted(configuration.data.items()):
-        print >>fd, k, '=', v
+      cfg = self.build_config(configuration.data)
+      for k, v in sorted(cfg.items()):
+        print >> fd, k, '=', v
     log.info("final configuration written to %s", args.program_cfg_output)
 
   def manipulator(self):
     '''create the configuration manipulator, from example config'''
-    upper_limit = self.program_settings['n']+1
+    upper_limit = self.program_settings['n'] + 1
     cfg = open(self.args.program_cfg_default).read()
     manipulator = ConfigurationManipulator()
 
@@ -141,12 +139,12 @@ class PetaBricksInterface(MeasurementInterface):
 
     for m in re.finditer(r" *([a-zA-Z0-9_-]+)[ =]+([0-9e.+-]+) *"
                          r"[#] *([a-z]+).* ([0-9]+) to ([0-9]+)", cfg):
-      k, v, valtype, minval, maxval =  m.group(1,2,3,4,5)
+      k, v, valtype, minval, maxval = m.group(1, 2, 3, 4, 5)
       minval = float(minval)
       maxval = float(maxval)
       if upper_limit:
         maxval = min(maxval, upper_limit)
-      assert valtype=='int'
+      assert valtype == 'int'
       #log.debug("param %s %f %f", k, minval, maxval)
 
       m1 = re.match(r'(.*)_lvl[0-9]+_rule', k)
@@ -155,9 +153,9 @@ class PetaBricksInterface(MeasurementInterface):
         self.choice_sites[m1.group(1)] = int(maxval)
       elif m2:
         pass
-      elif k=='worker_threads':
+      elif k == 'worker_threads':
         manipulator.add_parameter(IntegerParameter(k, 1, 16))
-      elif k=='distributedcutoff':
+      elif k == 'distributedcutoff':
         pass
       elif minval == 0 and maxval < 64:
         manipulator.add_parameter(SwitchParameter(k, maxval))
@@ -166,13 +164,15 @@ class PetaBricksInterface(MeasurementInterface):
 
     for name, choices in self.choice_sites.items():
       manipulator.add_parameter(
-        SelectorParameter('.' + name, range(choices+1), upper_limit/choices))
+        SelectorParameter('.' + name, range(choices + 1),
+                          upper_limit / choices))
 
     self.manipulator = manipulator
     return manipulator
 
   def test_config(self):
     pprint(self.manipulator().random())
+
 
 if __name__ == '__main__':
   args = parser.parse_args()
