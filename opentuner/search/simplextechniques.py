@@ -1,26 +1,22 @@
 import abc
-import copy
-import fn
 import logging
 import math
-import random
 from collections import defaultdict
 from fn import _
-from fn.iters import map, filter, repeat
-from opentuner.resultsdb.models import *
-from .technique import SequentialSearchTechnique, register
+from fn.iters import map, filter
 from .manipulator import Parameter
 from .metatechniques import RecyclingMetaTechnique
+from .technique import SequentialSearchTechnique, register
+
 
 log = logging.getLogger(__name__)
-#log.setLevel(logging.DEBUG)
 
 
 class SimplexTechnique(SequentialSearchTechnique):
-  '''
+  """
   Base class with utility functions common
   to simplex type methods
-  '''
+  """
 
   def __init__(self, seed_cfg = None, *args, **kwargs):
     super(SimplexTechnique, self).__init__(*args, **kwargs)
@@ -30,10 +26,10 @@ class SimplexTechnique(SequentialSearchTechnique):
     self.simplex_points = []
 
   def calculate_centroid(self):
-    '''
+    """
     average of all the PrimitiveParameters in self.simplex_points
     ComplexParameters are copied from self.simplex_points[0]
-    '''
+    """
     sums   = defaultdict(float)
     counts = defaultdict(int)
 
@@ -65,14 +61,14 @@ class SimplexTechnique(SequentialSearchTechnique):
       log.debug("centroid = %s", self.cfg_to_str(self.centroid))
 
   def linear_point(self, p1, p2, scale):
-    '''
+    """
     return a point on the line passing between p1 and p2 at position scale
     such that p1 + scale*(p1 - p2)
-    '''
+    """
     return self.manipulator.linear_config(1.0, p1, scale, p1, -scale, p2)
 
   def convergence_criterea(self):
-    '''True will cause the simplex method to stop'''
+    """True will cause the simplex method to stop"""
     if self.rounds_since_novel_request > 3*len(self.simplex_points)+1:
       return True
     if self.last_simplex_points == self.simplex_points:
@@ -81,24 +77,24 @@ class SimplexTechnique(SequentialSearchTechnique):
     return False
 
   def initial_simplex_seed(self):
-    '''
+    """
     return a point to base the initial simplex on
-    '''
+    """
     if self.seed_cfg is not None:
       return self.seed_cfg
     return self.manipulator.random()
 
   @abc.abstractmethod
   def initial_simplex(self):
-    '''
+    """
     return a initial list of configurations
-    '''
+    """
     return []
 
 class RandomInitialMixin(object):
-  '''
+  """
   start with random initial simplex
-  '''
+  """
   def initial_simplex(self):
     # we implicitly assume number of parameters is fixed here, however 
     # it will work if it isn't (simplex size is undefined)
@@ -109,9 +105,9 @@ class RandomInitialMixin(object):
                  if p.is_primitive()]
 
 class RightInitialMixin(object):
-  '''
+  """
   start with random initial right triangle like simplex
-  '''
+  """
   def __init__(self, initial_unit_edge_length=0.1, *args, **kwargs):
     assert initial_unit_edge_length <= 0.5
     self.initial_unit_edge_length = initial_unit_edge_length
@@ -133,9 +129,9 @@ class RightInitialMixin(object):
     return simplex
 
 class RegularInitialMixin(object):
-  '''
+  """
   start with random initial regular simplex (all edges equal length)
-  '''
+  """
   def __init__(self, initial_unit_edge_length=0.1, *args, **kwargs):
     assert initial_unit_edge_length <= 0.5
     self.initial_unit_edge_length = initial_unit_edge_length
@@ -168,7 +164,7 @@ class RegularInitialMixin(object):
     return simplex
 
 class NelderMead(SimplexTechnique):
-  '''
+  """
   Nelder-Mead downhill simplex method.
 
   Based on description of method on page 82 of
@@ -183,7 +179,7 @@ class NelderMead(SimplexTechnique):
   reflection point becomes just reflection=x0, which also happens to be the
   second best point, meaning we will use it.  So in a single step of the
   algorithm the simplex becomes singular.
-  '''
+  """
 
   def __init__(self,
                alpha=2.0,
@@ -267,37 +263,37 @@ class NelderMead(SimplexTechnique):
           yield None # wait until results are ready
 
   def reflection_point(self):
-    '''
+    """
     reflect worst point across centroid
-    '''
+    """
     return self.driver.get_configuration(
              self.linear_point(self.centroid,
                                self.simplex_points[-1].data,
                                self.alpha))
 
   def expansion_point(self, reflection):
-    '''
+    """
     reflect worst point across centroid more (by default 2x as much)
-    '''
+    """
     return self.driver.get_configuration(
              self.linear_point(self.centroid,
                                reflection.data,
                                -self.gamma))
 
   def contraction_point(self, contract_base):
-    '''
+    """
     reflect worst point across centroid less
-    '''
+    """
     return self.driver.get_configuration(
              self.linear_point(self.centroid,
                                contract_base.data,
                                -self.beta))
 
   def perform_shrink_reduction(self):
-    '''
+    """
     shrink the simplex in size by sigma=1/2 (default), moving it closer to the
     best point
-    '''
+    """
     for i in xrange(1, len(self.simplex_points)):
       self.simplex_points[i] = self.driver.get_configuration(
           self.linear_point(
@@ -308,12 +304,12 @@ class NelderMead(SimplexTechnique):
 
 
 class Torczon(SimplexTechnique):
-  '''
+  """
   Torczon multi-directional search algorithm.
 
   Based on description of method on page 85 of
   'Noisy Optimization With Evolution Strategies' by Dirk V. Arnold.
-  '''
+  """
 
   def __init__(self,
                alpha=1.0,
@@ -372,10 +368,10 @@ class Torczon(SimplexTechnique):
         self.simplex_points = contracted
 
   def scaled_simplex(self, scale):
-    '''
+    """
     assumes self.simplex_points[0] is best point and returns a new simplex
     reflected across self.simplex_points[0] by scale
-    '''
+    """
     simplex = list(self.simplex_points) # shallow copy
     for i in xrange(1, len(simplex)):
       simplex[i] = self.driver.get_configuration(

@@ -1,15 +1,10 @@
 import abc
 import argparse
 import logging
-import sys
-import tempfile
 import time
 
 from datetime import datetime
 from fn import _
-from sqlalchemy.orm.exc import NoResultFound
-
-from opentuner.resultsdb.models import Result
 
 log = logging.getLogger(__name__)
 display_log = logging.getLogger(__name__ + ".DisplayPlugin")
@@ -27,11 +22,11 @@ argparser.add_argument('--display-frequency', default=10, type=int,
 class SearchPlugin(object):
   @property
   def priority(self):
-    '''control order the plugin hooks gets run in, lower runs first'''
+    """control order the plugin hooks gets run in, lower runs first"""
     return 0
 
   def set_driver(self, driver):
-    '''called before all other methods'''
+    """called before all other methods"""
     self.driver = driver
 
   def before_main(self): pass
@@ -44,22 +39,22 @@ class SearchPlugin(object):
   def after_results_wait(self):  pass
 
   def on_result(self, result):
-    '''
+    """
     called once for every new result
-    '''
+    """
     pass
 
   def on_result_for_technique(self, result, technique):
-    '''
+    """
     called right before a result is given to a technique
     (result may be requested by multiple techniques)
-    '''
+    """
     pass
 
   def on_new_best_result(self, result):
-    '''
+    """
     called whenever the global best result changes
-    '''
+    """
     pass
 
 class DisplayPlugin(SearchPlugin):

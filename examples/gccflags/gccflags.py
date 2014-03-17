@@ -3,20 +3,16 @@ import adddeps  # fix sys.path
 
 import argparse
 import ast
-import hashlib
 import collections
-import itertools
 import json
 import logging
-import math
 import opentuner
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
-import tempfile
-import shutil
 
 from opentuner.resultsdb.models import Result, TuningRun
 from opentuner.search import manipulator
@@ -38,14 +34,15 @@ argparser.add_argument('--output', default='./tmp.bin',
 argparser.add_argument('--debug', action='store_true',
                        help='on gcc errors try to find minimal set '
                             'of args to reproduce error')
-argparser.add_argument('--memory-limit', default=1024**3, type=int,
+argparser.add_argument('--memory-limit', default=1024 ** 3, type=int,
                        help='memory limit for child process')
 argparser.add_argument('--flags-histogram', action='store_true',
                        help='print out a histogram of flags')
 
+
 class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
   def __init__(self, *pargs, **kwargs):
-    super(GccFlagsTuner, self).__init__(program_name = args.source, *pargs,
+    super(GccFlagsTuner, self).__init__(program_name=args.source, *pargs,
                                         **kwargs)
     self.extract_gcc_options()
     self.result_list = {}
@@ -54,13 +51,13 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       os.stat('./tmp')
     except:
       os.mkdir('./tmp')
-    # TODO: Set up compile and run option
-    # self.run_baselines()
+      # TODO: Set up compile and run option
+      # self.run_baselines()
 
   def run_baselines(self):
     log.info("baseline perfs -O0=%.4f -O1=%.4f -O2=%.4f -O3=%.4f",
-              *[self.run_with_flags(['-O%d' % i], None).time 
-                for i in range(4)])
+             *[self.run_with_flags(['-O%d' % i], None).time
+               for i in range(4)])
 
   def extract_gcc_options(self):
     """
@@ -90,7 +87,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       for m in re.finditer(r'DEFPARAM *\((([^")]|"[^"]*")*)\)', params_def):
         try:
           name, desc, default, min, max = ast.literal_eval(
-              '[' + m.group(1).split(',', 1)[1] + ']')
+            '[' + m.group(1).split(',', 1)[1] + ']')
           self.cc_param_defaults[name] = {'default': default,
                                           'min': min,
                                           'max': max}
@@ -155,7 +152,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     return m
 
   def cfg_to_flags(self, cfg):
-    flags = ['-O%d' % cfg['-O']] #'-march=native'
+    flags = ['-O%d' % cfg['-O']]  #'-march=native'
     for flag in self.cc_flags:
       if cfg[flag] == 'on':
         flags.append(flag)
@@ -187,13 +184,10 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
   def run(self, desired_result, input, limit):
     pass
 
-  compile_results = {
-    'ok': 0,
-    'timeout': 1,
-    'error': 2,
-  }
+  compile_results = {'ok': 0, 'timeout': 1, 'error': 2}
 
-  def run_precompiled(self, desired_result, input, limit, compile_result, result_id):
+  def run_precompiled(self, desired_result, input, limit, compile_result,
+                      result_id):
     # Make sure compile was successful
     if compile_result == self.compile_results['timeout']:
       return Result(state='TIMEOUT', time=float('inf'))
@@ -223,6 +217,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
                                          flags=' '.join(tmpflags))
       compile_result = self.call_program(cmd, limit=args.compile_limit)
       return compile_result['returncode'] != 0
+
     if self.args.debug:
       while len(flags) > 8:
         log.error("compile error with %d flags, diagnosing...", len(flags))
@@ -233,7 +228,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       # linear scan
       minimal_flags = []
       for i in xrange(len(flags)):
-        tmpflags = minimal_flags + flags[i+1:]
+        tmpflags = minimal_flags + flags[i + 1:]
         if not fails(tmpflags):
           minimal_flags.append(flags[i])
       log.error("compiler crashes/hangs with flags: %s", minimal_flags)
@@ -250,7 +245,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       os.mkdir(tmp_dir)
     output_dir = '%s/%s' % (tmp_dir, args.output)
     cmd = args.compile_template.format(source=args.source, output=output_dir,
-                                        flags=' '.join(flags))
+                                       flags=' '.join(flags))
 
     compile_result = self.call_program(cmd, limit=args.compile_limit,
                                        memory_limit=args.memory_limit)

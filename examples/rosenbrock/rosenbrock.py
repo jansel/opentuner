@@ -8,7 +8,7 @@
 # http://en.wikipedia.org/wiki/Test_functions_for_optimization
 #
 
-import adddeps #fix sys.path
+import adddeps  # fix sys.path
 
 import argparse
 import logging

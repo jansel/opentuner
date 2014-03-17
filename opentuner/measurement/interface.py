@@ -1,15 +1,14 @@
 import abc
+import argparse
+import errno
 import hashlib
 import logging
-import math
 import os
 import re
-import select
 import signal
 import subprocess
 import threading
 import time
-import argparse
 from multiprocessing.pool import ThreadPool
 
 try:
@@ -22,6 +21,7 @@ try:
 except:
   fcntl = None
 
+import opentuner
 from opentuner import resultsdb
 
 log = logging.getLogger(__name__)
@@ -32,26 +32,27 @@ argparser.add_argument('--parallel-compile', action='store_true',
 
 the_io_thread_pool = None
 
+
 class MeasurementInterface(object):
-  '''
+  """
   abstract base class for compile and measurement
-  '''
+  """
   __metaclass__ = abc.ABCMeta
 
   def __init__(self,
-               args          = None,
-               project_name  = None,
-               program_name  = 'unknown',
-               program_version = 'unknown',
-               manipulator   = None,
-               objective     = None,
-               input_manager = None):
+               args=None,
+               project_name=None,
+               program_name='unknown',
+               program_version='unknown',
+               manipulator=None,
+               objective=None,
+               input_manager=None):
     self.args = args
-    self._project       = project_name
-    self._program       = program_name
-    self._version       = program_version
-    self._objective     = objective
-    self._manipulator   = manipulator
+    self._project = project_name
+    self._program = program_name
+    self._version = program_version
+    self._objective = objective
+    self._manipulator = manipulator
     self._input_manager = input_manager
 
     self.pids = []
@@ -59,52 +60,52 @@ class MeasurementInterface(object):
     self.parallel_compile = False
 
   def compile(self, config_data, id):
-    '''
+    """
     Compiles according to the configuration in config_data (obtained from desired_result.configuration)
     Should use id paramater to determine output location of executable
     Return value will be passed to run_precompiled as compile_result, useful for storing error/timeout information
-    '''
+    """
     pass
 
   def run_precompiled(self, desired_result, input, limit, compile_result, id):
-    '''
+    """
     Runs the given desired result on input and produce a Result()
     Abort early if limit (in seconds) is reached
     Assumes that the executable to be measured is already compiled
       in an executable corresponding to identifier id
     compile_result is the return result of compile(), will be None if compile was not called
     If id = None, must call run()
-    '''
+    """
     return self.run(desired_result, input, limit)
 
   def cleanup(self, id):
-    '''
+    """
     Clean up any temporary files associated with the executable
-    '''
+    """
     pass
 
   @abc.abstractmethod
   def run(self, desired_result, input, limit):
-    '''
+    """
     run the given desired_result on input and produce a Result(),
     abort early if limit (in seconds) is reached
-    '''
+    """
     return opentuner.resultdb.models.Result()
 
   def save_final_config(self, config):
-    '''
+    """
     called at the end of autotuning with the best resultsdb.models.Configuration
-    '''
+    """
     pass
 
   def db_program_version(self, session):
-    '''return a version identifier for the program being tuned'''
+    """return a version identifier for the program being tuned"""
     return resultsdb.models.ProgramVersion.get(
-        session = session,
-        project = self.project_name(),
-        name    = self.program_name(),
-        version = self.program_version(),
-      )
+      session=session,
+      project=self.project_name(),
+      name=self.program_name(),
+      version=self.program_version(),
+    )
 
   def set_driver(self, measurement_driver):
     self.driver = measurement_driver
@@ -125,13 +126,13 @@ class MeasurementInterface(object):
     return self._version
 
   def file_hash(self, filename):
-    '''helper used to generate program versions'''
+    """helper used to generate program versions"""
     return hashlib.sha256(open(filename).read()).hexdigest()
 
   def manipulator(self):
-    '''
+    """
     called once to create the search.manipulator.ConfigurationManipulator
-    '''
+    """
     if self._manipulator is None:
       msg = ('MeasurementInterface.manipulator() must be implemented or a '
              '"manipulator=..." must be provided to the constructor')
@@ -140,20 +141,22 @@ class MeasurementInterface(object):
     return self._manipulator
 
   def objective(self):
-    '''
+    """
     called once to create the search.objective.SearchObjective
-    '''
+    """
     if self._objective is None:
       from ..search.objective import MinimizeTime
+
       return MinimizeTime()
     return self._objective
 
   def input_manager(self):
-    '''
+    """
     called once to create the measurement.inputmanager.InputManager
-    '''
+    """
     if self._objective is None:
       from .inputmanager import FixedInputManager
+
       return FixedInputManager()
     return self._input_manager
 
@@ -165,14 +168,14 @@ class MeasurementInterface(object):
     self.pid_lock.release()
 
   def call_program(self, cmd, limit=None, memory_limit=None, **kwargs):
-    '''
+    """
     call cmd and kill it if it runs for longer than limit
 
     returns dictionary like
       {'returncode': 0,
        'stdout': '', 'stderr': '',
        'timeout': False, 'time': 1.89}
-    '''
+    """
     the_io_thread_pool_init(self.args.parallelism)
     if limit is float('inf'):
       limit = None
@@ -233,28 +236,33 @@ class MeasurementInterface(object):
   @classmethod
   def main(cls, args, *pargs, **kwargs):
     from opentuner.tuningrunmain import TuningRunMain
+
     return TuningRunMain(cls(args, *pargs, **kwargs), args).main()
+
 
 def preexec_setpgid_setrlimit(memory_limit):
   if resource is not None:
     def _preexec():
-        os.setpgid(0, 0)
-        resource.setrlimit(resource.RLIMIT_CORE, (1,1))
-        if memory_limit:
-          resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+      os.setpgid(0, 0)
+      resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
+      if memory_limit:
+        resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+
     return _preexec
 
-def the_io_thread_pool_init(parallelism = 1):
+
+def the_io_thread_pool_init(parallelism=1):
   global the_io_thread_pool
   if the_io_thread_pool is None:
     the_io_thread_pool = ThreadPool(2 * parallelism)
     # make sure the threads are started up
     the_io_thread_pool.map(int, range(2 * parallelism))
 
+
 def goodkillpg(pid):
-  '''
+  """
   wrapper around kill to catch errors
-  '''
+  """
   log.debug("killing pid %d", pid)
   try:
     if hasattr(os, 'killpg'):
@@ -266,13 +274,12 @@ def goodkillpg(pid):
 
 
 def goodwait(p):
-  '''
+  """
   python doesn't check if its system calls return EINTR, retry if it does
-  '''
-  rv=None
+  """
   while True:
     try:
-      rv=p.wait()
+      rv = p.wait()
       return rv
     except OSError, e:
       if e.errno != errno.EINTR:

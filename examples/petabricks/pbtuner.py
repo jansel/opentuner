@@ -42,9 +42,8 @@ parser.add_argument('--program-settings',
                     help="override default program settings file location")
 parser.add_argument('--program-input',
                     help="use only a given input for autotuning")
-parser.add_argument('--upper-limit', type=float, default=90,
+parser.add_argument('--upper-limit', type=float, default=30,
                     help="time limit to apply to initial test")
-
 parser.add_argument('--test-config', action='store_true')
 
 
@@ -56,11 +55,9 @@ class PetaBricksInterface(MeasurementInterface):
 
     # pass many settings to parent constructor
     super(PetaBricksInterface, self).__init__(
-      args,
-      program_name=args.program,
-      program_version=self.file_hash(args.program),
-      input_manager=input_manager,
-      objective=objective)
+        args, program_name=args.program,
+        program_version=self.file_hash(args.program),
+        input_manager=input_manager, objective=objective)
 
   def build_config(self, cfg):
     r = dict()
@@ -120,9 +117,10 @@ class PetaBricksInterface(MeasurementInterface):
     return result
 
   def save_final_config(self, configuration):
-    '''
-    called at the end of autotuning with the best resultsdb.models.Configuration
-    '''
+    """
+    called at the end of autotuning with the best
+    resultsdb.models.Configuration
+    """
     with open(args.program_cfg_output, 'w') as fd:
       cfg = self.build_config(configuration.data)
       for k, v in sorted(cfg.items()):
@@ -130,7 +128,7 @@ class PetaBricksInterface(MeasurementInterface):
     log.info("final configuration written to %s", args.program_cfg_output)
 
   def manipulator(self):
-    '''create the configuration manipulator, from example config'''
+    """create the configuration manipulator, from example config"""
     upper_limit = self.program_settings['n'] + 1
     cfg = open(self.args.program_cfg_default).read()
     manipulator = ConfigurationManipulator()
