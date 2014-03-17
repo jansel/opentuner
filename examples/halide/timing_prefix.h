@@ -19,36 +19,22 @@ inline void _autotune_timing_stub(Halide::Func& func) {
     func.compile_jit();
 
     // TODO: this assumes scalar/non-Tuple outputs - should generalize to a Realization
-    Halide::Type out_type = func.output_types()[0];
-    buffer_t out_size_buf;
-    {
-        // Use the Buffer constructor as a helper to set up the buffer_t,
-        // but then throw away its allocation which we don't really want.
-        Halide::Buffer bufinit(out_type, AUTOTUNE_N);
-        out_size_buf = *bufinit.raw_buffer();
-        out_size_buf.host = NULL;
+    std::vector<Halide::Type> out_types = func.output_types();
+    std::vector<buffer_t> out_raw_bufs;
+    std::vector<Halide::Buffer> out_bufs;
+
+    for (int i = 0; i < out_types.size(); i++) {
+    // Use the Buffer constructor as a helper to set up the buffer_t,
+    // but then throw away its allocation which we don't really want.
+        Halide::Buffer bufinit(out_types[i], AUTOTUNE_N);
+        out_raw_bufs.push_back(*bufinit.raw_buffer());
+        out_raw_bufs[i].host = NULL;
+        out_bufs.push_back(Halide::Buffer(out_types[i], &out_raw_bufs[i]));
+        assert(out_bufs[i].host_ptr() == NULL); // make sure we don't have an allocation
     }
-    Halide::Buffer out_size(out_type, &out_size_buf);
-    assert(out_size.host_ptr() == NULL); // make sure we don't have an allocation
-
-    func.infer_input_bounds(out_size);
-
-    // allocate the real output using the inferred mins + extents
-    Halide::Buffer output(  out_type,
-                            out_size.extent(0),
-                            out_size.extent(1),
-                            out_size.extent(2),
-                            out_size.extent(3),
-                            NULL,
-                            "output" );
-    output.set_min( out_size.min(0),
-                    out_size.min(1),
-                    out_size.min(2),
-                    out_size.min(3) );
-
-    // re-run input inference on enlarged output buffer
-    func.unbind_image_params(); // TODO: iterate to convergence
-    func.infer_input_bounds(output);
+    Halide::Realization output(out_bufs);
+    func.infer_input_bounds(output, 5);
+    assert(output[0].host_ptr());
 
     timeval t1, t2;
     double rv = 0;
