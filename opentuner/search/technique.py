@@ -63,15 +63,15 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
 
   def __init__(self, *pargs, **kwargs):
     super(SearchTechnique, self).__init__(*pargs, **kwargs)
-    self.driver      = None
+    self.driver = None
     self.manipulator = None
-    self.objective   = None
+    self.objective = None
     self.request_count = 0
 
   def set_driver(self, driver):
     super(SearchTechnique, self).set_driver(driver)
     self.manipulator = driver.manipulator
-    self.objective   = driver.objective
+    self.objective = driver.objective
     driver.add_plugin(self)
 
   def desired_result(self):
@@ -83,13 +83,11 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
       config = cfg
     else:
       config = self.driver.get_configuration(cfg)
-    desired = DesiredResult(
-                  configuration = config,
-                  requestor     = self.name,
-                  generation    = self.driver.generation,
-                  request_date  = datetime.now(),
-                  tuning_run    = self.driver.tuning_run,
-                )
+    desired = DesiredResult(configuration=config,
+                            requestor=self.name,
+                            generation=self.driver.generation,
+                            request_date=datetime.now(),
+                            tuning_run=self.driver.tuning_run)
     if hasattr(self, 'limit'):
       desired.limit = self.limit
     self.driver.register_result_callback(desired, self.handle_requested_result)
@@ -211,10 +209,12 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
 #list of all techniques
 the_registry = list()
 
+
 def register(t):
   the_registry.append(t)
 
 register(PureRandom())
+
 
 def all_techniques(args):
   #import all modules in search to ensure techniques are Registered
@@ -224,6 +224,7 @@ def all_techniques(args):
       import_module('opentuner.search.'+m.group(1))
 
   return the_registry
+
 
 def get_enabled(args):
   techniques = all_techniques(args)
@@ -239,6 +240,7 @@ def get_enabled(args):
     log.error("unknown technique %s", unknown)
 
   return [t for t in techniques if t.name in args.technique]
+
 
 def get_root(args):
   from metatechniques import RoundRobinMetaSearchTechnique

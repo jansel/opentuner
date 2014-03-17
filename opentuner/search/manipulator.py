@@ -3,8 +3,11 @@ import abc
 import collections
 import copy
 import hashlib
+import json
 import logging
 import math
+import os
+import pickle
 import random
 from fn import _
 
@@ -17,6 +20,12 @@ class ConfigurationManipulatorBase(object):
   configurations
   """
   __metaclass__ = abc.ABCMeta
+
+  # List of file formats, which can be extended by subclasses. Used in
+  # write_to_file() and load_from_file().  Objects in list must define
+  # load(fd) and dump(cfg, fd).
+  FILE_FORMATS = {'default': json, 'json': json,
+                  'pickle': pickle, 'pk': pickle}
 
   def validate(self, config):
     """is the given config valid???"""
@@ -52,6 +61,36 @@ class ConfigurationManipulatorBase(object):
     for k in self.param_names(dst, cfg_a, cfg_b, cfg_c):
       dst_params[k].set_linear(a, cfg_a, b, cfg_b, c, cfg_c)
     return dst
+
+  def _get_serializer(self, filename, format=None):
+    """
+    Extract the correct file format serializer from self.FILE_FORMATS.
+    Guess the format by extension if one is not given.
+    """
+    if format is None:
+      format = os.path.splitext(filename)[1].lower().replace('.', '')
+    if format not in self.FILE_FORMATS:
+      serializer = self.FILE_FORMATS['default']
+      if len(self.FILE_FORMATS) > 1:
+        log.warning('Unknown file format "%s", using "%s" instead', format,
+                    serializer.__name__)
+    else:
+      serializer = self.FILE_FORMATS[format]
+    return serializer
+
+  def save_to_file(self, cfg, filename, format=None):
+    """
+    Write cfg to filename.  Guess the format by extension if one is not given.
+    """
+    with open(filename, 'wb') as fd:
+      self._get_serializer(filename, format).dump(cfg, fd)
+
+  def load_from_file(self, filename, format=None):
+    """
+    Read cfg from filename.  Guess the format by extension if one is not given.
+    """
+    with open(filename, 'rb') as fd:
+      return self._get_serializer(filename, format).load(fd)
 
   def proxy(self, cfg):
     return ManipulatorProxy(self, cfg)

@@ -261,8 +261,13 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
 
   def save_final_config(self, configuration):
     """called at the end of tuning"""
-    print "Best flags:"
-    print self.make_command(configuration.data)
+    print "Best flags written to gccflags_final_config.{json,cmd}"
+    self.manipulator().save_to_file(configuration.data,
+                                    'gccflags_final_config.json')
+    with open('gccflags_final_config.cmd', 'w') as fd:
+      fd.write(self.make_command(configuration.data))
+
+
 
   def prefix_hook(self, session):
     if self.args.flags_histogram:
