@@ -17,6 +17,17 @@ from pprint import pprint
 from collections import defaultdict
 
 log = logging.getLogger(__name__)
+import argparse
+from datetime import datetime
+
+import inspect
+
+argparser = argparse.ArgumentParser(add_help=False)
+argparser.add_argument('--list-params', '-lp',
+    help='list available parameter classes')
+
+def all_params():
+  return inspect.getmembers(sys.modules[__name__], inspect.isclass)
 
 class ConfigurationManipulatorBase(object):
   '''
@@ -273,6 +284,9 @@ class Parameter(object):
 
   def search_space_size(self):
     return 1
+
+  def velocity_update(self, w, gbest, g, lbest, l):
+    pass
 
 class PrimitiveParameter(Parameter):
   '''
@@ -668,6 +682,10 @@ class PermutationParameter(ComplexParameter):
   def set_value(self, config, value):
     self._set(config, value)
 
+  def crossover(self, new, cfg1, cfg2,  cname, *args):
+      if self.size>6:
+        getattr(self, cname)(new, cfg1, cfg2, d=param.size/3)
+     
 # Swap-based operator
   def swap_dist(self, cfg1, cfg2):
     '''

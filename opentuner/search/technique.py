@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--technique','-t', action='append',
                        help="which technique to use")
-argparser.add_argument('--list-techniques', action='store_true',
+argparser.add_argument('--list-techniques','-lt', action='store_true',
                        help="list techniques available and exit")
 
 class SearchTechniqueBase(object):
