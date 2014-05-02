@@ -1,22 +1,21 @@
 import abc
-import sys
 import logging
 import math
 import random
-from collections import deque, defaultdict
-from fn import _
+from collections import deque
 
 from .metatechniques import MetaSearchTechnique
-from .technique import register, SearchTechnique, PureRandom
+from .technique import register, SearchTechnique
 
 log = logging.getLogger(__name__)
 
+
 class BanditQueue(object):
   def __init__(self, keys, C=0.05, window=500, **kwargs):
-    '''
+    """
     C is exploration/exploitation tradeoff
     window is how long to remember past results
-    '''
+    """
     super(BanditQueue, self).__init__(**kwargs)
     self.C = C
     self.history = deque()
@@ -27,18 +26,18 @@ class BanditQueue(object):
 
   @abc.abstractmethod
   def exploitation_term(self, key):
-    '''
+    """
     value 0 to 1.0 to represent quality of technique
-    '''
+    """
     return 0.0
 
   def exploration_term(self, key):
-    '''
+    """
     value represent how unsure we are (optimal bandit solution)
-    '''
+    """
     if self.use_counts[key] > 0:
-      return math.sqrt( (2.0 * math.log(len(self.history), 2.0))
-                      / self.use_counts[key])
+      return math.sqrt((2.0 * math.log(len(self.history), 2.0))
+                       / self.use_counts[key])
     else:
       return float('inf')
 
@@ -47,18 +46,17 @@ class BanditQueue(object):
             self.C * self.exploration_term(key))
 
   def ordered_keys(self):
-    '''select the next technique to use'''
+    """select the next technique to use"""
 
     keys = list(self.keys)
-    random.shuffle(keys) #break ties randomly
+    random.shuffle(keys)  # break ties randomly
     keys.sort(key=self.bandit_score)
 
     self.request_count += 1
     if log.isEnabledFor(logging.DEBUG) and (self.request_count % 1000) == 0:
       log.debug(str([
-          (t.name, self.exploitation_term(t), self.C*self.exploration_term(t))
-          for t in keys
-        ]))
+          (t.name, self.exploitation_term(t), self.C * self.exploration_term(t))
+          for t in keys]))
 
     return reversed(keys)
 
@@ -74,28 +72,29 @@ class BanditQueue(object):
   def on_pop_history(self, key, value):
     self.use_counts[key] -= 1
 
+
 class AUCBanditQueue(BanditQueue):
-  '''
+  """
   Area Under the Receiving Operator Curve (AUC) credit assignment
 
   See:
   Comparison-based adaptive strategy selection with bandits in differential
   evolution. Fialho et al.
-  '''
+  """
 
   def __init__(self, *args, **kwargs):
     super(AUCBanditQueue, self).__init__(*args, **kwargs)
     self.debug = kwargs.get('debug', False)
-    self.auc_sum   = dict(((t, 0) for t in self.keys))
+    self.auc_sum = dict(((t, 0) for t in self.keys))
     self.auc_decay = dict(((t, 0) for t in self.keys))
 
   def exploitation_term_slow(self, key):
-    '''
+    """
     value 0 to 1.0 to represent quality of key
 
     computes the area under the curve where finding a new
     global best results in adding 1 to a cumulative total
-    '''
+    """
     score = 0.0
     pos = 0
     for t, value in self.history:
@@ -109,11 +108,11 @@ class AUCBanditQueue(BanditQueue):
       return 0.0
 
   def exploitation_term_fast(self, key):
-    '''
+    """
     value 0 to 1.0 to represent quality of key
 
     optimized O(1) implementation exploitation_term_slow()
-    '''
+    """
     score = self.auc_sum[key]
     pos = self.use_counts[key]
     if pos:
@@ -149,7 +148,7 @@ class AUCBanditMetaTechnique(MetaSearchTechnique):
     self.name_to_technique = dict(((t.name, t) for t in self.techniques))
 
   def select_technique_order(self):
-    '''select the next technique to use'''
+    """select the next technique to use"""
     return (self.name_to_technique[k] for k in self.bandit.ordered_keys())
 
   def on_technique_result(self, technique, result):
@@ -174,9 +173,9 @@ class AUCBanditMutationTechnique(SearchTechnique):
     log.warning("unexpected result")
 
   def desired_configuration(self):
-    '''
+    """
     use bandit to pick a single manipulator and apply it
-    '''
+    """
     seed = self.get_seed()
     if self.bandit is None:
       self.init_bandit(seed)
@@ -209,7 +208,7 @@ class AUCBanditMutationTechnique(SearchTechnique):
     self.bandit = AUCBanditQueue(options, **self.bandit_kwargs)
 
   def get_seed(self):
-    '''seed mutation with global best'''
+    """seed mutation with global best"""
     if (self.driver.best_result is not None and
         self.driver.best_result.state == 'OK'):
       return self.driver.best_result.configuration.data

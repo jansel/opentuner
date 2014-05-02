@@ -6,17 +6,16 @@ if __name__ == '__main__':
 import argparse
 import csv
 import hashlib
+import itertools
 import logging
-import re
 import math
 import os
+import sqlalchemy.orm.exc
 import subprocess
 import sys
-import itertools
 
 from collections import defaultdict
-from datetime import datetime, timedelta
-from fn import _, F
+from fn import _
 from fn import Stream
 from fn.iters import repeat
 from pprint import pprint
@@ -72,6 +71,8 @@ def variance(vals):
   avg = mean(vals)
   if avg is None:
     return None
+  if avg in (float('inf'), float('-inf')):
+    return avg
   return mean(map((_ - avg) ** 2, vals))
 
 def stddev(vals):
@@ -172,8 +173,7 @@ class StatsMain(object):
         log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
         self.combined_stats_over_time(d, label, runs, objective, worst, best)
 
-##        final_scores = list()
-        final_configs = []
+        final_scores = list()
         for run, session in runs:
           try:
             final = (session.query(Result)
@@ -183,10 +183,24 @@ class StatsMain(object):
                     .one())
           except sqlalchemy.orm.exc.NoResultFound:
             continue
-          final_configs.append(str(final.configuration.data))
-        with open("stats/final_cfg_"+label+".txt",'w') as o:
-          o.write('\t'.join(final_configs)+'\n')
-    
+          final_scores.append(objective.stats_quality_score(final, worst, best))
+        final_scores.sort()
+        if final_scores:
+          norm = objective.stats_quality_score(best, worst, best)
+          if norm > 0.00001:
+            summary_report[d][run_label(run, short=True)] = (
+                percentile(final_scores, 0.5) / norm,
+                percentile(final_scores, 0.1) / norm,
+                percentile(final_scores, 0.9) / norm,
+              )
+          else:
+            summary_report[d][run_label(run, short=True)] = (
+                percentile(final_scores, 0.5) + norm + 1.0,
+                percentile(final_scores, 0.1) + norm + 1.0,
+                percentile(final_scores, 0.9) + norm + 1.0,
+              )
+
+
     with open("stats/summary.dat", 'w') as o:
       # make summary report
       keys = sorted(reduce(set.union,
@@ -215,6 +229,38 @@ class StatsMain(object):
                         4*n + 9,
                         k))
       self.gnuplot_summary_file('stats', 'summary', plotcmd)
+
+
+
+    for d, label_runs in dir_label_runs.iteritems():
+      labels = [k for k,v in label_runs.iteritems()
+                if len(v)>=self.args.min_runs]
+      self.gnuplot_file(d,
+                        "medianperfe",
+                        ['"%s_percentiles.dat" using 1:12:4:18 with errorbars title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "meanperfe",
+                        ['"%s_percentiles.dat" using 1:21:4:18 with errorbars title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "medianperfl",
+                        ['"%s_percentiles.dat" using 1:12 with lines title "%s"' % (l,l) for l in labels])
+      self.gnuplot_file(d,
+                        "meanperfl",
+                        ['"%s_percentiles.dat" using 1:21 with lines title "%s"' % (l,l) for l in labels])
+
+    # print
+    # print "10% Scores", d
+    # pprint(self.technique_scores(d, labels, '0.1'))
+    # print
+    # print "90% Scores", d
+    # pprint(self.technique_scores(d, labels, '0.9'))
+    # print
+    # print "Mean Scores", d
+    # pprint(self.technique_scores(d, labels, 'mean'))
+      print
+      print "Median Scores", d
+      pprint(self.technique_scores(d, labels, '0.5'))
+
 
   def technique_scores(self, directory, labels, ykey, xkey='#sec', factor=10.0):
     max_duration = None
@@ -257,9 +303,9 @@ class StatsMain(object):
                                worst,
                                best,
                                ):
-    '''
+    """
     combine stats_over_time() vectors for multiple runs
-    '''
+    """
 
     #extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
     extract_fn = _.result.time
@@ -270,10 +316,11 @@ class StatsMain(object):
     by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
               for run, session in runs]
     max_len = max(map(len, by_run))
-    
+
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
     by_quanta = zip(*by_run_streams[:])
+
     def data_file(suffix, headers, value_function):
       with open(os.path.join(output_dir, label+suffix), 'w') as fd:
         out = csv.writer(fd, delimiter=' ', lineterminator='\n')
@@ -292,47 +339,42 @@ class StatsMain(object):
    #                    ' with lines'
    #                    ' title "Run %d"'%i)
    #                   for i in xrange(max_len)])
-   
-    data_file('.dat',
+
+    data_file('_mean.dat',
               ['#sec', 'mean', 'stddev'],
-              lambda values: list(values)+[mean(values), stddev(values)])
-
-
-##    data_file('_mean.dat',
-##              ['#sec', 'mean', 'stddev'],
-##              lambda values: [mean(values), stddev(values)])
-##    self.gnuplot_file(output_dir,
-##                      label+'_mean',
-##                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
+              lambda values: [mean(values), stddev(values)])
+    self.gnuplot_file(output_dir,
+                      label+'_mean',
+                      ['"'+label+'_mean.dat" using 1:2 with lines title "Mean"'])
 
     def extract_percentiles(values):
       values = sorted(values)
       return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
              + [mean(values)])
-##    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
-##    self.gnuplot_file(output_dir,
-##                      label+'_percentiles',
-##                      reversed([
-##                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
-##                      # '""                          using 1:3  with lines title "5%"',
-##                        '""                          using 1:4  with lines title "10%"',
-##                      # '""                          using 1:5  with lines title "25%"',
-##                        '""                          using 1:6  with lines title "20%"',
-##                      # '""                          using 1:7  with lines title "35%"',
-##                        '""                          using 1:8  with lines title "30%"',
-##                      # '""                          using 1:9  with lines title "45%"',
-##                        '""                          using 1:10 with lines title "40%"',
-##                      # '""                          using 1:11 with lines title "55%"',
-##                        '""                          using 1:12 with lines title "50%"',
-##                      # '""                          using 1:13 with lines title "65%"',
-##                        '""                          using 1:14 with lines title "70%"',
-##                      # '""                          using 1:15 with lines title "75%"',
-##                        '""                          using 1:16 with lines title "80%"',
-##                      # '""                          using 1:17 with lines title "85%"',
-##                        '""                          using 1:18 with lines title "90%"',
-##                      # '""                          using 1:19 with lines title "95%"',
-##                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
-##                       ]))
+    data_file("_percentiles.dat", PCTSTEPS + ['mean'], extract_percentiles)
+    self.gnuplot_file(output_dir,
+                      label+'_percentiles',
+                      reversed([
+                        '"'+label+'_percentiles.dat" using 1:2  with lines title "0%"',
+                      # '""                          using 1:3  with lines title "5%"',
+                        '""                          using 1:4  with lines title "10%"',
+                      # '""                          using 1:5  with lines title "25%"',
+                        '""                          using 1:6  with lines title "20%"',
+                      # '""                          using 1:7  with lines title "35%"',
+                        '""                          using 1:8  with lines title "30%"',
+                      # '""                          using 1:9  with lines title "45%"',
+                        '""                          using 1:10 with lines title "40%"',
+                      # '""                          using 1:11 with lines title "55%"',
+                        '""                          using 1:12 with lines title "50%"',
+                      # '""                          using 1:13 with lines title "65%"',
+                        '""                          using 1:14 with lines title "70%"',
+                      # '""                          using 1:15 with lines title "75%"',
+                        '""                          using 1:16 with lines title "80%"',
+                      # '""                          using 1:17 with lines title "85%"',
+                        '""                          using 1:18 with lines title "90%"',
+                      # '""                          using 1:19 with lines title "95%"',
+                        '"'+label+'_percentiles.dat" using 1:20 with lines title "100%"',
+                       ]))
 
   def gnuplot_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
@@ -350,7 +392,7 @@ class StatsMain(object):
   def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
       print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.pdf')
+      print >>fd, 'set output "%s"' % (prefix+'.eps')
       print >>fd, '''
 set boxwidth 0.9
 set style fill solid 1.00 border 0
@@ -376,10 +418,10 @@ set ytics 1
                       extract_fn,
                       combine_fn,
                       no_data = None):
-    '''
+    """
     return reduce(combine_fn, map(extract_fn, data)) for each quanta of the
     tuning run
-    '''
+    """
     value_by_quanta = [ no_data ]
     start_date = run.start_date
 

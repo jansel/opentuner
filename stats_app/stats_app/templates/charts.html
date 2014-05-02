@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<head>
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}charts.css" media="screen" />
+<html lang="en">
+  <title>{% block title %}Graph{% endblock %}</title>
+</head>
+
+<body>
+  <div id="graphForm">
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"> </script>
+  <script>
+    function callback() {{
+      var values = $('#graphForm form').serialize();
+      $('#graphForm img').attr("src", "graph.png?" + values);
+    }}
+  </script>
+  <p style="text-align:center">
+  <img src="graph.png" id="graph" />
+  </p>
+  <form method = "GET" action="" style="text-align:center">
+    <h3>X Limits:</h3>
+    <input type="range" name="xlim" min="0" max="10000">
+    <br><h3>Y Limits:</h3>
+    <input type="range" name="ylim" min="0" max="20">
+    <br>
+    <h3>Labels:</h3>
+    {0}
+    <br>
+    <h3>Measure:</h3>
+    <b>Mean:</b>
+    <input type="checkbox" name="disp_type" value="mean">
+    <b>Median:</b>
+    <input type="checkbox" name="disp_type" value="median">
+    <b>All percentiles:</b>
+    <input type="checkbox" name="disp_type" value="all_percentiles">
+    <br>
+    <input type="button" value="Graph!" onclick="callback()">
+  </form>
+  </div>
+</body>
+</html>

@@ -1,41 +1,46 @@
 import argparse
-from datetime import datetime
 import logging
+import os
 
+from datetime import datetime
 from fn import _
-
-from opentuner import resultsdb
-from opentuner.resultsdb.models import *
 from opentuner.driverbase import DriverBase
-import technique
-import plugin
+from opentuner.resultsdb.models import Configuration
+from opentuner.resultsdb.models import DesiredResult
+from opentuner.resultsdb.models import Result
+from opentuner.search import plugin
+from opentuner.search import technique
 
 log = logging.getLogger(__name__)
-#log.setLevel(logging.DEBUG)
-
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--test-limit', type=int, default=5000,
-    help='stop tuning after given tests count')
+                       help='stop tuning after given tests count')
 argparser.add_argument('--stop-after', type=float,
-    help='stop tuning after given seconds')
+                       help='stop tuning after given seconds')
 argparser.add_argument('--parallelism', type=int, default=4,
-    help='how many tests to support at once')
+                       help='how many tests to support at once')
 argparser.add_argument('--pipelining', type=int, default=0,
-    help='how long a delay (in generations) before results are available')
+                       help='how long a delay (in generations) before results are available')
 argparser.add_argument('--bail-threshold', type=int, default=500,
-    help='abort if no requests have been made in X generations')
+                       help='abort if no requests have been made in X generations')
 argparser.add_argument('--no-dups', action='store_true',
-    help='don\'t print out warnings for duplicate requests')
+                       help='don\'t print out warnings for duplicate requests')
+argparser.add_argument('--seed-configuration', action='append', default=[],
+                       metavar='FILENAME', help="""
+                           Start search at a given configuration.  Can be
+                           specified multiple times.  Configurations are loaded
+                           with ConfigurationManipulator.load_from_file()
+                           and file format is detected from extension.""")
+
 
 class SearchDriver(DriverBase):
-  '''
-  controls the search process managing root_technique and creating DesiredResults
-  '''
+  """
+  controls the search process managing root_technique and creating
+  DesiredResults
+  """
 
-  def __init__(self,
-               manipulator,
-               **kwargs):
+  def __init__(self, manipulator, **kwargs):
     super(SearchDriver, self).__init__(**kwargs)
 
     self.manipulator = manipulator
@@ -45,7 +50,7 @@ class SearchDriver(DriverBase):
     self.generation = 0
     self.test_count = 0
     self.plugins = plugin.get_enabled(self.args)
-    self.pending_result_callbacks = list() # (DesiredResult, function) tuples
+    self.pending_result_callbacks = list()  # (DesiredResult, function) tuples
     self.root_technique = technique.get_root(self.args)
     self.objective.set_driver(self)
     self.pending_config_ids = set()
@@ -54,23 +59,29 @@ class SearchDriver(DriverBase):
     for t in self.plugins:
       t.set_driver(self)
     self.root_technique.set_driver(self)
+    self.seed_cfgs = []
+    for cfg_filename in reversed(self.args.seed_configuration):
+      if os.path.exists(cfg_filename):
+        self.seed_cfgs.append(manipulator.load_from_file(cfg_filename))
+      else:
+        log.error('no such file for --seed-configuration %s', cfg_filename)
 
-    self.plugins.sort(key = _.priority)
+    self.plugins.sort(key=_.priority)
 
   def add_plugin(self, p):
     if p in self.plugins:
       return
     self.plugins.append(p)
-    self.plugins.sort(key = _.priority)
+    self.plugins.sort(key=_.priority)
     p.set_driver(self)
 
-  def convergence_criterea(self):
-    '''returns true if the tuning process should stop'''
+  def convergence_criteria(self):
+    """returns true if the tuning process should stop"""
     if self.args.stop_after:
-      elapsed = (datetime.now()-self.tuning_run.start_date)
+      elapsed = (datetime.now() - self.tuning_run.start_date)
       try:
         elapsed = elapsed.total_seconds()
-      except: #python 2.6
+      except:  # python 2.6
         elapsed = elapsed.days * 86400 + elapsed.seconds
       return elapsed > self.args.stop_after
     return self.test_count > self.args.test_limit
@@ -93,9 +104,7 @@ class SearchDriver(DriverBase):
         results = self.results_query(config=dr.configuration).all()
         log.warning("Result callback %d (requestor=%s) pending for "
                     "%d generations %d results available",
-                    dr.id,
-                    dr.requestor,
-                    self.generation - dr.generation,
+                    dr.id, dr.requestor, self.generation - dr.generation,
                     len(results))
         if len(results):
           dr.result = results[0]
@@ -104,27 +113,32 @@ class SearchDriver(DriverBase):
       # try again later
       self.pending_result_callbacks.append((dr, callback))
 
-
-
   def has_results(self, config):
-    return self.results_query(config=config).count()>0
+    return self.results_query(config=config).count() > 0
 
   def run_generation_techniques(self):
     tests_this_generation = 0
     self.plugin_proxy.before_techniques()
     for z in xrange(self.args.parallelism):
-      dr = self.root_technique.desired_result()
+      if self.seed_cfgs:
+        config = self.get_configuration(self.seed_cfgs.pop())
+        dr = DesiredResult(configuration=config,
+                           requestor='seed',
+                           generation=self.generation,
+                           request_date=datetime.now(),
+                           tuning_run=self.tuning_run)
+      else:
+        dr = self.root_technique.desired_result()
       if dr is None:
         log.debug("no desired result, skipping to testing phase")
         break
-      self.session.flush() # populate configuration_id
+      self.session.flush()  # populate configuration_id
       duplicates = (self.session.query(DesiredResult)
-                            .filter_by(tuning_run=self.tuning_run,
-                                       configuration_id=dr.configuration_id)
-                            .filter(DesiredResult.id != dr.id)
-                            .order_by(DesiredResult.request_date)
-                            .limit(1)
-                            .all())
+                    .filter_by(tuning_run=self.tuning_run,
+                               configuration_id=dr.configuration_id)
+                    .filter(DesiredResult.id != dr.id)
+                    .order_by(DesiredResult.request_date)
+                    .limit(1).all())
       self.session.add(dr)
       if len(duplicates):
         if not self.args.no_dups:
@@ -135,11 +149,13 @@ class SearchDriver(DriverBase):
                       'OLD' if duplicates[0].result else 'PENDING')
         self.session.flush()
         desired_result_id = dr.id
+
         def callback(result):
           dr = self.session.query(DesiredResult).get(desired_result_id)
-          dr.result     = result
-          dr.state      = 'COMPLETE'
+          dr.result = result
+          dr.state = 'COMPLETE'
           dr.start_date = datetime.now()
+
         self.register_result_callback(duplicates[0], callback)
       else:
         log.debug("desired result id=%d, cfg=%d", dr.id, dr.configuration_id)
@@ -149,15 +165,15 @@ class SearchDriver(DriverBase):
     self.plugin_proxy.after_techniques()
     return tests_this_generation
 
-  def run_generation_results(self, offset = 0):
+  def run_generation_results(self, offset=0):
     self.commit()
     self.plugin_proxy.before_results_wait()
     self.wait_for_results(self.generation + offset)
     self.plugin_proxy.after_results_wait()
 
     for result in (self.results_query()
-                  .filter_by(was_new_best = None)
-                  .order_by(Result.collection_date)):
+                       .filter_by(was_new_best=None)
+                       .order_by(Result.collection_date)):
       if self.best_result is None:
         self.best_result = result
         result.was_new_best = True
@@ -173,10 +189,11 @@ class SearchDriver(DriverBase):
 
   @property
   def plugin_proxy(self):
-    '''
+    """
     forward any method calls on the returned object to all plugins
-    '''
+    """
     plugins = self.plugins
+
     class PluginProxy(object):
       def __getattr__(self, method_name):
         def plugin_method_proxy(*args, **kwargs):
@@ -186,12 +203,14 @@ class SearchDriver(DriverBase):
           return filter(lambda x: x is not None, rv)
 
         return plugin_method_proxy
+
     return PluginProxy()
 
   def get_configuration(self, cfg):
-    '''called by SearchTechniques to create Configuration objects'''
+    """called by SearchTechniques to create Configuration objects"""
+    self.manipulator.normalize(cfg)
     hashv = self.manipulator.hash_config(cfg)
-    config = Configuration.get(self.session, self.program, hashv, cfg)
+    config = Configuration.get(self.session,self.program, hashv, cfg)
     return config
 
   def main(self):
@@ -205,14 +224,14 @@ class SearchDriver(DriverBase):
       self.run_generation_techniques()
       self.generation += 1
 
-    while not self.convergence_criterea():
+    while not self.convergence_criteria():
       if self.run_generation_techniques() > 0:
         no_tests_generations = 0
       elif no_tests_generations <= self.args.bail_threshold:
         no_tests_generations += 1
       else:
         break
-      self.run_generation_results(offset = -self.args.pipelining)
+      self.run_generation_results(offset=-self.args.pipelining)
       self.generation += 1
 
     self.plugin_proxy.after_main()

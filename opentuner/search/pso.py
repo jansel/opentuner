@@ -7,7 +7,7 @@ import math
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
     def __init__(self, crossover, N = 3, init_pop=None, *pargs, **kwargs):
-        """
+       """
         crossover: name of crossover operator function
         """
         super(PSO, self).__init__(*pargs, **kwargs)
@@ -17,7 +17,7 @@ class PSO(technique.SequentialSearchTechnique ):
         self.N = N
 
     def main_generator(self):
-        
+
         objective   = self.objective
         driver      = self.driver
         m = self.manipulator
@@ -28,19 +28,18 @@ class PSO(technique.SequentialSearchTechnique ):
         if not population:
             population = [HybridParticle(m, self.crossover, omega=0.5) for i in range(self.N)]
 
-        for p in population:
+       for p in population:
             yield driver.get_configuration(p.position)
-            
+
         while True:
             for particle in population:
                 g = driver.best_result.configuration.data
                 old=m.copy(particle.position)
                 particle.move(g)
-                yield config(particle.position)
+               yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
                     particle.best = particle.position
-                           
 
 class HybridParticle(object):
     def __init__(self, m, crossover_choice, omega=1, phi_l=0.5, phi_g=0.5):
@@ -48,10 +47,10 @@ class HybridParticle(object):
         """
         m: a configuraiton manipulator
         omega: influence of the particle's last velocity, a float in range [0,1] ; omega=1 means even speed
-        phi_l: influence of the particle's distance to its historial best position, a float in range [0,1] 
+        phi_l: influence of the particle's distance to its historial best position, a float in range [0,1]
         phi_g: influence of the particle's distance to the global best position, a float in range [0,1]
         """
-        
+
         self.manipulator = m
         self.position = self.manipulator.random()   
         self.best = self.position
@@ -102,8 +101,6 @@ class HybridParticle(object):
                     raise Exception("Behavior undefined for parameter", p)
 
 
-# Helper functions
-
 def to_ordinal(v, classes):
     """ Map a value v in range [0,1] to discrete ordinal classes"""
     k = len(classes)
@@ -120,7 +117,6 @@ continuous_params = [FloatParameter]
 ordinal_params = [BooleanParameter, IntegerParameter]
 nominal_params = [SwitchParameter, EnumParameter]
 discrete_params = ordinal_params+nominal_params
-
 params1D = continuous_params +discrete_params
 paramsND = [PermutationParameter]
 

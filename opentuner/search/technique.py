@@ -19,9 +19,9 @@ argparser.add_argument('--list-techniques','-lt', action='store_true',
                        help="list techniques available and exit")
 
 class SearchTechniqueBase(object):
-  '''
+  """
   abstract base class for search techniques, with minimal interface
-  '''
+  """
   __metaclass__ = abc.ABCMeta
 
   def __init__(self, name = None):
@@ -32,50 +32,50 @@ class SearchTechniqueBase(object):
       self.name = self.default_name()
 
   def is_ready(self):
-    '''test if enough data has been gathered to use this technique'''
+    """test if enough data has been gathered to use this technique"""
     return True
 
   def default_name(self):
-    '''name of this SearchTechnique uses for display/accounting'''
+    """name of this SearchTechnique uses for display/accounting"""
     return self.__class__.__name__
 
   def handle_requested_result(self, result):
-    '''called for each new Result(), requested by this technique'''
+    """called for each new Result(), requested by this technique"""
     pass
 
   @abc.abstractmethod
   def set_driver(self, driver):
-    '''called at start of tuning process'''
+    """called at start of tuning process"""
     return
 
   @abc.abstractmethod
   def desired_result(self):
-    '''
+    """
     return at most count resultsdb.models.DesiredResult objects based on past
     performance
-    '''
+    """
     return
 
 class SearchTechnique(SearchPlugin, SearchTechniqueBase):
-  '''
+  """
   a search search technique with basic utility functions
-  '''
+  """
 
   def __init__(self, *pargs, **kwargs):
     super(SearchTechnique, self).__init__(*pargs, **kwargs)
-    self.driver      = None
+    self.driver = None
     self.manipulator = None
-    self.objective   = None
+    self.objective = None
     self.request_count = 0
 
   def set_driver(self, driver):
     super(SearchTechnique, self).set_driver(driver)
     self.manipulator = driver.manipulator
-    self.objective   = driver.objective
+    self.objective = driver.objective
     driver.add_plugin(self)
 
   def desired_result(self):
-    '''create and return a resultsdb.models.DesiredResult'''
+    """create and return a resultsdb.models.DesiredResult"""
     cfg = self.desired_configuration()
     if cfg is None:
       return None
@@ -83,13 +83,11 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
       config = cfg
     else:
       config = self.driver.get_configuration(cfg)
-    desired = DesiredResult(
-                  configuration = config,
-                  requestor     = self.name,
-                  generation    = self.driver.generation,
-                  request_date  = datetime.now(),
-                  tuning_run    = self.driver.tuning_run,
-                )
+    desired = DesiredResult(configuration=config,
+                            requestor=self.name,
+                            generation=self.driver.generation,
+                            request_date=datetime.now(),
+                            tuning_run=self.driver.tuning_run)
     if hasattr(self, 'limit'):
       desired.limit = self.limit
     self.driver.register_result_callback(desired, self.handle_requested_result)
@@ -98,20 +96,20 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
 
   @abc.abstractmethod
   def desired_configuration(self):
-    '''
+    """
     return a cfg that we should test
     given a ConfigurationManipulator and SearchDriver
-    '''
+    """
     return dict()
 
   def handle_requested_result(self, result):
-    '''called for each new Result(), regardless of who requested it'''
+    """called for each new Result(), regardless of who requested it"""
     pass
 
 class PureRandom(SearchTechnique):
-  '''
+  """
   request configurations completely randomly
-  '''
+  """
   def desired_configuration(self):
     return self.manipulator.random()
 
@@ -123,7 +121,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     self.latest_results = []
 
   def call_main_generator(self):
-    '''passthrough (used in subclasses)'''
+    """passthrough (used in subclasses)"""
     return self.main_generator()
 
   def desired_configuration(self):
@@ -140,7 +138,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
 
   @abc.abstractmethod
   def main_generator(self):
-    '''
+    """
     custom generator to conduct this search, should:
     yield config
     to request tests and call driver.get_results() to read the results
@@ -149,7 +147,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     time (`yield None` to stall and wait for them)
 
     in SequentialSearchTechnique results are ready after the yield
-    '''
+    """
     pass
 
   def is_ready(self):
@@ -163,15 +161,15 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
     self.rounds_since_novel_request = 0
 
   def yield_nonblocking(self, cfg):
-    '''
+    """
     within self.main_generator() act like `yield cfg`, but don't wait for the
     results until the following yield (spawn/sync style)
-    '''
+    """
     if cfg:
       self.pending_tests.append(cfg)
 
   def call_main_generator(self):
-    '''insert waits for results after every yielded item'''
+    """insert waits for results after every yielded item"""
     subgen = self.main_generator()
     self.rounds_since_novel_request = 0
     while True:
@@ -211,10 +209,12 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
 #list of all techniques
 the_registry = list()
 
+
 def register(t):
   the_registry.append(t)
 
 register(PureRandom())
+
 
 def all_techniques(args):
   #import all modules in search to ensure techniques are Registered
@@ -224,6 +224,7 @@ def all_techniques(args):
       import_module('opentuner.search.'+m.group(1))
 
   return the_registry
+
 
 def get_enabled(args):
   techniques = all_techniques(args)
@@ -239,6 +240,7 @@ def get_enabled(args):
     log.error("unknown technique %s", unknown)
 
   return [t for t in techniques if t.name in args.technique]
+
 
 def get_root(args):
   from metatechniques import RoundRobinMetaSearchTechnique

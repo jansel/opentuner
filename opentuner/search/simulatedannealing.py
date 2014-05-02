@@ -42,7 +42,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
     counter = 0
     max_time = len(self.cool_schedule)-1
     #Check whether relative objective implemented
-    has_rel = objective.relative(state,state) != None
+    has_rel = objective.relative(state,state) is not None
     has_rel=False
               
     while True:
@@ -84,7 +84,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
             
       #Relative comparison implemented
       if has_rel:
-        while(True):
+        while True:
           if len(points) == 0:
             state = driver.best_result.configuration
             break
@@ -107,7 +107,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
         state = points[sel%len(points)]
             
         #switch to the global best if temperature is low (i.e. we aren't moving much)
-        if(AcceptanceFunction(0,1,temp,1)< .0001 and objective.lt(driver.best_result.configuration, state)):
+        if AcceptanceFunction(0,1,temp,1)< .0001 and objective.lt(driver.best_result.configuration, state):
           state = driver.best_result.configuration
           
       #update counter
@@ -119,7 +119,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
 #Acceptance probability function for annealing
 def AcceptanceFunction(e,e_new,temp,scaling):
   #Standard acceptance probability function using relative "goodness"
-  if(e>=e_new):
+  if e>=e_new:
     return 1
   if temp == 0:
     return 0

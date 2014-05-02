@@ -8,6 +8,7 @@ pip_install_packages = filter(len, open('python-packages').readlines())
 
 import os
 import subprocess
+import sys
 
 def adjust_options(options, args):
   if len(args)==0:
@@ -22,6 +23,8 @@ def after_install(options, home_dir):
     pip = join(home_dir, 'Scripts/pip.exe')
   if not os.path.exists(pip):
     print "error", pip, "is missing"
+  if sys.version_info < (2, 7):
+    subprocess.call([pip, 'install', 'importlib'])
   for prog in pip_install_packages:
     subprocess.call([pip, 'install', prog])
 

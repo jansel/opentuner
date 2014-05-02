@@ -26,9 +26,9 @@ from distutils.util import strtobool
 import struct
 import subprocess
 
-if sys.version_info < (2, 5):
+if sys.version_info < (2, 6):
     print('ERROR: %s' % sys.exc_info()[1])
-    print('ERROR: this script requires Python 2.5 or greater.')
+    print('ERROR: this script requires Python 2.6 or greater.')
     sys.exit(101)
 
 try:
@@ -596,8 +596,7 @@ def _install_req(py_executable, unzip=False, distribute=False,
 def file_search_dirs():
     here = os.path.dirname(os.path.abspath(__file__))
     dirs = ['.', here,
-            #join(here, 'virtualenv_support')]
-            '/usr/share/python-virtualenv/']
+            join(here, 'virtualenv_support')]
     if os.path.splitext(os.path.dirname(__file__))[0] != 'virtualenv':
         # Probably some boot script; just in case virtualenv is installed...
         try:
@@ -885,7 +884,7 @@ def main():
         'VIRTUALENV_SETUPTOOLS to make it the default ')
 
     # Set this to True to use distribute by default, even in Python 2.
-    parser.set_defaults(use_distribute=True)
+    parser.set_defaults(use_distribute=False)
 
     default_search_dirs = file_search_dirs()
     parser.add_option(
@@ -1918,6 +1917,7 @@ pip_install_packages = filter(len, open('python-packages').readlines())
 
 import os
 import subprocess
+import sys
 
 def adjust_options(options, args):
   if len(args)==0:
@@ -1932,6 +1932,8 @@ def after_install(options, home_dir):
     pip = join(home_dir, 'Scripts/pip.exe')
   if not os.path.exists(pip):
     print "error", pip, "is missing"
+  if sys.version_info < (2, 7):
+    subprocess.call([pip, 'install', 'importlib'])
   for prog in pip_install_packages:
     subprocess.call([pip, 'install', prog])
 

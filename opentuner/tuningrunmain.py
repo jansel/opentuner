@@ -6,7 +6,6 @@ import math
 import os
 import socket
 import sys
-import time
 import uuid
 from datetime import datetime
 
@@ -23,10 +22,12 @@ argparser.add_argument('--print-search-space-size', action='store_true',
                        help="Print out the estimated size of the search space and exit")
 argparser.add_argument('--database',
                        help=("database to store tuning results in, see: "
-  "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
+                             "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
+
 
 class CleanStop(Exception):
   pass
+
 
 class LogFormatter(logging.Formatter):
   def format(self, record):
@@ -37,6 +38,8 @@ class LogFormatter(logging.Formatter):
     except:
       # python 2.6
       return _OldFormatter.format(self, record)
+
+
 _OldFormatter = logging.Formatter
 logging.Formatter = LogFormatter
 
@@ -53,10 +56,10 @@ the_logging_config = {
   'formatters': {'console': {'format': '[%(relativeCreated)6.0fs] '
                                        '%(levelname)7s %(name)s: '
                                        '%(message)s'},
-                 'file':    {'format': '[%(asctime)-15s] '
-                                       '%(levelname)7s %(name)s: '
-                                       '%(message)s '
-                                       '@%(filename)s:%(lineno)d'}},
+                 'file': {'format': '[%(asctime)-15s] '
+                                    '%(levelname)7s %(name)s: '
+                                    '%(message)s '
+                                    '@%(filename)s:%(lineno)d'}},
   'handlers': {'console': {'class': 'logging.StreamHandler',
                            'formatter': 'console',
                            'level': 'INFO'},
@@ -79,8 +82,8 @@ class TuningRunMain(object):
   def __init__(self,
                measurement_interface,
                args,
-               search_driver = SearchDriver,
-               measurement_driver = MeasurementDriver):
+               search_driver=SearchDriver,
+               measurement_driver=MeasurementDriver):
     init_logging()
 
     manipulator = measurement_interface.manipulator()
@@ -94,10 +97,11 @@ class TuningRunMain(object):
       #args.database = 'sqlite://' #in memory
       if not os.path.isdir('opentuner.db'):
         os.mkdir('opentuner.db')
-      args.database = 'sqlite:///'+os.path.join('opentuner.db', socket.gethostname()+'.db')
+      args.database = 'sqlite:///' + os.path.join('opentuner.db',
+                                                  socket.gethostname() + '.db')
 
     if '://' not in args.database:
-      args.database = 'sqlite:///'+args.database
+      args.database = 'sqlite:///' + args.database
 
     if not args.label:
       args.label = 'unnamed'
@@ -122,30 +126,30 @@ class TuningRunMain(object):
   def init(self):
     if self.tuning_run is None:
       program_version = (self.measurement_interface
-                            .db_program_version(self.session))
+                         .db_program_version(self.session))
       self.session.flush()
       self.measurement_interface.prefix_hook(self.session)
-      self.tuning_run  = (
+      self.tuning_run = (
         resultsdb.models.TuningRun(
-          uuid            = uuid.uuid4().hex,
-          name            = self.args.label,
-          args            = self.args,
-          start_date      = datetime.now(),
-          program_version = program_version,
-          objective       = self.objective_copy,
+          uuid=uuid.uuid4().hex,
+          name=self.args.label,
+          args=self.args,
+          start_date=datetime.now(),
+          program_version=program_version,
+          objective=self.objective_copy,
         ))
       self.session.add(self.tuning_run)
 
       driver_kwargs = {
-          'args'                  : self.args,
-          'input_manager'         : self.input_manager,
-          'manipulator'           : self.manipulator,
-          'measurement_interface' : self.measurement_interface,
-          'objective'             : self.objective,
-          'session'               : self.session,
-          'tuning_run_main'       : self,
-          'tuning_run'            : self.tuning_run,
-        }
+        'args': self.args,
+        'input_manager': self.input_manager,
+        'manipulator': self.manipulator,
+        'measurement_interface': self.measurement_interface,
+        'objective': self.objective,
+        'session': self.session,
+        'tuning_run_main': self,
+        'tuning_run': self.tuning_run,
+      }
 
       self.search_driver = self.search_driver_cls(**driver_kwargs)
 
@@ -156,7 +160,7 @@ class TuningRunMain(object):
       self.tuning_run.machine_class = self.measurement_driver.get_machine_class()
       self.tuning_run.input_class = self.input_manager.get_input_class()
 
-  def commit(self, force = False):
+  def commit(self, force=False):
     if force or not self.fake_commit:
       self.session.commit()
     else:
@@ -181,9 +185,10 @@ class TuningRunMain(object):
       self.session.close()
 
   def results_wait(self, generation):
-    '''called by search_driver to wait for results'''
+    """called by search_driver to wait for results"""
     #single process version:
     self.measurement_driver.process_all()
+
 
 def main(interface, args, *pargs, **kwargs):
   if inspect.isclass(interface):

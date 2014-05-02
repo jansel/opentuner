@@ -5,7 +5,7 @@
 
 using namespace Halide;
 
-Var x, y, c;
+Var x("x"), y("y"), c("c");
 
 Func haar_x(Func in) {
     Func out;
@@ -48,7 +48,7 @@ Func daubechies_x(Func in) {
 }
 
 Func inverse_daubechies_x(Func in) {
-    Func out;
+    Func out("inv_daub_x");
     out(x, y) = select(x%2 == 0,
                        D2*in(x/2, y, 0) + D1*in(x/2, y, 1) + D0*in(x/2+1, y, 0) + D3*in(x/2+1, y, 1),
                        D3*in(x/2, y, 0) - D0*in(x/2, y, 1) + D1*in(x/2+1, y, 0) - D2*in(x/2+1, y, 1));
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     Func clamped;
     clamped(x, y) = image(clamp(x, 0, image.width()-1),
                           clamp(y, 0, image.height()-1));
-    Func wavelet_clamped;
+    Func wavelet_clamped("wavelet_clamped");
     wavelet_clamped(x, y, c) = wavelet(clamp(x, 0, wavelet.width()-1),
                                        clamp(y, 0, wavelet.height()-1), c);
 
