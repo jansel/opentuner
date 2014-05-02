@@ -285,7 +285,13 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
-  def velocity_update(self, w, gbest, g, lbest, l):
+  @abc.abstractmethod
+  def pso_update(self, position, velocity, gbest, lbest, omega, phi_g, phi_l):
+    '''
+    Find velocity_new = omega*velocity + phi_l*(lbest-position) + phi_g*(gbest-position) and
+    Updates position = position + velocity
+    Return: velocity_new 
+    '''
     pass
 
 class PrimitiveParameter(Parameter):
