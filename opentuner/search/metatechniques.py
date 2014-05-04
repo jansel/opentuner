@@ -1,6 +1,5 @@
 import abc
 import logging
-import random
 from collections import deque, defaultdict
 from fn import _
 
@@ -9,9 +8,9 @@ from .technique import SearchTechniqueBase
 log = logging.getLogger(__name__)
 
 class MetaSearchTechnique(SearchTechniqueBase):
-  '''
+  """
   a technique made up of a collection of other techniques
-  '''
+  """
   def __init__(self, techniques, log_freq = 500, *pargs, **kwargs):
     super(MetaSearchTechnique, self).__init__(*pargs, **kwargs)
     self.techniques = techniques
@@ -49,13 +48,13 @@ class MetaSearchTechnique(SearchTechniqueBase):
     return None
 
   def on_technique_result(self, technique, result):
-    '''callback for results of sub-techniques'''
+    """callback for results of sub-techniques"""
     pass
 
   @abc.abstractmethod
   def select_technique_order(self):
-    '''select the order of next techniques to try'''
-    pass
+    """select the order of next techniques to try"""
+    return []
 
   def debug_log(self):
     if self.log_freq and sum(self.logging_use_counters.values())>self.log_freq:
@@ -64,7 +63,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
       self.logging_use_counters = defaultdict(int)
 
 class RoundRobinMetaSearchTechnique(MetaSearchTechnique):
-  '''evenly switch between all source techniques'''
+  """evenly switch between all source techniques"""
   def __init__(self, techniques, **kwargs):
     techniques = deque(techniques)
     super(RoundRobinMetaSearchTechnique, self).__init__(techniques, **kwargs)
@@ -75,10 +74,10 @@ class RoundRobinMetaSearchTechnique(MetaSearchTechnique):
     return rv
 
 class RecyclingMetaTechnique(MetaSearchTechnique):
-  '''
+  """
   periodically restart techniques that are not performing well compared to
   global best
-  '''
+  """
   def __init__(self,
                techniques_generators,
                window = 100,
@@ -103,7 +102,7 @@ class RecyclingMetaTechnique(MetaSearchTechnique):
     self.rename_i += 1
 
   def on_technique_result(self, technique, result):
-    '''callback for results of sub-techniques'''
+    """callback for results of sub-techniques"""
     if (self.best_results[technique] is None or
         self.driver.objective.lt(result, self.best_results[technique])):
       self.best_results[technique] = result

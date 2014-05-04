@@ -10,33 +10,33 @@ log = logging.getLogger(__name__)
 
 
 class SearchObjective(object):
-  '''
+  """
   delegates the comparison of results and configurations
-  '''
+  """
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def result_order_by_terms(self):
-    '''return database columns required to order by the objective'''
+    """return database columns required to order by the objective"""
     return []
 
   @abc.abstractmethod
   def result_compare(self, result1, result2):
-    '''cmp() compatible comparison of resultsdb.models.Result'''
+    """cmp() compatible comparison of resultsdb.models.Result"""
     return
 
   def config_compare(self, config1, config2):
-    '''cmp() compatible comparison of resultsdb.models.Configuration'''
+    """cmp() compatible comparison of resultsdb.models.Configuration"""
     return self.result_compare(self.driver.results_query(config=config1).one(),
                                self.driver.results_query(config=config2).one())
 
   @abc.abstractmethod
   def result_relative(self, result1, result2):
-    '''return None, or a relative goodness of resultsdb.models.Result'''
+    """return None, or a relative goodness of resultsdb.models.Result"""
     return
 
   def config_relative(self, config1, config2):
-    '''return None, or a relative goodness of resultsdb.models.Configuration'''
+    """return None, or a relative goodness of resultsdb.models.Configuration"""
     return self.result_relative(self.driver.results_query(config=config1).one(),
 				self.driver.results_query(config=config2).one())
 
@@ -51,7 +51,7 @@ class SearchObjective(object):
     return q.order_by(*self.result_order_by_terms())
 
   def compare(self, a, b):
-    '''cmp() compatible compare'''
+    """cmp() compatible compare"""
     if isinstance(a, Configuration):
       return self.config_compare(a, b)
     if isinstance(a, Result):
@@ -89,17 +89,17 @@ class SearchObjective(object):
     return rv
 
   def limit_from_config(self, config):
-    '''
+    """
     a time limit to kill a result after such that it can be compared to config
-    '''
+    """
     return max(map(_.time, self.driver.results_query(config=config)))
 
 
   def project_compare(self, a1, a2, b1, b2, factor=1.0):
-    '''
+    """
     linearly project both a and b forward to see how they will compare in the
     future
-    '''
+    """
     a3 = Result()
     b3 = Result()
     a3.time       = _project(a1.time,       a2.time,       factor)
@@ -109,26 +109,26 @@ class SearchObjective(object):
     return self.result_compare(a3, b3)
 
   def display(self, result):
-    '''
+    """
     produce a string version of a resultsdb.models.Result()
-    '''
+    """
     rv = []
     for k in ('time', 'accuracy', 'energy', 'size', 'confidence'):
       v = getattr(result, k)
       if v is not None:
-        rv.append('%s=%.4f' % (k,v))
+        rv.append('%s=%.4f' % (k, float(v)))
     return ', '.join(rv)
 
   def filter_acceptable(self, query):
-    '''Return a Result() query that only returns acceptable results'''
+    """Return a Result() query that only returns acceptable results"""
     return query
 
   def is_acceptable(self, result):
-    '''Test if a Result() meets thresholds'''
+    """Test if a Result() meets thresholds"""
     return True
 
   def stats_quality_score(self, result, worst_result, best_result):
-    '''return a score for statistics'''
+    """return a score for statistics"""
     if not self.is_acceptable(result):
       return worst_result.time
     else:
@@ -140,53 +140,53 @@ def _project(a1, a2, factor):
   return a2 + factor*(a2-a1)
 
 class MinimizeTime(SearchObjective):
-  '''
+  """
   minimize Result().time
-  '''
+  """
 
   def result_order_by_terms(self):
-    '''return database columns required to order by the objective'''
+    """return database columns required to order by the objective"""
     return [Result.time]
 
   def result_compare(self, result1, result2):
-    '''cmp() compatible comparison of resultsdb.models.Result'''
+    """cmp() compatible comparison of resultsdb.models.Result"""
     return cmp(result1.time, result2.time)
 
   def config_compare(self, config1, config2):
-    '''cmp() compatible comparison of resultsdb.models.Configuration'''
+    """cmp() compatible comparison of resultsdb.models.Configuration"""
     return cmp(min(map(_.time, self.driver.results_query(config=config1))),
                min(map(_.time, self.driver.results_query(config=config2))))
 
   def result_relative(self, result1, result2):
-    '''return None, or a relative goodness of resultsdb.models.Result'''
+    """return None, or a relative goodness of resultsdb.models.Result"""
     if result2.time == 0:
       return  float('inf')*result1.time
     return result1.time/result2.time
 
 
 class MaximizeAccuracy(SearchObjective):
-  '''
+  """
   maximize Result().accuracy
-  '''
+  """
 
   def result_order_by_terms(self):
-    '''return database columns required to order by the objective'''
+    """return database columns required to order by the objective"""
     return [-Result.accuracy]
 
   def result_compare(self, result1, result2):
-    '''cmp() compatible comparison of resultsdb.models.Result'''
+    """cmp() compatible comparison of resultsdb.models.Result"""
     # note opposite order
     return cmp(result2.accuracy, result1.accuracy)
 
   def result_relative(self, result1, result2):
-    '''return None, or a relative goodness of resultsdb.models.Result'''
+    """return None, or a relative goodness of resultsdb.models.Result"""
     # note opposite order
     if result1.accuracy == 0:
       return float('inf')*result2.accuracy
     return result2.accuracy/result1.accuracy
 
   def stats_quality_score(self, result, worst_result, best_result):
-    '''return a score for statistics'''
+    """return a score for statistics"""
     if not self.is_acceptable(result):
       return worst_result.time
     else:
@@ -197,38 +197,38 @@ class MaximizeAccuracy(SearchObjective):
 
 
 class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):
-  '''
+  """
   maximize Result().accuracy, break ties with Result().size
-  '''
+  """
   def result_order_by_terms(self):
-    '''return database columns required to order by the objective'''
+    """return database columns required to order by the objective"""
     return [-Result.accuracy, Result.size]
 
   def result_compare(self, result1, result2):
-    '''cmp() compatible comparison of resultsdb.models.Result'''
+    """cmp() compatible comparison of resultsdb.models.Result"""
     return cmp((-result1.accuracy, result1.size),
                (-result2.accuracy, result2.size))
 
   def display(self, result):
-    '''
+    """
     produce a string version of a resultsdb.models.Result()
-    '''
+    """
     return "accuracy=%.8f, size=%.1f" %  (result.accuracy, result.size)
 
   def result_relative(self, result1, result2):
-    '''return None, or a relative goodness of resultsdb.models.Result'''
+    """return None, or a relative goodness of resultsdb.models.Result"""
     #unimplemented for now
     log.warning('result_relative() not yet implemented for %s', self.__class__.__name__)
     return None
 
 
 class ThresholdAccuracyMinimizeTime(SearchObjective):
-  '''
+  """
   if accuracy >= target:
     minimize time
   else:
     maximize accuracy
-  '''
+  """
 
   def __init__(self, accuracy_target, low_accuracy_limit_multiplier=10.0):
     self.accuracy_target = accuracy_target
@@ -236,27 +236,27 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     super(ThresholdAccuracyMinimizeTime, self).__init__()
 
   def result_order_by_terms(self):
-    '''return database columns required to order by the objective'''
+    """return database columns required to order by the objective"""
 
     return ["min(accuracy, %f) desc" % self.accuracy_target,
             opentuner.resultsdb.models.Result.time]
 
   def result_compare(self, result1, result2):
-    '''cmp() compatible comparison of resultsdb.models.Result'''
+    """cmp() compatible comparison of resultsdb.models.Result"""
     return cmp((-min(self.accuracy_target, result1.accuracy), 
 result1.time),
                (-min(self.accuracy_target, result2.accuracy), result2.time))
 
   def config_compare(self, config1, config2):
-    '''cmp() compatible comparison of resultsdb.models.Configuration'''
+    """cmp() compatible comparison of resultsdb.models.Configuration"""
     return self.result_compare(
         self.driver.results_query(config=config1, objective_ordered=True)[0],
         self.driver.results_query(config=config2, objective_ordered=True)[0])
 
   def limit_from_config(self, config):
-    '''
+    """
     a time limit to kill a result after such that it can be compared to config
-    '''
+    """
     results = self.driver.results_query(config=config)
     if self.accuracy_target > min(map(_.accuracy, results)):
       m = self.low_accuracy_limit_multiplier
@@ -266,16 +266,16 @@ result1.time),
 
 
   def filter_acceptable(self, query):
-    '''Return a Result() query that only returns acceptable results'''
+    """Return a Result() query that only returns acceptable results"""
     return query.filter(opentuner.resultsdb.models.Result.accuracy
                         >= self.accuracy_target)
 
   def is_acceptable(self, result):
-    '''Test if a Result() meets thresholds'''
+    """Test if a Result() meets thresholds"""
     return result.accuracy >= self.accuracy_target
 
   def result_relative(self, result1, result2):
-    '''return None, or a relative goodness of resultsdb.models.Result'''
+    """return None, or a relative goodness of resultsdb.models.Result"""
     #unimplemented for now
     log.warning('result_relative() not yet implemented for %s', self.__class__.__name__)
     return None

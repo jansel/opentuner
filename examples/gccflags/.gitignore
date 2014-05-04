@@ -1,2 +1,4 @@
 tmp.bin
 cc_flags.json
+gccflags_final_config.cmd
+gccflags_final_config.json

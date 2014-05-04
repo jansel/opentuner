@@ -16,19 +16,19 @@ class PSO(technique.SequentialSearchTechnique ):
         self.init_pop = init_pop
 
     def main_generator(self):
-        
+
         objective   = self.objective
         driver      = self.driver
         m = PSOmanipulator(self.crossover, self.manipulator.params)
         def config(cfg):
             return driver.get_configuration(cfg)
-	
-	population = self.init_pop
+
+        population = self.init_pop
         if not population:
-	    population = [HybridParticle(m, omega=0.5) for i in range(N)]
+            population = [HybridParticle(m, omega=0.5) for i in range(N)]
         for p in population:
             yield driver.get_configuration(p.position)
-            
+
         while True:
             # For each particle
             for particle in population:
@@ -40,7 +40,7 @@ class PSO(technique.SequentialSearchTechnique ):
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
                     particle.best = particle.position
-                           
+
  
 
 
@@ -49,17 +49,17 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
         """
         m: a configuraiton manipulator
         omega: influence of the particle's last velocity, a float in range [0,1] ; omega=1 means even speed
-        phi_l: influence of the particle's distance to its historial best position, a float in range [0,1] 
+        phi_l: influence of the particle's distance to its historial best position, a float in range [0,1]
         phi_g: influence of the particle's distance to the global best position, a float in range [0,1]
         """
-        
+
         self.manipulator = m
-        self.position = self.manipulator.random()   
+        self.position = self.manipulator.random()
         self.best = self.position
         self.omega = omega
         self.phi_l = phi_l
         self.phi_g = phi_g
-        
+
     def __str__(self):
         return 'V:'+str(self.velocity)+'\tP:'+str(self.position)
 
@@ -67,10 +67,11 @@ class Particle(object):     # should inherit from/link to ConfigurationManipulat
         pass
 
 class ContinuousParticle(Particle):     # should inherit from/link to ConfigurationManipulator? 
-    def __init__(self, *args):
-        super(ContinuousParticle, self).__init__(*args)      
+    def __init__(self, *args, **kwargs):
+        super(ContinuousParticle, self).__init__(*args, **kwargs)
+        m = self.manipulator
         self.velocity = m.difference(m.random(), m.random())   # velocity domain; initial value
-        
+
     def move(self, global_best):
         """ move the particle towards its historical best and global best """
         m = self.manipulator
@@ -95,7 +96,7 @@ class DiscreteParticle(Particle):
                  m.crossover(self.position, current, global_best)
             else:
                  m.crossover(self.position, current, self.best)
-        
+
 class HybridParticle(Particle):
     def move(self, global_best):
         m = self.manipulator
@@ -106,8 +107,8 @@ class HybridParticle(Particle):
                  m.mix(self.position, self.position, global_best)
             else:
                  m.mix(self.position, self.position, self.best)
-        
-         
+
+
 class ParticleIII(Particle):
     """
     At each step, randomly chooses one motion out of:
@@ -124,12 +125,12 @@ class ParticleIII(Particle):
             m.scale(m.difference(self.best, self.position),random.uniform(0,self.phi_l)),
             m.scale(m.difference(global_best, self.position),random.uniform(0,self.phi_g))
             ]
-                
+
         choice = random.randint(0,2)
         self.velocity = vs[choice]
         self.position = m.add_v(self.position, vs[choice])
-        
-        
+
+
 class ParticleIV(Particle):
     """
     Similar to ParticleIII except that velocity can only be a subsequence of the swap sequence
@@ -143,12 +144,12 @@ class ParticleIV(Particle):
             m.split(m.difference(self.best, self.position),random.uniform(0,self.phi_l)),
             m.split(m.difference(global_best, self.position),random.uniform(0,self.phi_g))
             ]
-                
+
         choice = random.randint(0,2)
         self.velocity = vs[choice][1]
         self.position = m.add_v(self.position, vs[choice][0])
-        
-    
+
+
 class PSOmanipulator(manipulator.ConfigurationManipulator):
     def __init__(self, crossover, *pargs, **kwargs):
         super(PSOmanipulator, self).__init__(*pargs, **kwargs)
@@ -164,22 +165,22 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                 pass
 
         return v
-        
+
 
     def mix(self, dest, cfg1, cfg2):
         params = self.params
         random.shuffle(params)
-	params[0].randomize(dest)
+        params[0].randomize(dest)
         for p in self.params:
             if p.is_permutation() and p.size>6:
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
-    
+
     def scale(self, dcfg, k):
         """ Scale a velocity by k """
         new = self.copy(dcfg)
         for p in self.params:
-            if isinstance(p, manipulator.PermutationParameter):                   
+            if isinstance(p, manipulator.PermutationParameter):
                 new[p.name]=p.scale_swaps(new[p.name], k)
             else:
                 p.scale(new, k)
@@ -189,11 +190,11 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
         new1 = self.copy(dcfg)
         new2 = self.copy(dcfg)
         for p in self.params:
-            if isinstance(p, manipulator.PermutationParameter):                   
+            if isinstance(p, manipulator.PermutationParameter):
                 new1[p.name], new2[p.name]=p.split_swaps(dcfg[p.name], k)
             else:
                 pass
-        return new1, new2           
+        return new1, new2
 
     def sum_v(self, *vs):
         """ Return the sum of a list of velocities """
@@ -202,10 +203,10 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
             if isinstance(p, manipulator.PermutationParameter):
                 vsum[p.name] = p.sum_swaps(*[v[p.name] for v in vs])
             else:
-                p.sum(vsum, *vs)       
+                p.sum(vsum, *vs)
         return vsum
-        
-        
+
+
 
     def add_v(self, cfg, v):
         """ Add a velocity to the position """
@@ -217,15 +218,15 @@ class PSOmanipulator(manipulator.ConfigurationManipulator):
                 p.sum(new, v, cfg)
 
         return new
-        
+
 
     def crossover(self, dest, cfg1, cfg2):
         for p in self.params:
             if p.is_permutation():
                 # Select crossover operator
                 getattr(p, self.crossover_choice)(dest, cfg1, cfg2, d=p.size/3)
-         
-                                
+
+
 
 technique.register(PSO(crossover = 'OX3'))
 technique.register(PSO(crossover = 'OX1'))

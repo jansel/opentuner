@@ -1,4 +1,8 @@
 
+import measurement
+import resultsdb
+import search
+import tuningrunmain
 from opentuner.measurement import MeasurementInterface
 from opentuner.resultsdb.models import Configuration
 from opentuner.resultsdb.models import DesiredResult
@@ -15,10 +19,11 @@ from opentuner.search.manipulator import ScheduleParameter
 from opentuner.search.manipulator import SwitchParameter
 from opentuner.tuningrunmain import init_logging
 
+
 def argparsers():
-  '''
-  return a list of ArguementParser to be used as parents to the user's 
-  '''
+  """
+  return a list of ArguementParser to be used as parents to the user's
+  """
   return [
       measurement.driver.argparser,
       search.driver.argparser,

@@ -3,16 +3,18 @@
 if __name__ == '__main__':
   import adddeps
 
-from collections import defaultdict
-from fn import _
-from fn import Stream
-from fn.iters import repeat
 import itertools
 import math
 import matplotlib.pyplot as plt
 import numpy
 import os
+import sqlalchemy
+import sqlalchemy.orm.exc
 
+from collections import defaultdict
+from fn import _
+from fn import Stream
+from fn.iters import repeat
 from opentuner import resultsdb
 
 PCTSTEPS = map(_/20.0, xrange(21))
@@ -133,9 +135,9 @@ def combined_stats_over_time(label,
                              worst,
                              best,
                              ):
-  '''
+  """
   combine stats_over_time() vectors for multiple runs
-  '''
+  """
 
   extract_fn = _.result.time
   combine_fn = min
@@ -165,7 +167,7 @@ def combined_stats_over_time(label,
     return ([values[int(round(p*(len(values)-1)))] for p in PCTSTEPS]
            + [mean(values)])
   percentile_values = get_data(extract_percentiles)
-  return (mean_values, percentile_values)
+  return mean_values, percentile_values
 
 
 def stats_over_time(session,
@@ -173,10 +175,10 @@ def stats_over_time(session,
                     extract_fn,
                     combine_fn,
                     no_data = None):
-  '''
+  """
   return reduce(combine_fn, map(extract_fn, data)) for each quanta of the
   tuning run
-  '''
+  """
   value_by_quanta = [ no_data ]
   start_date = run.start_date
 

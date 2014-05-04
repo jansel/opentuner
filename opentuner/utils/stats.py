@@ -6,17 +6,16 @@ if __name__ == '__main__':
 import argparse
 import csv
 import hashlib
+import itertools
 import logging
-import re
 import math
 import os
+import sqlalchemy.orm.exc
 import subprocess
 import sys
-import itertools
 
 from collections import defaultdict
-from datetime import datetime, timedelta
-from fn import _, F
+from fn import _
 from fn import Stream
 from fn.iters import repeat
 from pprint import pprint
@@ -304,9 +303,9 @@ class StatsMain(object):
                                worst,
                                best,
                                ):
-    '''
+    """
     combine stats_over_time() vectors for multiple runs
-    '''
+    """
 
     #extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
     extract_fn = _.result.time
@@ -419,10 +418,10 @@ set ytics 1
                       extract_fn,
                       combine_fn,
                       no_data = None):
-    '''
+    """
     return reduce(combine_fn, map(extract_fn, data)) for each quanta of the
     tuning run
-    '''
+    """
     value_by_quanta = [ no_data ]
     start_date = run.start_date
 

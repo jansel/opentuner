@@ -79,6 +79,7 @@ class DifferentialEvolution(SearchTechnique):
     if not oldest_pop_member:
       return None
 
+    config = None
     for retry in xrange(self.duplicate_retries):
       config = self.driver.get_configuration(
           self.create_new_configuration(oldest_pop_member))
