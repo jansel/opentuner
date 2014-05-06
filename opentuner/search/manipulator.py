@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab autoindent smarttab
 import abc
 import collections
 import copy
@@ -204,6 +205,18 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
         pass
     return cfg
 
+  def apply_ops(self, cfg, op_map, args={}):
+    """
+    Apply operators to each parameter according to given map. Updates cfg.
+    cfg: configuration data
+    op_map: python dict that maps string parameter name to Operator class
+    """
+    #TODO: check consistency between op_map and cfg
+    param_dict = self.parameters_dict(cfg)
+    for param in op_map:
+      param_dict[param].apply_op(cfg, op_map[param], args[param])
+
+
 class Parameter(object):
   """
   abstract base class for parameters in a ConfigurationManipulator
@@ -315,14 +328,10 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
-  @abc.abstractmethod
-  def pso_update(self, position, velocity, gbest, lbest, omega, phi_g, phi_l):
-    '''
-    Find velocity_new = omega*velocity + phi_l*(lbest-position) + phi_g*(gbest-position) and
-    Updates position = position + velocity
-    Return: velocity_new 
-    '''
-    pass
+  # Visitor Pattern for operator
+  def apply_op(self, cfg, operator):
+    operator.apply_to(self)
+
 
 class PrimitiveParameter(Parameter):
   """
