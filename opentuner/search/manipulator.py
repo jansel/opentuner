@@ -216,6 +216,11 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     for param in op_map:
       param_dict[param].apply_op(cfg, op_map[param], args[param])
 
+  def apply_op(self, cfg, op, *args):
+    """ 
+    Apply configuration-level operator.
+    """
+    op.apply_to(self, args)
 
 class Parameter(object):
   """
