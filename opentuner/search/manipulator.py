@@ -22,9 +22,6 @@ argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--list-params', '-lp',
     help='list available parameter classes')
 
-def all_params():
-  return inspect.getmembers(sys.modules[__name__], inspect.isclass)
-
 
 class ConfigurationManipulatorBase(object):
   """
@@ -216,11 +213,6 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     for param in op_map:
       param_dict[param].apply_op(cfg, op_map[param], args[param])
 
-  def apply_op(self, cfg, op, *args):
-    """ 
-    Apply configuration-level operator.
-    """
-    op.apply_to(self, args)
 
 class Parameter(object):
   """
@@ -337,6 +329,21 @@ class Parameter(object):
   def apply_op(self, cfg, operator):
     operator.apply_to(self)
 
+""" Stochastic Variators """
+  def pso_sv(self, *args):
+    raise Exception("Not applicable to:", self)
+
+  def de_sv(self, *args):
+    raise Exception("Not applicable to:", self)
+
+  def crossover_sv(self, *args): 
+    raise Exception("Not applicable to:", self)
+
+  def mutate_sv(self, *args):
+    raise Exception("Not applicable to:", self)
+
+  def stochastic_variators(self):
+    return []
 
 class PrimitiveParameter(Parameter):
   """
@@ -506,6 +513,18 @@ class IntegerParameter(NumericParameter):
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
+  def pso_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+      k = p.nvalues()
+      # Map position to discrete space
+      n1 = k/(1+exp(-self.position))
+      # Add Gaussian noise and round
+      n2 = round(random.gauss(c, sigma*(k-1)))
+      n3 = min(k, max(n2, 1))
+      p.set_value(n3, self.position)
+      return v
+
+  def stochastic_variators(self):
+    return [self.pso_sv]
 
 class FloatParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -513,6 +532,13 @@ class FloatParameter(NumericParameter):
     kwargs['value_type'] = float
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
+  def pso_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+    v = omega*param.get_value(velocity)+phi_g*param.get_value(global_best)+phi_l*param.get_value(local_best)
+    self.set_value( position, v+param.get_value(position))
+    return v
+
+  def stochastic_variators(self):
+    return [self.pso_sv]
 
 class ScaledNumericParameter(NumericParameter):
   @abc.abstractmethod
@@ -675,6 +701,18 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
+  def pso_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+      k = 2
+      # Map position to discrete space
+      n1 = k/(1+exp(-self.position))
+      # Add Gaussian noise and round
+      n2 = round(random.gauss(c, sigma*(k-1)))
+      n3 = min(k, max(n2, 1))
+      p.set_value(n3, self.position)
+      return v
+
+  def stochastic_variators(self):
+    return [self.pso_sv]
 
 class SwitchParameter(ComplexParameter):
   """
@@ -748,6 +786,10 @@ class PermutationParameter(ComplexParameter):
   def crossover(self, new, cfg1, cfg2,  cname, *args):
       if self.size>6:
         getattr(self, cname)(new, cfg1, cfg2, d=param.size/3)
+
+  def search_space_size(self):
+    return math.factorial(max(1, len(self._items)))
+
      
 # Swap-based operator
   def swap_dist(self, cfg1, cfg2):
@@ -931,12 +973,31 @@ class PermutationParameter(ComplexParameter):
     [c1.remove(i) for i in p2[r2:r2+d]]
     self.set_value(dest, c1[:r1]+p2[r2:r2+d]+c1[r1:])
       
+<<<<<<< Updated upstream
   def add_difference(self, cfg_dst, b, cfg_b, cfg_c):
     self.apply_swaps(self.scale_swaps(self.swap_dist(cfg_c, cfg_b), b), cfg_dst)
 
 
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
+
+  def pso_sv(self, c_choice, param, position, global_best, local_best, omega,phi_l):
+    if random.uniform(0,1)>omega:
+      if random.uniform(0,1)<phi_l:
+      # Select crossover operator
+        getattr(p, c_choice)(position, position, global_best, d=p.size/3)
+      else:
+        getattr(p, c_choice)(position, position, local_best, d=p.size/3)
+
+
+  def crossover_sv(self, new, cfg1, cfg2, cname, strength=1.0/3):
+        getattr(self, cname)(new, cfg1, cfg2, d=param.size*strength)
+  
+  def mutate_sv(self, cfg, mname):
+    getattr(self, mname)(cfg)
+  
+  def stochastic_variators(self):
+    return [self.pso_sv, self.crossover_sv, self.mutate_sv]
 
 
 class ScheduleParameter(PermutationParameter):
@@ -1085,6 +1146,27 @@ class ArrayParameter(ComplexParameter):
 class BooleanArrayParameter(ArrayParameter):
   def __init__(self, name, count):
     super(BooleanArrayParameter, self).__init__(name, count, BooleanParameter)
+ 
+class FloatArrayParameter(ArrayParameter):
+  def __init__(self, name, count):
+    super(FloatArrayParameter, self).__init__(name, count, FloatParameter)
+
+  def de_sv(self, dest, cfg_a, cfg_b, cfg_c, F, cr):
+    #TODO
+    # Inefficient to pack each float element in a float parameter?
+    pass
+
+  def pso_sv(self):
+    #TODO
+    pass
+
+  def crossover_sv(self):
+    #TODO
+    pass
+
+  def mutate_sv(self):
+    #TODO
+    pass
 
 
 ##################
@@ -1129,4 +1211,35 @@ class ParameterProxy(object):
       # we should only hit this for key == 'name'
       return member
 
+
+# Inspection Methods
+def SVs(param):
+  """ 
+  Return a list of operator function names of given parameter 
+  param: a Parameter class object   
+  """
+  ops = []
+  methods = inspect.getmembers(param, inspect.ismethod)
+  for m in methods:
+    name, obj = m
+    if isOp(name):
+      ops.append(name)
+  return ops
+
+def isSV(name):
+  """ Tells whether a method is an operator by method name """
+  return ('_sv' in name)
+
+
+def allSVs():
+  """ Return a dictionary mapping from parameter names to lists of operator function names """
+  ops = {}
+  params = inspect.getmembers(sys.modules[__name__], lambda x: inspect.isclass(x) and x.__module__==__name__)
+  for p in params:  
+    name, obj = p
+    ops[name]=ops(obj)
+  return ops
+
+def all_params():
+  return inspect.getmembers(sys.modules[__name__], inspect.isclass)
 
