@@ -11,12 +11,12 @@ import os
 import pickle
 import random
 from fn import _
-
 log = logging.getLogger(__name__)
 import argparse
 from datetime import datetime
 
 import inspect
+import sys
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--list-params', '-lp',
@@ -202,17 +202,17 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
         pass
     return cfg
 
-  def apply_ops(self, cfg, op_map, args={}):
+  def applySVs(self, cfg, sv_map, args):
     """
     Apply operators to each parameter according to given map. Updates cfg.
     cfg: configuration data
-    op_map: python dict that maps string parameter name to Operator class
+    sv_map: python dict that maps string parameter name to class method name
+    arg_map: python dict that maps string parameter name to class method arguments
     """
-    #TODO: check consistency between op_map and cfg
+    #TODO: check consistency between sv_map and cfg
     param_dict = self.parameters_dict(cfg)
-    for param in op_map:
-      param_dict[param].apply_op(cfg, op_map[param], args[param])
-
+    for param in sv_map:
+      getattr(param, sv_map[param])(cfg, *args[param])
 
 class Parameter(object):
   """
@@ -324,26 +324,6 @@ class Parameter(object):
 
   def search_space_size(self):
     return 1
-
-  # Visitor Pattern for operator
-  def apply_op(self, cfg, operator):
-    operator.apply_to(self)
-
-""" Stochastic Variators """
-  def pso_sv(self, *args):
-    raise Exception("Not applicable to:", self)
-
-  def de_sv(self, *args):
-    raise Exception("Not applicable to:", self)
-
-  def crossover_sv(self, *args): 
-    raise Exception("Not applicable to:", self)
-
-  def mutate_sv(self, *args):
-    raise Exception("Not applicable to:", self)
-
-  def stochastic_variators(self):
-    return []
 
 class PrimitiveParameter(Parameter):
   """
@@ -513,7 +493,7 @@ class IntegerParameter(NumericParameter):
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def pso_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
       k = p.nvalues()
       # Map position to discrete space
       n1 = k/(1+exp(-self.position))
@@ -524,7 +504,7 @@ class IntegerParameter(NumericParameter):
       return v
 
   def stochastic_variators(self):
-    return [self.pso_sv]
+    return [self.swarm_sv]
 
 class FloatParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -532,13 +512,13 @@ class FloatParameter(NumericParameter):
     kwargs['value_type'] = float
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def pso_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
     v = omega*param.get_value(velocity)+phi_g*param.get_value(global_best)+phi_l*param.get_value(local_best)
     self.set_value( position, v+param.get_value(position))
     return v
 
   def stochastic_variators(self):
-    return [self.pso_sv]
+    return [self.swarm_sv]
 
 class ScaledNumericParameter(NumericParameter):
   @abc.abstractmethod
@@ -701,7 +681,7 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
-  def pso_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
       k = 2
       # Map position to discrete space
       n1 = k/(1+exp(-self.position))
@@ -712,7 +692,7 @@ class BooleanParameter(ComplexParameter):
       return v
 
   def stochastic_variators(self):
-    return [self.pso_sv]
+    return [self.swarm_sv]
 
 class SwitchParameter(ComplexParameter):
   """
@@ -973,7 +953,6 @@ class PermutationParameter(ComplexParameter):
     [c1.remove(i) for i in p2[r2:r2+d]]
     self.set_value(dest, c1[:r1]+p2[r2:r2+d]+c1[r1:])
       
-<<<<<<< Updated upstream
   def add_difference(self, cfg_dst, b, cfg_b, cfg_c):
     self.apply_swaps(self.scale_swaps(self.swap_dist(cfg_c, cfg_b), b), cfg_dst)
 
@@ -981,7 +960,7 @@ class PermutationParameter(ComplexParameter):
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
 
-  def pso_sv(self, c_choice, param, position, global_best, local_best, omega,phi_l):
+  def swarm_sv(self, c_choice, param, position, global_best, local_best, omega,phi_l):
     if random.uniform(0,1)>omega:
       if random.uniform(0,1)<phi_l:
       # Select crossover operator
@@ -997,7 +976,7 @@ class PermutationParameter(ComplexParameter):
     getattr(self, mname)(cfg)
   
   def stochastic_variators(self):
-    return [self.pso_sv, self.crossover_sv, self.mutate_sv]
+    return [self.swarm_sv, self.crossover_sv, self.mutate_sv]
 
 
 class ScheduleParameter(PermutationParameter):
@@ -1151,12 +1130,12 @@ class FloatArrayParameter(ArrayParameter):
   def __init__(self, name, count):
     super(FloatArrayParameter, self).__init__(name, count, FloatParameter)
 
-  def de_sv(self, dest, cfg_a, cfg_b, cfg_c, F, cr):
+  def dif_sv(self, dest, cfg_a, cfg_b, cfg_c, F, cr):
     #TODO
     # Inefficient to pack each float element in a float parameter?
     pass
 
-  def pso_sv(self):
+  def swarm_sv(self):
     #TODO
     pass
 
@@ -1218,28 +1197,28 @@ def SVs(param):
   Return a list of operator function names of given parameter 
   param: a Parameter class object   
   """
-  ops = []
+  svs = []
   methods = inspect.getmembers(param, inspect.ismethod)
   for m in methods:
     name, obj = m
-    if isOp(name):
-      ops.append(name)
-  return ops
+    print name, obj
+    if isSV(name):
+      svs.append(name)
+  return svs
 
 def isSV(name):
   """ Tells whether a method is an operator by method name """
-  return ('_sv' in name)
+  return ('_sv' == name[-3:])
 
 
 def allSVs():
   """ Return a dictionary mapping from parameter names to lists of operator function names """
-  ops = {}
-  params = inspect.getmembers(sys.modules[__name__], lambda x: inspect.isclass(x) and x.__module__==__name__)
-  for p in params:  
+  svs = {}
+  for p in all_params():  
     name, obj = p
-    ops[name]=ops(obj)
-  return ops
+    svs[name]=SVs(obj)
+  return svs
 
 def all_params():
-  return inspect.getmembers(sys.modules[__name__], inspect.isclass)
-
+  params = inspect.getmembers(sys.modules[__name__], lambda x: inspect.isclass(x) and x.__module__==__name__ and issubclass(x, Parameter) )
+  return params
