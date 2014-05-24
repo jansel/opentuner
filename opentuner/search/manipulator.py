@@ -672,6 +672,12 @@ class BooleanParameter(ComplexParameter):
   def manipulators(self, config):
     return [self.flip]
 
+  def get_value(self, config):
+    return self._get(config)
+
+  def set_value(self, config, value):
+    self._set(config, value)
+
   def randomize(self, config):
     self._set(config, self.seed_value())
 
@@ -684,20 +690,16 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
-  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity, sigma=0.2):
+  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
     """ Updates position and returns new velocity """
-    k = 1 
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
     print 'v', v
     # Map velocity to continuous space with sigmoid
-    s = k/(1+numpy.exp(-v))+self.min_value
+    s = 1/(1+numpy.exp(-v))
     print 'sigmoid', s 
-    # Add Gaussian noise
-    p = random.gauss(s, sigma*k)
-    print 'gauss',p 
-    # Discretize and bound 
-    p = min(1, max(round(p), 0))
-    print p
+    # Decide position randomly  
+    p = (s - random.random())>0
+    print 'rand',p 
     self.set_value(position, p)
     return v
 
