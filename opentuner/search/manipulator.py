@@ -14,7 +14,7 @@ from fn import _
 log = logging.getLogger(__name__)
 import argparse
 from datetime import datetime
-
+import numpy
 import inspect
 import sys
 
@@ -493,18 +493,22 @@ class IntegerParameter(NumericParameter):
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
-      k = p.nvalues()
-      # Map position to discrete space
-      n1 = k/(1+exp(-self.position))
-      # Add Gaussian noise and round
-      n2 = round(random.gauss(c, sigma*(k-1)))
-      n3 = min(k, max(n2, 1))
-      p.set_value(n3, self.position)
-      return v
-
-  def stochastic_variators(self):
-    return [self.swarm_sv]
+  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity, sigma=0.2):
+    """ Updates position and returns new velocity """
+    k = self.max_value - self.min_value
+    v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
+    print 'v', v
+    # Map velocity to continuous space with sigmoid
+    s = k/(1+numpy.exp(-v))+self.min_value
+    print 'sigmoid', s 
+    # Add Gaussian noise
+    p = random.gauss(s, sigma*k)
+    print 'gauss',p 
+    # Discretize and bound 
+    p = min(self.max_value, max(round(p), self.min_value))
+    print p
+    self.set_value(position, p)
+    return v
 
 class FloatParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -513,12 +517,11 @@ class FloatParameter(NumericParameter):
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
   def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
-    v = omega*param.get_value(velocity)+phi_g*param.get_value(global_best)+phi_l*param.get_value(local_best)
-    self.set_value( position, v+param.get_value(position))
+    v = self.get_value(position)*omega + self.get_value(global_best)*phi_g + self.get_value(local_best)*phi_l
+    p = self.get_value(position)+v
+    p = min(self.max_value, max(p, self.min_value))
+    self.set_value( position, p)
     return v
-
-  def stochastic_variators(self):
-    return [self.swarm_sv]
 
 class ScaledNumericParameter(NumericParameter):
   @abc.abstractmethod
@@ -681,18 +684,22 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
-  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
-      k = 2
-      # Map position to discrete space
-      n1 = k/(1+exp(-self.position))
-      # Add Gaussian noise and round
-      n2 = round(random.gauss(c, sigma*(k-1)))
-      n3 = min(k, max(n2, 1))
-      p.set_value(n3, self.position)
-      return v
-
-  def stochastic_variators(self):
-    return [self.swarm_sv]
+  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity, sigma=0.2):
+    """ Updates position and returns new velocity """
+    k = 1 
+    v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
+    print 'v', v
+    # Map velocity to continuous space with sigmoid
+    s = k/(1+numpy.exp(-v))+self.min_value
+    print 'sigmoid', s 
+    # Add Gaussian noise
+    p = random.gauss(s, sigma*k)
+    print 'gauss',p 
+    # Discretize and bound 
+    p = min(1, max(round(p), 0))
+    print p
+    self.set_value(position, p)
+    return v
 
 class SwitchParameter(ComplexParameter):
   """
@@ -713,6 +720,9 @@ class SwitchParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, self.option_count)
 
+  #TODO: ordinal discrete sv
+  def mutate_sv(self, cfg):
+    self.randomize(cfg)
 
 class EnumParameter(ComplexParameter):
   """
@@ -732,6 +742,9 @@ class EnumParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, len(self.options))
 
+  #TODO: ordinal discrete sv
+  def mutate_sv(self, cfg):
+    self.randomize(cfg)
 
 class PermutationParameter(ComplexParameter):
   def __init__(self, name, items):
@@ -968,6 +981,9 @@ class PermutationParameter(ComplexParameter):
       else:
         getattr(p, c_choice)(position, position, local_best, d=p.size/3)
 
+  def dif_sv(self):
+    #TODO
+    pass
 
   def crossover_sv(self, new, cfg1, cfg2, cname, strength=1.0/3):
         getattr(self, cname)(new, cfg1, cfg2, d=param.size*strength)
@@ -975,9 +991,6 @@ class PermutationParameter(ComplexParameter):
   def mutate_sv(self, cfg, mname):
     getattr(self, mname)(cfg)
   
-  def stochastic_variators(self):
-    return [self.swarm_sv, self.crossover_sv, self.mutate_sv]
-
 
 class ScheduleParameter(PermutationParameter):
   def __init__(self, name, items, deps):
@@ -1195,7 +1208,7 @@ class ParameterProxy(object):
 def SVs(param):
   """ 
   Return a list of operator function names of given parameter 
-  param: a Parameter class object   
+  param: a Parameter class   
   """
   svs = []
   methods = inspect.getmembers(param, inspect.ismethod)
