@@ -50,7 +50,7 @@ class SMBMI(MeasurementInterface):
 		match = re.search(r"^died (\d+)$", stdout, re.MULTILINE)
 		if match:
 			print match.group(0)
-			return opentuner.resultsdb.models.Result(state='OK', time=float(match.group(1)))
+			return opentuner.resultsdb.models.Result(state='OK', time=-float(match.group(1)))
 		match = re.search(r"^won (\d+)$", stdout, re.MULTILINE)
 		if match:
 			print match.group(0)
