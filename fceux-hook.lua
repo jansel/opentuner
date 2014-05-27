@@ -11,7 +11,7 @@ function maybe_died()
 	--end;
 	local x = memory.readbyte(player_state_addr);
 	if (x == player_state_dying) then
-		io.write("dead ", memory.readbyte(player_horizpos_addr), "\n");
+		io.write("died ", math.floor(memory.readbyte(player_horizpos_addr)), "\n");
 		os.exit();
 	end;
 end
