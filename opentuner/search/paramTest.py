@@ -2,7 +2,7 @@
 from manipulator import *
 import random 
 
-# IntegerParameter
+# swarm_sv
 
 def testIntegerSwarm():
   name = 'int1'
@@ -20,11 +20,39 @@ def testIntegerSwarm():
 def testBooleanSwarm():
   name = 'bool1'
   p = BooleanParameter(name)
-  v = 2  
+  v = 0 
   pos = {name:0}
   gb = {name:1}
   lb = {name:0}
   p.swarm_sv(pos, gb, lb, 0.5, 0.3, 0.3, v)
 
-testIntegerSwarm()
-testBooleanSwarm()
+def testPermSwarm():
+  name = 'perm1'
+  p = PermutationParameter(name)
+  pos = {name: [3,1,4,2,5]}
+  gb = {name: [3,1,2,4,5]}
+  lb = {name: [1,3,2,4,5]}
+  p.swarm_sv(pos, gb, lb, 0.5, 0.3, 0.3)
+  pass
+
+def testArraySwarm():
+  pass
+
+# Crossover
+def testPermCross():
+  pass
+
+def testArrayCross():
+  pass
+
+# dif_sv
+def testArrayDiff():
+  pass
+
+def testPermDiff():
+  pass
+
+# mutate
+
+
+testPermSwarm()

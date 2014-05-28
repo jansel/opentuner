@@ -493,7 +493,7 @@ class IntegerParameter(NumericParameter):
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity, sigma=0.2):
+  def sv_swarm(self, position, global_best, local_best, omega, phi_g, phi_l, velocity, sigma=0.2):
     """ Updates position and returns new velocity """
     k = self.max_value - self.min_value
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
@@ -516,8 +516,8 @@ class FloatParameter(NumericParameter):
     kwargs['value_type'] = float
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
-    v = self.get_value(position)*omega + self.get_value(global_best)*phi_g + self.get_value(local_best)*phi_l
+  def sv_swarm(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+    v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
     p = self.get_value(position)+v
     p = min(self.max_value, max(p, self.min_value))
     self.set_value( position, p)
@@ -553,12 +553,12 @@ class LogIntegerParameter(ScaledNumericParameter):
 
   def _unscale(self, v):
     v = 2.0 ** v - 1.0 + self.min_value
-    v = int(round(v))
+    v = int(int(v))
     return v
 
   def legal_range(self, config):
     low, high = NumericParameter.legal_range(self, config)
-    # increase the bounds account for rounding
+    # increase the bounds account for inting
     return self._scale(low - 0.4999), self._scale(high + 0.4999)
 
 
@@ -690,8 +690,13 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
-  def swarm_sv(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
-    """ Updates position and returns new velocity """
+  def sv_swarm(self, position, global_best, local_best, omega, phi_g, phi_l, velocity):
+    """ 
+    Updates position and returns new velocity.
+    position, global_best, local_best are all configuration data;
+    omega, phi_g, phi_l, velocity are floats;
+    Return updated velocities for each element in the BooleanArrayParameter.
+    """
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
     print 'v', v
     # Map velocity to continuous space with sigmoid
@@ -723,7 +728,7 @@ class SwitchParameter(ComplexParameter):
     return max(1, self.option_count)
 
   #TODO: ordinal discrete sv
-  def mutate_sv(self, cfg):
+  def sv_mutate(self, cfg):
     self.randomize(cfg)
 
 class EnumParameter(ComplexParameter):
@@ -745,7 +750,7 @@ class EnumParameter(ComplexParameter):
     return max(1, len(self.options))
 
   #TODO: ordinal discrete sv
-  def mutate_sv(self, cfg):
+  def sv_mutate(self, cfg):
     self.randomize(cfg)
 
 class PermutationParameter(ComplexParameter):
@@ -777,10 +782,6 @@ class PermutationParameter(ComplexParameter):
 
   def set_value(self, config, value):
     self._set(config, value)
-
-  def crossover(self, new, cfg1, cfg2,  cname, *args):
-      if self.size>6:
-        getattr(self, cname)(new, cfg1, cfg2, d=param.size/3)
 
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
@@ -869,6 +870,7 @@ class PermutationParameter(ComplexParameter):
     Change the order of items up to c1 in cfg1 according to their order in cfg2.
     """
 
+    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = random.randint(0,len(p1))
@@ -878,6 +880,7 @@ class PermutationParameter(ComplexParameter):
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
     
+    d = int(round(d))
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
     
@@ -918,6 +921,7 @@ class PermutationParameter(ComplexParameter):
     Implementation of cyclic crossover. Exchange the items occupying the same positions
     in two permutations.
     """
+    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     p = p1[:]
@@ -942,14 +946,14 @@ class PermutationParameter(ComplexParameter):
     Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
+    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
     c2 = p2[:]
-
     # Randomly find cut points
     r = random.randint(0, len(p1)-d)    # Todo: treat path as circle i.e. allow cross-boundary cuts
-    [c1.remove(i) for i in p2[r:r+d]]
+    [c1.remove(i) for i in p2[r:int(r+d)]]
     self.set_value(dest, c1[:r]+p2[r:r+d]+c1[r:])
 
   def OX3(self, dest, cfg1, cfg2, d):
@@ -957,6 +961,7 @@ class PermutationParameter(ComplexParameter):
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
     """
+    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -975,22 +980,27 @@ class PermutationParameter(ComplexParameter):
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
 
-  def swarm_sv(self, c_choice, param, position, global_best, local_best, omega,phi_l):
+  def sv_cross(self, new, cfg1, cfg2, cname, strength=0.3):
+    d = int(round(self.size*strength))
+    if d<1:
+      log.warning('Crossover length too small. Cannot create new solution.')
+    if  d>=self.size:
+      log.warning('Crossover length too big. Cannot create new solution.')
+    getattr(self, cname)(new, cfg1, cfg2, d=self.size*strength)
+  
+  def sv_swarm(self, position, global_best, local_best, omega, phi_g, phi_l, c_choice, strength=0.3 ):
     if random.uniform(0,1)>omega:
       if random.uniform(0,1)<phi_l:
       # Select crossover operator
-        getattr(p, c_choice)(position, position, global_best, d=p.size/3)
+        self.sv_cross(position, position, global_best, c_choice, strength)
       else:
-        getattr(p, c_choice)(position, position, local_best, d=p.size/3)
+        self.sv_cross(position, position, local_best, c_choice, strength)
 
-  def dif_sv(self):
+  def sv_dif(self):
     #TODO
     pass
 
-  def crossover_sv(self, new, cfg1, cfg2, cname, strength=1.0/3):
-        getattr(self, cname)(new, cfg1, cfg2, d=param.size*strength)
-  
-  def mutate_sv(self, cfg, mname):
+  def sv_mutate(self, cfg, mname):
     getattr(self, mname)(cfg)
   
 
@@ -1141,24 +1151,64 @@ class BooleanArrayParameter(ArrayParameter):
   def __init__(self, name, count):
     super(BooleanArrayParameter, self).__init__(name, count, BooleanParameter)
  
-class FloatArrayParameter(ArrayParameter):
-  def __init__(self, name, count):
-    super(FloatArrayParameter, self).__init__(name, count, FloatParameter)
 
-  def dif_sv(self, dest, cfg_a, cfg_b, cfg_c, F, cr):
+
+class Array(ComplexParameter):
+  """ Alternative implementation for ArrayParameter. Similar to PermutationParameter except that items can repeat themselvs. """
+  #TODO: constraints? (upper & lower bound etc) 
+  def __init__(self, name, size):
+    super(Array, self).__init__(name)
+    self.size = size
+
+  def sv_cross(self, dest, cfg1, cfg2, strength):
+    d = int(round(d))
+    p1 = self.get_value(cfg1)
+    p2 = self.get_value(cfg2)
+    r = random.randint(0, len(p1)-d)    # Todo: treat path as circle i.e. allow cross-boundary cuts
+    p = p1[:r]+p2[r:r+d]+p1[r+d:]
+    self.set_value(dest, p)
+
+class BooleanArray(Array):
+  def sv_swarm(self, position, global_best, local_best, omega, phi_g, phi_l, velocities):
+    """ 
+    Updates position and returns the updated velocity array.
+    position, global_best, local_best are configuration data;
+    omega, phi_g, phi_l are floats;
+    velocities is a numpy array of floats;
+    """
+    vs = velocities*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
+    print 'vs', vs
+    # Map velocity to continuous space with sigmoid
+    ss = 1/(1+numpy.exp(-vs))
+    print 'sigmoid', ss
+
+    # Decide position randomly  
+    ps = (ss - random.random())>0
+    print 'rand',ps
+    self.set_value(position, ps)
+    return vs
+
+class FloatArray(Array):
+  def sv_dif(self, dest, cfg_a, cfg_b, cfg_c, F, cr):
     #TODO
-    # Inefficient to pack each float element in a float parameter?
     pass
 
-  def swarm_sv(self):
-    #TODO
-    pass
+  def sv_swarm_parallel(self, position, global_best, local_best, omega, phi_g, phi_l, velocities):
+    vs = velocities*omega + (self.get_value(global_best)- self.get_value(position))*phi_g + (self.get_value(local_best)- self.get_value(position))*phi_l
+    p = self.get_value(position)+vs
+    p = min(self.max_value, max(p, self.min_value))
+    self.set_value( position, p)
+    return v
 
-  def crossover_sv(self):
-    #TODO
-    pass
+  def sv_swarm(self, position, global_best, local_best, omega, phi_g, phi_l, c_choice, strength=0.3 ):
+    if random.uniform(0,1)>omega:
+      if random.uniform(0,1)<phi_l:
+      # Select crossover operator
+        self.sv_cross(position, position, global_best, c_choice, strength)
+      else:
+        self.sv_cross(position, position, local_best, c_choice, strength)
 
-  def mutate_sv(self):
+  def sv_mutate(self):
     #TODO
     pass
 
@@ -1167,7 +1217,7 @@ class FloatArrayParameter(ArrayParameter):
 
 class ManipulatorProxy(object):
   """
-  wrapper around configuration manipulator and config pair
+  wrapper aint configuration manipulator and config pair
   """
 
   def __init__(self, manipulator, cfg):
@@ -1184,7 +1234,7 @@ class ManipulatorProxy(object):
 
 class ParameterProxy(object):
   """
-  wrapper around parameter and config pair, adds config
+  wrapper aint parameter and config pair, adds config
   as first argument to all method calls to parameter
   """
 
@@ -1223,7 +1273,7 @@ def SVs(param):
 
 def isSV(name):
   """ Tells whether a method is an operator by method name """
-  return ('_sv' == name[-3:])
+  return ('sv_' == name[:3])
 
 
 def allSVs():
