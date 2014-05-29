@@ -2,9 +2,10 @@
 from manipulator import *
 import random 
 
-# swarm_sv
 
-def testIntegerSwarm():
+# sv_swarm
+
+def testInteger():
   name = 'int1'
   pmin = -10 
   pmax = 10
@@ -14,45 +15,41 @@ def testIntegerSwarm():
   pos = {name:0}
   gb = {name:4}
   lb = {name:9}
-  p.swarm_sv(pos, gb, lb, 0.5, 0.3, 0.3, v)
+  p.sv_swarm(pos, gb, lb, 0.5, 0.3, 0.3, v)
 
 
-def testBooleanSwarm():
+def testBoolean():
   name = 'bool1'
   p = BooleanParameter(name)
   v = 0 
   pos = {name:0}
   gb = {name:1}
   lb = {name:0}
-  p.swarm_sv(pos, gb, lb, 0.5, 0.3, 0.3, v)
+  p.sv_swarm(pos, gb, lb, 0.5, 0.3, 0.3)
 
-def testPermSwarm():
+def testPermutation():
   name = 'perm1'
-  p = PermutationParameter(name)
-  pos = {name: [3,1,4,2,5]}
-  gb = {name: [3,1,2,4,5]}
-  lb = {name: [1,3,2,4,5]}
-  p.swarm_sv(pos, gb, lb, 0.5, 0.3, 0.3)
-  pass
+  p = PermutationParameter(name, range(10))
+  pos = {name: [7,3,1,4,2,5,8, 0,9,6]}
+  gb = {name: [3,1,4,2,5,7,8,6,9,0]}
+  lb = {name: [3,1,4,7,5,2,8, 0,9,6]}
+  p.sv_swarm(pos, gb, lb, 0, 0.5, 0.5, 'CX')
+  print pos
 
-def testArraySwarm():
-  pass
+def testBooleanArray():
+  name = 'BA'
+  p = BooleanArray(name, 8)
+  pos = {name: [1,0,0,1,0,0,1,1]}
+  gb = {name: [1,0,0,0,0,0,0,0,]}
+  lb = {name: [1,0,0,1,0,1,1,0]}
+ # p.sv_swarm(pos, fb, lb, 0.5, 0.3, 0.3)
+ # p.sv_swarm_parallel(pos, fb, lb, 0.5, 0.3, 0.3)
+  p.sv_cross(pos, gb, lb, 'OX1', 0.5)
+  print pos
 
-# Crossover
-def testPermCross():
-  pass
-
-def testArrayCross():
-  pass
-
-# dif_sv
-def testArrayDiff():
-  pass
-
-def testPermDiff():
-  pass
-
-# mutate
+def testFloatArray():
+  pass 
 
 
-testPermSwarm()
+testBooleanArray()
+
