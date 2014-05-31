@@ -1,0 +1,5 @@
+smb.nes
+*~
+*.pyc
+opentuner.db/
+opentuner.log
