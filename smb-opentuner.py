@@ -66,18 +66,21 @@ class SMBMI(MeasurementInterface):
 			
 			(stdout, stderr) = subprocess.Popen(["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 		
-		match = re.search(r"^died (\d+)$", stdout, re.MULTILINE)
-		if match:
-			print match.group(0)
-			return opentuner.resultsdb.models.Result(state='OK', time=-float(match.group(1)))
-		match = re.search(r"^won (\d+)$", stdout, re.MULTILINE)
-		if match:
-			print match.group(0)
-			return opentuner.resultsdb.models.Result(state='OK', time=-float(match.group(1))*10000)
-		#error?
-		print stderr
-		print stdout
-		return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
+		match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
+		if not match:
+			print stderr
+			print stdout
+			return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
+		print match.group(0)
+		wl = match.group(1)
+		x_pos = int(match.group(2))
+		framecount = int(match.group(3))
+		if "died" in wl:
+			return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos))
+		else:
+			#add fitness for frames remaining on timer
+			#TODO: this results in a large discontinuity; is that right?
+			return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos + 400*60 - framecount))
 
 if __name__ == '__main__':
 	argparser = opentuner.default_argparser()
