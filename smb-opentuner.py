@@ -12,6 +12,61 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
+def fm2_line(up, down, left, right, a, b, start, select, reset=False):
+	return ''.join(('|1|' if reset else '|0|') +
+		('R' if right else '.') +
+		('L' if left else '.') +
+		('D' if down else '.') +
+		('U' if up else '.') +
+		('T' if start else '.') +
+		('D' if select else '.') +
+		('B' if b else '.') +
+		('A' if a else '.') +
+		'|........||')
+
+def maxd(iterable, default):
+	try:
+		return max(iterable)
+	except ValueError:
+		return default
+
+def fm2_lines(up, down, left, right, a, b, start, select, reset=set(), minFrame=None, maxFrame=None):
+	if minFrame is None:
+		minFrame = 0
+	if maxFrame is None:
+		maxFrame = max(maxd(up, 0), maxd(down, 0), maxd(left, 0), maxd(right, 0), maxd(a, 0), maxd(b, 0), maxd(start, 0), maxd(select, 0), maxd(reset, 0)) + 1
+	lines = list()
+	for i in xrange(minFrame, maxFrame):
+		lines.append(fm2_line(i in up, i in down, i in left, i in right, i in a, i in b, i in start, i in select, i in reset))
+	return lines
+
+def fm2_smb_header():
+	return ["version 3",
+		"emuVersion 9828",
+		"romFilename smb.nes",
+		"romChecksum base64:jjYwGG411HcjG/j9UOVM3Q==",
+		"guid 51473540-E9D7-11E3-ADFC-46CE3219C4E0",
+		"port0 1",
+		"port1 1",
+		"port2 0"]
+
+def fm2_smb(left, right, down, b, a, header=True, padding=True):
+	reset = set()
+	start = set()
+	if padding:
+		left = set([x+196 for x in left])
+		right = set([x+196 for x in right])
+		down = set([x+196 for x in down])
+		b = set([x+196 for x in b])
+		a = set([x+196 for x in a])
+		reset.add(0)
+		start.add(33)
+	lines = fm2_lines(set(), down, left, right, a, b, start, set(), reset)
+	if header:
+		return "\n".join(fm2_smb_header() + lines)
+	else:
+		return "\n".join(lines)
+
 class SMBMI(MeasurementInterface):
 	def __init__(self, args):
 		super(SMBMI, self).__init__(args)
@@ -30,8 +85,6 @@ class SMBMI(MeasurementInterface):
 	def run(self, desired_result, input, limit):
 		cfg = desired_result.configuration.data
 		with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
-			with open('template.fm2') as f2:
-				shutil.copyfileobj(f2, f)
 			jumping = set()
 			for i in xrange(0, 1000):
 				jump_frame = cfg["jump_frame"+str(i)]
@@ -52,16 +105,7 @@ class SMBMI(MeasurementInterface):
 					running.update(xrange(start, start + move_duration))
 				start += move_duration
 
-			for i in xrange(0, 400*60):
-				line = ('|0|' +
-					('R' if i in right else '.') +
-					('L' if i in left else '.') +
-					('D' if False else '.') +
-					'...' +
-					('B' if i in running else '.') +
-					('A' if i in jumping else '.') +
-					'|........||\n')
-				f.write(line)
+			f.write(fm2_smb(left, right, set(), running, jumping))
 			f.flush()
 			
 			(stdout, stderr) = subprocess.Popen(["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
