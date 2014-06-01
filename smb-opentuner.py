@@ -67,6 +67,30 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True):
 	else:
 		return "\n".join(lines)
 
+# logically part of SMBMI as it's coupled to the parameterization
+def interpret_cfg(cfg):
+	right = set()
+	left = set()
+	down = set()
+	running = set()
+	start = 0
+	for i in xrange(0, 1000):
+		move = cfg["move"+str(i)]
+		move_duration = cfg["move_duration"+str(i)]
+		if "R" in move:
+			right.update(xrange(start, start + move_duration))
+		if "L" in move:
+			left.update(xrange(start, start + move_duration))
+		if "B" in move:
+			running.update(xrange(start, start + move_duration))
+		start += move_duration
+	jumping = set()
+	for i in xrange(0, 1000):
+		jump_frame = cfg["jump_frame"+str(i)]
+		jump_duration = cfg["jump_duration"+str(i)]
+		jumping.update(xrange(jump_frame, jump_frame + jump_duration))
+	return (left, right, down, running, jumping)
+
 class SMBMI(MeasurementInterface):
 	def __init__(self, args):
 		super(SMBMI, self).__init__(args)
@@ -84,28 +108,10 @@ class SMBMI(MeasurementInterface):
 
 	def run(self, desired_result, input, limit):
 		cfg = desired_result.configuration.data
-		jumping = set()
-		for i in xrange(0, 1000):
-			jump_frame = cfg["jump_frame"+str(i)]
-			jump_duration = cfg["jump_duration"+str(i)]
-			jumping.update(xrange(jump_frame, jump_frame + jump_duration))
-		right = set()
-		left = set()
-		running = set()
-		start = 0
-		for i in xrange(0, 1000):
-			move = cfg["move"+str(i)]
-			move_duration = cfg["move_duration"+str(i)]
-			if "R" in move:
-				right.update(xrange(start, start + move_duration))
-			if "L" in move:
-				left.update(xrange(start, start + move_duration))
-			if "B" in move:
-				running.update(xrange(start, start + move_duration))
-			start += move_duration
+		left, right, down, running, jumping = interpret_cfg(cfg)
 
 		with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
-			f.write(fm2_smb(left, right, set(), running, jumping))
+			f.write(fm2_smb(left, right, down, running, jumping))
 			f.flush()
 			(stdout, stderr) = subprocess.Popen(["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 		
