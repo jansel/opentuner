@@ -84,30 +84,29 @@ class SMBMI(MeasurementInterface):
 
 	def run(self, desired_result, input, limit):
 		cfg = desired_result.configuration.data
-		with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
-			jumping = set()
-			for i in xrange(0, 1000):
-				jump_frame = cfg["jump_frame"+str(i)]
-				jump_duration = cfg["jump_duration"+str(i)]
-				jumping.update(xrange(jump_frame, jump_frame + jump_duration))
-			right = set()
-			left = set()
-			running = set()
-			start = 0
-			for i in xrange(0, 1000):
-				move = cfg["move"+str(i)]
-				move_duration = cfg["move_duration"+str(i)]
-				if "R" in move:
-					right.update(xrange(start, start + move_duration))
-				if "L" in move:
-					left.update(xrange(start, start + move_duration))
-				if "B" in move:
-					running.update(xrange(start, start + move_duration))
-				start += move_duration
+		jumping = set()
+		for i in xrange(0, 1000):
+			jump_frame = cfg["jump_frame"+str(i)]
+			jump_duration = cfg["jump_duration"+str(i)]
+			jumping.update(xrange(jump_frame, jump_frame + jump_duration))
+		right = set()
+		left = set()
+		running = set()
+		start = 0
+		for i in xrange(0, 1000):
+			move = cfg["move"+str(i)]
+			move_duration = cfg["move_duration"+str(i)]
+			if "R" in move:
+				right.update(xrange(start, start + move_duration))
+			if "L" in move:
+				left.update(xrange(start, start + move_duration))
+			if "B" in move:
+				running.update(xrange(start, start + move_duration))
+			start += move_duration
 
+		with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
 			f.write(fm2_smb(left, right, set(), running, jumping))
 			f.flush()
-			
 			(stdout, stderr) = subprocess.Popen(["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 		
 		match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
