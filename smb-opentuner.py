@@ -67,6 +67,21 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True):
 	else:
 		return "\n".join(lines)
 
+def run_movie(fm2):
+	with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
+		f.write(fm2)
+		f.flush()
+		(stdout, stderr) = subprocess.Popen(["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+	match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
+	if not match:
+		print stderr
+		print stdout
+		raise ValueError
+	wl = match.group(1)
+	x_pos = int(match.group(2))
+	framecount = int(match.group(3))
+	return (wl, x_pos, framecount)
+
 # logically part of SMBMI as it's coupled to the parameterization
 def interpret_cfg(cfg):
 	right = set()
@@ -109,21 +124,12 @@ class SMBMI(MeasurementInterface):
 	def run(self, desired_result, input, limit):
 		cfg = desired_result.configuration.data
 		left, right, down, running, jumping = interpret_cfg(cfg)
-
-		with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
-			f.write(fm2_smb(left, right, down, running, jumping))
-			f.flush()
-			(stdout, stderr) = subprocess.Popen(["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-		
-		match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
-		if not match:
-			print stderr
-			print stdout
+		fm2 = fm2_smb(left, right, down, running, jumping)
+		try:
+			wl, x_pos, framecount = run_movie(fm2)
+		except ValueError:
 			return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
-		print match.group(0)
-		wl = match.group(1)
-		x_pos = int(match.group(2))
-		framecount = int(match.group(3))
+		print wl, x_pos, framecount
 		if "died" in wl:
 			return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos))
 		else:
