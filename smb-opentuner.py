@@ -1,5 +1,8 @@
 #!/usr/bin/python
 import adddeps #fix sys.path
+import argparse
+import base64
+import pickle
 import tempfile
 import shutil
 import subprocess
@@ -50,7 +53,7 @@ def fm2_smb_header():
 		"port1 1",
 		"port2 0"]
 
-def fm2_smb(left, right, down, b, a, header=True, padding=True):
+def fm2_smb(left, right, down, b, a, header=True, padding=True, minFrame=None, maxFrame=None):
 	reset = set()
 	start = set()
 	if padding:
@@ -61,7 +64,7 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True):
 		a = set([x+196 for x in a])
 		reset.add(0)
 		start.add(33)
-	lines = fm2_lines(set(), down, left, right, a, b, start, set(), reset)
+	lines = fm2_lines(set(), down, left, right, a, b, start, set(), reset, minFrame, maxFrame)
 	if header:
 		return "\n".join(fm2_smb_header() + lines)
 	else:
@@ -137,7 +140,24 @@ class SMBMI(MeasurementInterface):
 			#TODO: this results in a large discontinuity; is that right?
 			return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos + 400*60 - framecount))
 
+def new_bests_movie(tuning_run):
+	(stdout, stderr) = subprocess.Popen(["sqlite3", "opentuner.db/jbosboom-VirtualBox.db", "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+	cids = stdout.split()
+	print '\n'.join(fm2_smb_header())
+	for cid in cids:
+		(stdout, stderr) = subprocess.Popen(["sqlite3", "opentuner.db/jbosboom-VirtualBox.db", "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+		cfg = pickle.loads(base64.b16decode(stdout.strip()[2:-1]))
+		left, right, down, running, jumping = interpret_cfg(cfg)
+		fm2 = fm2_smb(left, right, down, running, jumping)
+		_, _, framecount = run_movie(fm2)
+		print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
+
 if __name__ == '__main__':
-	argparser = opentuner.default_argparser()
-	SMBMI.main(argparser.parse_args())
+	argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
+	argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
+	args = argparser.parse_args()
+	if args.tuning_run:
+		new_bests_movie(int(args.tuning_run))
+	else:
+		SMBMI.main(args)
 
