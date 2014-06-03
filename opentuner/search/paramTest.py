@@ -16,7 +16,7 @@ def testInteger():
   gb = {name:4}
   lb = {name:9}
   p.sv_swarm(pos, gb, lb, 0.5, 0.3, 0.3, v)
-
+  print pos
 
 def testBoolean():
   name = 'bool1'
@@ -31,25 +31,30 @@ def testPermutation():
   name = 'perm1'
   p = PermutationParameter(name, range(10))
   pos = {name: [7,3,1,4,2,5,8, 0,9,6]}
+  print pos
   gb = {name: [3,1,4,2,5,7,8,6,9,0]}
   lb = {name: [3,1,4,7,5,2,8, 0,9,6]}
   p.sv_swarm(pos, gb, lb, 0, 0.5, 0.5, 'CX')
   print pos
 
-def testBooleanArray():
+def testBooleanArray(func):
   name = 'BA'
   p = BooleanArray(name, 8)
-  pos = {name: [1,0,0,1,0,0,1,1]}
-  gb = {name: [1,0,0,0,0,0,0,0,]}
-  lb = {name: [1,0,0,1,0,1,1,0]}
- # p.sv_swarm(pos, fb, lb, 0.5, 0.3, 0.3)
- # p.sv_swarm_parallel(pos, fb, lb, 0.5, 0.3, 0.3)
-  p.sv_cross(pos, gb, lb, 'OX1', 0.5)
+  pos = {name: numpy.array([1,0,0,1,0,0,1,1])}
+  gb = {name: numpy.array([0,0,0,0,1,1,1,1])}
+  lb = {name: numpy.array([1,0,0,1,0,1,1,0])}
+  print pos, gb, lb
+  getattr(p, func)(pos, gb, lb)
+ # p.sv_cross(pos, gb, lb, 0.3)
+ # p.sv_swarm(pos, gb, lb, 0.5, 0.3, 0.3)
+ # p.randomize(pos)
+ # print p.seed_value()
+ # p.sv_swarm_parallel(pos, gb, lb, 0.5, 0.3, 0.3)
   print pos
 
 def testFloatArray():
   pass 
 
 
-testBooleanArray()
 
+testBooleanArray('sv_cross')
