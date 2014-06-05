@@ -11,13 +11,13 @@ import os
 import pickle
 import random
 from fn import _
-log = logging.getLogger(__name__)
 import argparse
 from datetime import datetime
 import numpy
 import inspect
 import sys
 
+log = logging.getLogger(__name__)
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--list-params', '-lp',
     help='list available parameter classes')
@@ -497,16 +497,12 @@ class IntegerParameter(NumericParameter):
     """ Updates position and returns new velocity """
     k = self.max_value - self.min_value
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random() + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
-    print 'v', v
     # Map velocity to continuous space with sigmoid
     s = k/(1+numpy.exp(-v))+self.min_value
-    print 'sigmoid', s 
     # Add Gaussian noise
     p = random.gauss(s, sigma*k)
-    print 'gauss',p 
     # Discretize and bound 
     p = min(self.max_value, max(round(p), self.min_value))
-    print p
     self.set_value(position, p)
     return v
 
@@ -1160,9 +1156,9 @@ class Array(ComplexParameter):
   def sv_cross(self, dest, cfg1, cfg2, strength=0.3):
     d = int(round(self.size*strength))
     if d<1:
-      print('Crossover length too small. Cannot create new solution.')
+      log.debug('Crossover length too small. Cannot create new solution.')
     if  d>=self.size:
-      print('Crossover length too big. Cannot create new solution.')
+      log.debug('Crossover length too big. Cannot create new solution.')
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     r = random.randint(0, len(p1)-d)    # Todo: treat path as circle i.e. allow cross-boundary cuts
@@ -1193,13 +1189,10 @@ class BooleanArray(Array):
     velocities is a numpy array of floats;
     """
     vs = velocities*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random()  + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
-    print 'vs', vs
     # Map velocity to continuous space with sigmoid
     ss = 1/(1+numpy.exp(-vs))
-    print 'sigmoid', ss
     # Decide position randomly  
     ps = (ss - numpy.random.rand(1, self.size))>0
-    print 'rand',ps
     self.set_value(position, ps)
     return vs
 
@@ -1245,7 +1238,7 @@ class FloatArray(Array):
 
 class ManipulatorProxy(object):
   """
-  wrapper aint configuration manipulator and config pair
+  wrapper around configuration manipulator and config pair
   """
 
   def __init__(self, manipulator, cfg):
@@ -1294,7 +1287,6 @@ def SVs(param):
   methods = inspect.getmembers(param, inspect.ismethod)
   for m in methods:
     name, obj = m
-    print name, obj
     if isSV(name):
       svs.append(name)
   return svs

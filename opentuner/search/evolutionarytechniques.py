@@ -120,7 +120,6 @@ class CrossoverMixin(object):
     for param in params:
       if param.is_permutation() and param.size>6:
         getattr(param, self.crossover_op)(new, cfg1, cfg2, d=param.size/3)
-	break
     return new
 
 
