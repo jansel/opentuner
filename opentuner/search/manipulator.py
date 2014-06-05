@@ -549,12 +549,12 @@ class LogIntegerParameter(ScaledNumericParameter):
 
   def _unscale(self, v):
     v = 2.0 ** v - 1.0 + self.min_value
-    v = int(int(v))
+    v = int(round(v))
     return v
 
   def legal_range(self, config):
     low, high = NumericParameter.legal_range(self, config)
-    # increase the bounds account for inting
+    # increase the bounds account for rounding
     return self._scale(low - 0.4999), self._scale(high + 0.4999)
 
 
