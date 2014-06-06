@@ -221,7 +221,7 @@ import differentialevolution
 import simplextechniques
 import patternsearch
 import simulatedannealing
-from pso import PSO
+from pso import PSO, HybridParticle
 
 register(AUCBanditMutationTechnique())
 
