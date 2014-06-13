@@ -7,7 +7,7 @@ import math
 class PSO(technique.SequentialSearchTechnique ):
     """ Particle Swarm Optimization """
     def __init__(self, crossover, N = 3, init_pop=None, *pargs, **kwargs):
-       """
+        """
         crossover: name of crossover operator function
         """
         super(PSO, self).__init__(*pargs, **kwargs)
@@ -28,7 +28,7 @@ class PSO(technique.SequentialSearchTechnique ):
         if not population:
             population = [HybridParticle(m, self.crossover, omega=0.5) for i in range(self.N)]
 
-       for p in population:
+        for p in population:
             yield driver.get_configuration(p.position)
 
         while True:
@@ -36,7 +36,7 @@ class PSO(technique.SequentialSearchTechnique ):
                 g = driver.best_result.configuration.data
                 old=m.copy(particle.position)
                 particle.move(g)
-               yield config(particle.position)
+                yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
                     particle.best = particle.position
@@ -93,7 +93,7 @@ class HybridParticle(object):
                 data[p.name] = self.position[p.name]
             else:
                 if p.is_continuous():
-                     data[p.name] = p.xmin+(p.position[name]*(p.xmax-p.xmin))
+                     data[p.name] = p.xmin+(p.position[p.name]*(p.xmax-p.xmin))
 
                 elif p.is_ordinal():
                      data[p.name] = to_ordinal(self.position[p.name], classes(p))
