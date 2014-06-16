@@ -112,6 +112,7 @@ def interpret_cfg(cfg):
 class SMBMI(MeasurementInterface):
 	def __init__(self, args):
 		super(SMBMI, self).__init__(args)
+		self.parallel_compile = True
 
 	def manipulator(self):
 		m = ConfigurationManipulator()
@@ -124,8 +125,7 @@ class SMBMI(MeasurementInterface):
 			m.add_parameter(IntegerParameter("jump_duration"+str(i), 1, 32))
 		return m
 
-	def run(self, desired_result, input, limit):
-		cfg = desired_result.configuration.data
+	def compile(self, cfg, id):
 		left, right, down, running, jumping = interpret_cfg(cfg)
 		fm2 = fm2_smb(left, right, down, running, jumping)
 		try:
@@ -139,6 +139,12 @@ class SMBMI(MeasurementInterface):
 			#add fitness for frames remaining on timer
 			#TODO: this results in a large discontinuity; is that right?
 			return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos + 400*60 - framecount))
+
+	def run_precompiled(self, desired_result, input, limit, compile_result, id):
+		return compile_result
+
+	def run(self, desired_result, input, limit):
+		pass
 
 def new_bests_movie(tuning_run):
 	(stdout, stderr) = subprocess.Popen(["sqlite3", "opentuner.db/jbosboom-VirtualBox.db", "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
