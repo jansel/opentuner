@@ -92,6 +92,7 @@ class TuningRunMain(object):
     if args.print_search_space_size:
       print "10^{%.2f}" % math.log(manipulator.search_space_size(), 10)
       sys.exit(0)
+    # show internal parameter representation
     if args.print_params:
       cfg = manipulator.seed_config()
       d =  manipulator.parameters_dict(cfg)
@@ -105,6 +106,7 @@ class TuningRunMain(object):
           params_dict[cls]=[p]
       for k in params_dict:
         print k, params_dict[k]
+        print
       sys.exit(0)
 
     input_manager = measurement_interface.input_manager()

@@ -63,9 +63,6 @@ class HybridParticle(object):
     for p in self.manipulator.params:
       # Velocity as a continous value
       self.velocity[p.name]=0  
-      # Position as a continuous value in [0,1]
-      self.position[p.name]= random.random()
-      
 
   def move(self, global_best):
     """
@@ -73,66 +70,10 @@ class HybridParticle(object):
     TODO: introduce operator choice map
     """
     m = self.manipulator
-    #print "cfg length check:", len(self.velocity), len(self.position)
     for p in m.params:
-      if p.is_permutation(): #TODO: ALL parameters that require probablistic intepretation
-        if random.uniform(0,1)>self.omega:
-          if random.uniform(0,1)<self.phi_l:
-            # Select crossover operator
-            getattr(p, self.crossover_choice)(self.position, self.position, global_best, d=p.size/3)
-          else:
-            getattr(p, self.crossover_choice)(self.position, self.position, self.best, d=p.size/3)
-      else:
-        # Continuous representation regardless of param type
-        v = self.velocity+(-self.phi_l-self.phi_g)*self.position+ self.best*self.phi_l+ global_best*self.phi_g
-        self.position = min(max([self.position+v, 0]),1)
+      self.velocity[p.name] = p.sv_swarm(self.position, global_best, self.best, c_choice=self.crossover_choice, velocity=self.velocity[p.name])
+        
 
-  def to_cfg(self):
-    data = {}
-    for p in self.manipulator.params:
-      if p.is_permutation():
-        data[p.name] = self.position[p.name]
-      else:
-        if p.is_continuous():
-           data[p.name] = p.xmin+(p.position[name]*(p.xmax-p.xmin))
-
-        elif p.is_ordinal():
-           data[p.name] = to_ordinal(self.position[p.name], classes(p))
-        else: 
-          raise Exception("Behavior undefined for parameter", p)
-
-
-def to_ordinal(v, classes):
-  """ Map a value v in range [0,1] to discrete ordinal classes"""
-  k = len(classes)
-  # Map position to discrete space
-  n1 = k/(1+exp(-v))
-  # Add Gaussian noise and round
-  n2 = round(random.gauss(n1, sigma*(k-1)))
-  n3 = min(k-1, max(n2, 0)) 
-  return classes[n3] 
-
-# Parameter property check. Alternative: put field values in each Parameter class. 
-  
-continuous_params = [FloatParameter]
-ordinal_params = [BooleanParameter, IntegerParameter]
-nominal_params = [SwitchParameter, EnumParameter]
-discrete_params = ordinal_params+nominal_params
-params1D = continuous_params +discrete_params
-paramsND = [PermutationParameter]
-
-def is_continuous(parameter):
-  """ Returns True if parameter is one of the continuous parameters defined in continuous_params """
-  return sum([isinstance(parameter, p) for p in continuous_params])>0
-
-def is_ordinal(parameter):
-  return sum([isinstance(parameter, p) for p in ordinal_params])>0
-
-def is_nomial(parameter):
-  return sum([isinstance(parameter, p) for p in nominal_params])>0
-
-def is_discrete(parameter):
-  return (is_nomial(parameter) or is_ordinal(parameter))
 
 technique.register(PSO(crossover = 'OX3'))
 technique.register(PSO(crossover = 'OX1'))
