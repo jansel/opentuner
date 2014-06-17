@@ -73,7 +73,6 @@ class HybridParticle(object):
     for p in m.params:
       self.velocity[p.name] = p.sv_swarm(self.position, global_best, self.best, omega=self.omega, phi_g=self.phi_g, phi_l=self.phi_l, c_choice=self.crossover_choice, velocity=self.velocity[p.name])
         
-
 technique.register(PSO(crossover = 'OX3'))
 technique.register(PSO(crossover = 'OX1'))
 technique.register(PSO(crossover = 'PMX'))
