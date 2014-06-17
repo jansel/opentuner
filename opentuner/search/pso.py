@@ -27,7 +27,7 @@ class PSO(technique.SequentialSearchTechnique ):
   
     population = self.init_pop
     if not population:
-      population = [HybridParticle(m, self.crossover, omega=0.5) for i in range(self.N)]
+      population = [HybridParticle(m, self.crossover) for i in range(self.N)]
 
     for p in population:
       yield driver.get_configuration(p.position)
@@ -43,7 +43,7 @@ class PSO(technique.SequentialSearchTechnique ):
           particle.best = particle.position
 
 class HybridParticle(object):
-  def __init__(self, m, crossover_choice, omega=1, phi_l=0.5, phi_g=0.5):
+  def __init__(self, m, crossover_choice, omega=0.5, phi_l=0.5, phi_g=0.5):
 
     """
     m: a configuraiton manipulator
@@ -71,9 +71,8 @@ class HybridParticle(object):
     """
     m = self.manipulator
     for p in m.params:
-      self.velocity[p.name] = p.sv_swarm(self.position, global_best, self.best, c_choice=self.crossover_choice, velocity=self.velocity[p.name])
+      self.velocity[p.name] = p.sv_swarm(self.position, global_best, self.best, omega=self.omega, phi_g=self.phi_g, phi_l=self.phi_l, c_choice=self.crossover_choice, velocity=self.velocity[p.name])
         
-
 
 technique.register(PSO(crossover = 'OX3'))
 technique.register(PSO(crossover = 'OX1'))
