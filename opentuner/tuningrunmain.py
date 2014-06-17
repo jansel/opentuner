@@ -1,3 +1,4 @@
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab autoindent smarttab
 import argparse
 import copy
 import inspect
@@ -23,7 +24,8 @@ argparser.add_argument('--print-search-space-size', action='store_true',
 argparser.add_argument('--database',
                        help=("database to store tuning results in, see: "
                              "http://docs.sqlalchemy.org/en/rel_0_8/core/engines.html#database-urls"))
-
+argparser.add_argument('--print-params','-pp',action='store_true',
+                       help='show parameters of the configuration being tuned')
 
 class CleanStop(Exception):
   pass
@@ -90,8 +92,26 @@ class TuningRunMain(object):
     if args.print_search_space_size:
       print "10^{%.2f}" % math.log(manipulator.search_space_size(), 10)
       sys.exit(0)
+    # show internal parameter representation
+    if args.print_params:
+      cfg = manipulator.seed_config()
+      d =  manipulator.parameters_dict(cfg)
+      params_dict ={} 
+      for k in d: 
+        cls = d[k].__class__.__name__
+        p = (k, d[k].search_space_size())
+        if cls in params_dict:
+          params_dict[cls].append(p)
+        else:
+          params_dict[cls]=[p]
+      for k in params_dict:
+        print k, params_dict[k]
+        print
+      sys.exit(0)
+
     input_manager = measurement_interface.input_manager()
     objective = measurement_interface.objective()
+    
 
     if not args.database:
       #args.database = 'sqlite://' #in memory

@@ -202,17 +202,19 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
         pass
     return cfg
 
-  def applySVs(self, cfg, sv_map, args):
+  def applySVs(self, cfg, sv_map, args, kwargs):
     """
     Apply operators to each parameter according to given map. Updates cfg.
+    Parameters with no operators specified are not updated. 
     cfg: configuration data
     sv_map: python dict that maps string parameter name to class method name
     arg_map: python dict that maps string parameter name to class method arguments
     """
     #TODO: check consistency between sv_map and cfg
     param_dict = self.parameters_dict(cfg)
-    for param in sv_map:
-      getattr(param, sv_map[param])(cfg, *args[param])
+    for pname in self.param_names(cfg):
+      param = param_dict[pname] 
+      getattr(param, sv_map[pname])(cfg, *args[pname], **kwargs[pname])
 
 class Parameter(object):
   """
@@ -325,6 +327,11 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
+  # Stochastic variators 
+  @abc.abstractmethod
+  def sv_swarm(self, position, global_best, local_best, *args, **kwargs):
+    pass
+  
 class PrimitiveParameter(Parameter):
   """
   a single dimension in a cartesian space, with a minimum and a maximum value
@@ -434,6 +441,8 @@ class PrimitiveParameter(Parameter):
     """return the legal range for this parameter, inclusive"""
     return 0, 1
 
+  def sv_swarm(self, *arg, **kwargs):
+    pass
 
 class NumericParameter(PrimitiveParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -484,7 +493,7 @@ class NumericParameter(PrimitiveParameter):
     if self.value_type is float:
       return 2 ** 32
     else:
-      return self.max_value - self.min_value
+      return self.max_value - self.min_value + 1  # inclusive range
 
 
 class IntegerParameter(NumericParameter):
@@ -493,7 +502,7 @@ class IntegerParameter(NumericParameter):
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, sigma=0.2):
+  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, sigma=0.2, *args, **kwargs):
     """ Updates position and returns new velocity """
     k = self.max_value - self.min_value
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random() + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
@@ -512,7 +521,7 @@ class FloatParameter(NumericParameter):
     kwargs['value_type'] = float
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0):
+  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, *args, **kwargs):
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random()  + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
     p = self.get_value(position)+v
     p = min(self.max_value, max(p, self.min_value))
@@ -663,7 +672,6 @@ class ComplexParameter(Parameter):
     """some legal value of this parameter (for creating initial configs)"""
     return
 
-
 class BooleanParameter(ComplexParameter):
   def manipulators(self, config):
     return [self.flip]
@@ -686,7 +694,7 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0):
+  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, *args, **kwargs):
     """ 
     Updates position and returns new velocity.
     position, global_best, local_best are all configuration data;
@@ -720,10 +728,6 @@ class SwitchParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, self.option_count)
 
-  #TODO: ordinal discrete sv
-  def sv_mutate(self, cfg):
-    self.randomize(cfg)
-
 class EnumParameter(ComplexParameter):
   """
   same as a SwitchParameter but choices are taken from an arbitrarily typed list
@@ -743,7 +747,7 @@ class EnumParameter(ComplexParameter):
     return max(1, len(self.options))
 
   #TODO: ordinal discrete sv
-  def sv_mutate(self, cfg):
+  def sv_mutate(self, cfg, *args, **kwargs):
     self.randomize(cfg)
 
 class PermutationParameter(ComplexParameter):
@@ -779,63 +783,31 @@ class PermutationParameter(ComplexParameter):
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
 
-     
-# Swap-based operator
-  def swap_dist(self, cfg1, cfg2):
-    """
-    Return list of swaps needed to transform the permutation from
-    cfg1 to cfg2. A swap is represented by a tuple of indices (a,b)
-    which swaps items at position a and b in the permutation. See
-    "Particle swarm optimization for traveling salesman problem"
-    http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=1259748
-    """
-    p1 = self.get_value(cfg1)[:]
-    p2 = self.get_value(cfg2)[:]
-    assert len(p1) == len(p2)
-    swaps = []
-    for i in range(len(p1)):
-      if p1[i]!=p2[i]:
-        j=p1.index(p2[i])
-        swaps.append( (i,j))
-        v = p1[i]
-        p1[i]=p1[j]
-        p1[j]=v
-
-    return swaps
-
-  def scale_swaps(self, swaps, k):
-    """ Multiply operation in PSO """
-    if k >= 0:
-      if k < 1:
-        return swaps[:int(k * len(swaps))]
+  # Stochastic Variator     
+  def sv_mutate(self, cfg, mchoice='randomize', *args, **kwargs):
+    getattr(self, mname)(cfg)
+  
+  def sv_cross(self, new, cfg1, cfg2, xchoice='OX1', strength=0.3, *args, **kwargs):
+    d = int(round(self.size*strength))
+    if d<1:
+      log.warning('Crossover length too small. Cannot create new solution.')
+    if  d>=self.size:
+      log.warning('Crossover length too big. Cannot create new solution.')
+    getattr(self, cname)(new, cfg1, cfg2, d=self.size*strength)
+  
+  def sv_swarm(self, position, global_best, local_best, xchoice='OX1', omega=1, phi_g=0.5, phi_l=0.5,  strength=0.3, velocity=0, *args, **kwargs):
+    if random.uniform(0,1)>omega:
+      if random.uniform(0,1)<phi_g:
+      # Select crossover operator
+        self.sv_cross(position, position, global_best, xchoice, strength)
       else:
-        return swaps * int(k) + swaps[:int((k % 1) * len(swaps))]
-    else:
-      return self.scale_swaps(list(reversed(swaps)), -k)
+        self.sv_cross(position, position, local_best, xchoice, strength)
 
-  def sum_swaps(self, *swaps):
-    return reduce(lambda x, y: x + y, swaps)
 
-  def split_swaps(self, swaps, k):
-    """
-    Splits a swap sequence using a ratio k, a float in the range [0,1]
-    Return two subsequences
-    """
-    s = int(k * len(swaps))
-    return swaps[:s], swaps[s:]
-
-  def apply_swaps(self, swaps, cfg):
-    """ Return a new cfg by applying a sequence of swaps to given cfg """
-    p = self.get_value(cfg)
-    for s in swaps:
-      i, j = s
-      v = p[i]
-      p[i] = p[j]
-      p[j] = v
-
+  # swap-based operators
   def random_swap(self, cfg, d=5):
     """
-    Swap a random pair of items seperated by distance d
+    swap a random pair of items seperated by distance d
     """
     new = self.parent.copy(cfg)
     p = self.get_value(new)
@@ -845,7 +817,7 @@ class PermutationParameter(ComplexParameter):
 
   def random_invert(self, cfg, d=5):
     """
-    Randomly invert a length-d subsection of the permutation
+    randomly invert a length-d subsection of the permutation
     """
     new = self.parent.copy(cfg)
     p = self.get_value(new)
@@ -868,6 +840,7 @@ class PermutationParameter(ComplexParameter):
     p2 = self.get_value(cfg2)
     c1 = random.randint(0,len(p1))
     self.set_value(dest, sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:])
+
   def PMX(self, dest, cfg1, cfg2, d=5):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
@@ -969,33 +942,10 @@ class PermutationParameter(ComplexParameter):
   def add_difference(self, cfg_dst, b, cfg_b, cfg_c):
     self.apply_swaps(self.scale_swaps(self.swap_dist(cfg_c, cfg_b), b), cfg_dst)
 
-
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
 
-  def sv_cross(self, new, cfg1, cfg2, cname, strength=0.3):
-    d = int(round(self.size*strength))
-    if d<1:
-      log.warning('Crossover length too small. Cannot create new solution.')
-    if  d>=self.size:
-      log.warning('Crossover length too big. Cannot create new solution.')
-    getattr(self, cname)(new, cfg1, cfg2, d=self.size*strength)
-  
-  def sv_swarm(self, position, global_best, local_best, c_choice, omega=1, phi_g=0.5, phi_l=0.5,  strength=0.3 ):
-    if random.uniform(0,1)>omega:
-      if random.uniform(0,1)<phi_l:
-      # Select crossover operator
-        self.sv_cross(position, position, global_best, c_choice, strength)
-      else:
-        self.sv_cross(position, position, local_best, c_choice, strength)
 
-  def sv_dif(self):
-    #TODO
-    pass
-
-  def sv_mutate(self, cfg, mname):
-    getattr(self, mname)(cfg)
-  
 
 class ScheduleParameter(PermutationParameter):
   def __init__(self, name, items, deps):
@@ -1127,7 +1077,8 @@ class ArrayParameter(ComplexParameter):
   def __init__(self, name, count, element_type, *args, **kwargs):
     super(ArrayParameter, self).__init__(name)
     self.count = count
-    self.sub_params = [element_type('{0}/{1}'.format(name, i), *args, **kwargs)
+
+    self.sub_params = [element_type('{0}/{1}'.format(name, i), *args[i], **kwargs[i])
                        for i in xrange(count)]
 
   def sub_parameters(self):
@@ -1138,13 +1089,47 @@ class ArrayParameter(ComplexParameter):
 
   def randomize(self, config):
     random.choice(self.sub_parameters()).randomize(config)
-
-
+  
 class BooleanArrayParameter(ArrayParameter):
   def __init__(self, name, count):
     super(BooleanArrayParameter, self).__init__(name, count, BooleanParameter)
- 
+  
+  def sv_swarm(self, *args, **kwargs):
+    #TODO
+    pass
 
+  def sv_select_cross(self, *args, **kwargs):
+    #TODO
+    pass
+
+  def sv_cross(self, *args, **kwargs):
+    #TODO
+    pass
+
+  def sv_double_cross(self, *args, **kwargs):
+    #TODO
+    pass
+
+class IntegerArrayParameter(ArrayParameter):
+  def __init__(self, name, min_values, max_values):
+    assert len(min_values)==len(max_values)
+    super(IntegerArrayParameter, self).__init__(name, len(min_values), IntegerParameter, min_value=min_values, max_value=max_values)
+
+  def sv_swarm(self, *args, **kwargs):
+    #TODO
+    pass
+
+  def sv_select_cross(self, *args, **kwargs):
+    #TODO
+    pass
+
+  def sv_cross(self, *args, **kwargs):
+    #TODO
+    pass
+
+  def sv_double_cross(self, *args, **kwargs):
+    #TODO
+    pass
 
 class Array(ComplexParameter):
   """ Alternative implementation for ArrayParameter."""
@@ -1153,7 +1138,7 @@ class Array(ComplexParameter):
     super(Array, self).__init__(name)
     self.size = size
 
-  def sv_cross(self, dest, cfg1, cfg2, strength=0.3):
+  def sv_cross(self, dest, cfg1, cfg2, strength=0.3, *args, **kwargs):
     d = int(round(self.size*strength))
     if d<1:
       log.debug('Crossover length too small. Cannot create new solution.')
@@ -1165,9 +1150,9 @@ class Array(ComplexParameter):
     p = numpy.concatenate([p1[:r], p2[r:r+d], p1[r+d:]])
     self.set_value(dest, p)
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, strength=0.3 ):
+  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, strength=0.3 , *args, **kwargs):
     if random.uniform(0,1)>omega:
-      if random.uniform(0,1)<phi_l:
+      if random.uniform(0,1)<phi_g:
       # Select crossover operator
         self.sv_cross(position, position, global_best, strength)
       else:
@@ -1178,7 +1163,6 @@ class Array(ComplexParameter):
 
   def set_value(self, config, value):
     self._set(config, value)
-
 
 class BooleanArray(Array):
   def sv_swarm_parallel(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocities=0):
@@ -1218,10 +1202,6 @@ class FloatArray(Array):
     value = numpy.random.rand(1,self.size)*(self.fmax - self.fmin)+self.fmin
     return value
 
-  def sv_dif(self, dest, cfg_a, cfg_b, cfg_c, F, cr):
-    #TODO
-    pass
-
   def sv_swarm_parallel(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocities=0):
     vs = velocities*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random()  + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
     p = self.get_value(position)+vs
@@ -1229,7 +1209,7 @@ class FloatArray(Array):
     self.set_value( position, p)
     return v
 
-  def sv_mutate(self):
+  def sv_mutate(self, dest, *args, *kwargs):
     #TODO
     pass
 
