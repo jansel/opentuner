@@ -327,10 +327,9 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
-  # Stochastic variators 
-  @abc.abstractmethod
+  # Stochastic variators
   def sv_swarm(self, position, global_best, local_best, *args, **kwargs):
-    pass
+    raise NotImplementedError()
   
 class PrimitiveParameter(Parameter):
   """
@@ -1209,7 +1208,7 @@ class FloatArray(Array):
     self.set_value( position, p)
     return v
 
-  def sv_mutate(self, dest, *args, *kwargs):
+  def sv_mutate(self, dest, *args, **kwargs):
     #TODO
     pass
 
