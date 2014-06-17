@@ -13,12 +13,12 @@ from multiprocessing.pool import ThreadPool
 
 try:
   import resource
-except:
+except ImportError:
   resource = None
 
 try:
   import fcntl
-except:
+except ImportError:
   fcntl = None
 
 import opentuner
@@ -244,10 +244,17 @@ def preexec_setpgid_setrlimit(memory_limit):
   if resource is not None:
     def _preexec():
       os.setpgid(0, 0)
-      resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
+      try:
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+      except ValueError:
+        pass  # No permission
       if memory_limit:
-        resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
-
+        try:
+          (soft, hard) = resource.getrlimit(resource.RLIMIT_AS)
+          resource.setrlimit(resource.RLIMIT_AS, (min(soft, memory_limit),
+                                                  min(hard, memory_limit)))
+        except ValueError:
+          pass  # No permission
     return _preexec
 
 
