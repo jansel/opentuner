@@ -401,7 +401,7 @@ class PrimitiveParameter(Parameter):
 
     self.set_unit_value(cfg_dst, v)
 
-  def normal_mutation(self, cfg, sigma=0.1):
+  def normal_mutation(self, cfg, sigma=0.1, *args, **kwargs):
     """
     apply normally distributed noise to the value of this parameter in cfg
 
@@ -491,7 +491,9 @@ class NumericParameter(PrimitiveParameter):
       return 2 ** 32
     else:
       return self.max_value - self.min_value + 1  # inclusive range
-
+  
+  def sv_mutate(self, cfg, mchoice='normal_mutation', *args, **kwargs): 
+    getattr(self, mchoice)(cfg, *args, **kwargs)
 
 class IntegerParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -664,6 +666,9 @@ class ComplexParameter(Parameter):
     if not self.same_value(cfg_b, cfg_c):
       self.randomize(cfg_dst)
 
+  def sv_mutate(self, cfg, mchoice='randomize', *args, **kwargs): 
+    getattr(self, mchoice)(cfg, *args, **kwargs)
+
   @abc.abstractmethod
   def randomize(self, config):
     """randomize this value without taking into account the current position"""
@@ -785,8 +790,8 @@ class PermutationParameter(ComplexParameter):
     return math.factorial(max(1, len(self._items)))
 
   # Stochastic Variator     
-  def sv_mutate(self, new, cfg, mchoice='random_swap', *args, **kwargs):
-    getattr(self, mchoice)(new, cfg, *args, **kwargs)
+  def sv_mutate(self, cfg, mchoice='random_swap', *args, **kwargs):
+    getattr(self, mchoice)(cfg, cfg, *args, **kwargs)
   
   def sv_cross(self, new, cfg1, cfg2, xchoice='OX1', strength=0.3, *args, **kwargs):
     dd = int(round(self.size*strength))
@@ -806,7 +811,7 @@ class PermutationParameter(ComplexParameter):
 
 
   # swap-based operators
-  def random_swap(self, dest, cfg):
+  def random_swap(self, dest, cfg, *args, **kwargs):
     """
     swap a random pair of items seperated by distance d
     """
@@ -819,7 +824,7 @@ class PermutationParameter(ComplexParameter):
     p[s]=v1
     self.set_value(dest, p)
 
-  def random_invert(self, dest, cfg, strength=0.3):
+  def random_invert(self, dest, cfg, strength=0.3, *args, **kwargs):
     """
     randomly invert a length-d subsection of the permutation
     """
