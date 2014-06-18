@@ -7,7 +7,7 @@ import math
 
 class PSO(technique.SequentialSearchTechnique ):
   """ Particle Swarm Optimization """
-  def __init__(self, crossover, N = 3, init_pop=None, *pargs, **kwargs):
+  def __init__(self, crossover, N = 30, init_pop=None, *pargs, **kwargs):
     """
     crossover: name of crossover operator function
     """
