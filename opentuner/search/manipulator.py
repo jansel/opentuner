@@ -785,16 +785,16 @@ class PermutationParameter(ComplexParameter):
     return math.factorial(max(1, len(self._items)))
 
   # Stochastic Variator     
-  def sv_mutate(self, cfg, mchoice='random_swap', *args, **kwargs):
-    getattr(self, mchoice)(cfg)
+  def sv_mutate(self, new, cfg, mchoice='random_swap', *args, **kwargs):
+    getattr(self, mchoice)(new, cfg, *args, **kwargs)
   
   def sv_cross(self, new, cfg1, cfg2, xchoice='OX1', strength=0.3, *args, **kwargs):
-    d = int(round(self.size*strength))
-    if d<1:
+    dd = int(round(self.size*strength))
+    if dd<1:
       log.warning('Crossover length too small. Cannot create new solution.')
-    if  d>=self.size:
+    if  dd>=self.size:
       log.warning('Crossover length too big. Cannot create new solution.')
-    getattr(self, xchoice)(new, cfg1, cfg2, d=self.size*strength)
+    getattr(self, xchoice)(new, cfg1, cfg2, d=dd, *args, **kwargs)
   
   def sv_swarm(self, position, global_best, local_best, xchoice='OX1', omega=1, phi_g=0.5, phi_l=0.5,  strength=0.3, velocity=0, *args, **kwargs):
     if random.uniform(0,1)>omega:
@@ -833,24 +833,22 @@ class PermutationParameter(ComplexParameter):
 
 
   # Crossover operators
-  def PX(self, dest, cfg1, cfg2, d=None):
+  def PX(self, dest, cfg1, cfg2, d):
     """
     Partition crossover (Whitley 2009?)
     Change the order of items up to c1 in cfg1 according to their order in cfg2.
     """
 
-    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = random.randint(0,len(p1))
     self.set_value(dest, sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:])
 
-  def PMX(self, dest, cfg1, cfg2, d=5):
+  def PMX(self, dest, cfg1, cfg2, d):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
     
-    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
     
@@ -886,12 +884,11 @@ class PermutationParameter(ComplexParameter):
     self.set_value(dest, p1)
 
 
-  def CX(self, dest, cfg1, cfg2, d=None):
+  def CX(self, dest, cfg1, cfg2, d):
     """
     Implementation of cyclic crossover. Exchange the items occupying the same positions
     in two permutations.
     """
-    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     p = p1[:]
@@ -916,7 +913,6 @@ class PermutationParameter(ComplexParameter):
     Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
-    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -931,7 +927,6 @@ class PermutationParameter(ComplexParameter):
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
     """
-    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
