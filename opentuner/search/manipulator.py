@@ -441,9 +441,6 @@ class PrimitiveParameter(Parameter):
     """return the legal range for this parameter, inclusive"""
     return 0, 1
 
-  def sv_swarm(self, *arg, **kwargs):
-    pass
-
 class NumericParameter(PrimitiveParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
     """min/max are inclusive"""
@@ -751,7 +748,6 @@ class EnumParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, len(self.options))
 
-  #TODO: ordinal discrete sv
   def sv_mutate(self, cfg, *args, **kwargs):
     self.randomize(cfg)
 
@@ -789,8 +785,8 @@ class PermutationParameter(ComplexParameter):
     return math.factorial(max(1, len(self._items)))
 
   # Stochastic Variator     
-  def sv_mutate(self, cfg, mchoice='randomize', *args, **kwargs):
-    getattr(self, mname)(cfg)
+  def sv_mutate(self, cfg, mchoice='random_swap', *args, **kwargs):
+    getattr(self, mchoice)(cfg)
   
   def sv_cross(self, new, cfg1, cfg2, xchoice='OX1', strength=0.3, *args, **kwargs):
     d = int(round(self.size*strength))
@@ -810,27 +806,30 @@ class PermutationParameter(ComplexParameter):
 
 
   # swap-based operators
-  def random_swap(self, cfg, d=5):
+  def random_swap(self, dest, cfg):
     """
     swap a random pair of items seperated by distance d
     """
-    new = self.parent.copy(cfg)
-    p = self.get_value(new)
-    r = random.randint(0, len(p) - d - 1)
-    self.apply_swaps([(r, r + d)], new)
-    return new
+    p = self.get_value(cfg)[:]
+    r = random.randint(0, len(p)-1)
+    s = random.randint(0, len(p)-1)
+    v1 = p[r]
+    v2 = p[s]
+    p[r]=v2
+    p[s]=v1
+    self.set_value(dest, p)
 
-  def random_invert(self, cfg, d=5):
+  def random_invert(self, dest, cfg, strength=0.3):
     """
     randomly invert a length-d subsection of the permutation
     """
-    new = self.parent.copy(cfg)
-    p = self.get_value(new)
+    p = self.get_value(cfg)[:]
+    d = int(round(len(p)*strength))
     r = random.randint(0, len(p) - d)
     subpath = p[r:r + d][:]
     subpath.reverse()
     p[r:r + d] = subpath
-    return new
+    self.set_value(dest, p)
 
 
   # Crossover operators
@@ -840,7 +839,7 @@ class PermutationParameter(ComplexParameter):
     Change the order of items up to c1 in cfg1 according to their order in cfg2.
     """
 
-    d = int(round(d))
+    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = random.randint(0,len(p1))
@@ -851,7 +850,7 @@ class PermutationParameter(ComplexParameter):
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
     
-    d = int(round(d))
+    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
     
@@ -892,7 +891,7 @@ class PermutationParameter(ComplexParameter):
     Implementation of cyclic crossover. Exchange the items occupying the same positions
     in two permutations.
     """
-    d = int(round(d))
+    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     p = p1[:]
@@ -917,7 +916,7 @@ class PermutationParameter(ComplexParameter):
     Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
-    d = int(round(d))
+    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -932,7 +931,7 @@ class PermutationParameter(ComplexParameter):
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
     """
-    d = int(round(d))
+    d = int(round(len(p)*strength))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
