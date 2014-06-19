@@ -328,8 +328,30 @@ class Parameter(object):
     return 1
 
   # Stochastic variators 
-  def sv_swarm(self, position, global_best, local_best, *args, **kwargs):
-    log.debug('%s is not updated', self.__class__)
+  def sv_mix(self, dest, cfgs, ratio,  *args, **kwargs):
+    """ 
+    Stochastically recombine values from multiple parent configurations and save the 
+    resulting value in dest. 
+    cfgs: list of configuration data (dict)
+    ratio: list of floats
+    """
+    assert len(cfgs)==len(ratio)
+    r = random.random()
+    print r
+    c = numpy.array(ratio, dtype=float)/sum(ratio)
+    for i in range(len(c)):
+      if r < sum(c[:i+1]):
+        self.set_value(dest, self.get_value(cfgs[i]))
+        break
+
+  def sv_swarm(self, current, cfg1, cfg2, c, c1, c2, *args, **kwargs):
+    """
+    Stochastically 'move' value in current configuration towards those in two other configurations. 
+    current, cfg1, cfg2: configuration data (dict)
+    c, c1, c2: float
+    """
+    self.sv_mix(current, [current, cfg1, cfg2], [c, c1, c2])  # default to probablistic treatment
+
   
 class PrimitiveParameter(Parameter):
   """
