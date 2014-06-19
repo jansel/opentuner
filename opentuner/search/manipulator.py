@@ -327,9 +327,9 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
-  # Stochastic variators
+  # Stochastic variators 
   def sv_swarm(self, position, global_best, local_best, *args, **kwargs):
-    raise NotImplementedError()
+    log.debug('%s is not updated', self.__class__)
   
 class PrimitiveParameter(Parameter):
   """
@@ -400,7 +400,7 @@ class PrimitiveParameter(Parameter):
 
     self.set_unit_value(cfg_dst, v)
 
-  def normal_mutation(self, cfg, sigma=0.1):
+  def normal_mutation(self, cfg, sigma=0.1, *args, **kwargs):
     """
     apply normally distributed noise to the value of this parameter in cfg
 
@@ -439,9 +439,6 @@ class PrimitiveParameter(Parameter):
   def legal_range(self, config):
     """return the legal range for this parameter, inclusive"""
     return 0, 1
-
-  def sv_swarm(self, *arg, **kwargs):
-    pass
 
 class NumericParameter(PrimitiveParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -493,7 +490,9 @@ class NumericParameter(PrimitiveParameter):
       return 2 ** 32
     else:
       return self.max_value - self.min_value + 1  # inclusive range
-
+  
+  def sv_mutate(self, cfg, mchoice='normal_mutation', *args, **kwargs): 
+    getattr(self, mchoice)(cfg, *args, **kwargs)
 
 class IntegerParameter(NumericParameter):
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -503,14 +502,15 @@ class IntegerParameter(NumericParameter):
 
   def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, sigma=0.2, *args, **kwargs):
     """ Updates position and returns new velocity """
-    k = self.max_value - self.min_value
+    vmin, vmax = self.legal_range(position)
+    k = vmax - vmin 
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random() + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
     # Map velocity to continuous space with sigmoid
-    s = k/(1+numpy.exp(-v))+self.min_value
+    s = k/(1+numpy.exp(-v))+vmin
     # Add Gaussian noise
     p = random.gauss(s, sigma*k)
     # Discretize and bound 
-    p = min(self.max_value, max(round(p), self.min_value))
+    p = min(vmax, max(round(p),vmin))
     self.set_value(position, p)
     return v
 
@@ -521,9 +521,10 @@ class FloatParameter(NumericParameter):
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
   def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5, phi_l=0.5, velocity=0, *args, **kwargs):
+    vmin, vmax = self.legal_range(position)
     v = velocity*omega + (self.get_value(global_best)- self.get_value(position))*phi_g*random.random()  + (self.get_value(local_best)- self.get_value(position))*phi_l*random.random() 
     p = self.get_value(position)+v
-    p = min(self.max_value, max(p, self.min_value))
+    p = min(vmax, max(p, vmin))
     self.set_value( position, p)
     return v
 
@@ -546,7 +547,7 @@ class ScaledNumericParameter(NumericParameter):
     return map(self._scale, NumericParameter.legal_range(self, config))
 
 
-class LogIntegerParameter(ScaledNumericParameter):
+class LogIntegerParameter(ScaledNumericParameter, FloatParameter):
   """
   a numeric parameter that is searched on a log scale, but stored without
   scaling
@@ -565,8 +566,7 @@ class LogIntegerParameter(ScaledNumericParameter):
     # increase the bounds account for rounding
     return self._scale(low - 0.4999), self._scale(high + 0.4999)
 
-
-class LogFloatParameter(ScaledNumericParameter):
+class LogFloatParameter(ScaledNumericParameter, FloatParameter):
   """
   a numeric parameter that is searched on a log scale, but stored without
   scaling
@@ -579,8 +579,7 @@ class LogFloatParameter(ScaledNumericParameter):
     v = 2.0 ** v - 1.0 + self.min_value
     return v
 
-
-class PowerOfTwoParameter(ScaledNumericParameter):
+class PowerOfTwoParameter(ScaledNumericParameter, IntegerParameter):
   """An integer power of two, with a given min and max value"""
 
   def __init__(self, name, min_value, max_value, **kwargs):
@@ -599,7 +598,6 @@ class PowerOfTwoParameter(ScaledNumericParameter):
 
   def legal_range(self, config):
     return int(math.log(self.min_value, 2)), int(math.log(self.max_value, 2))
-
 
 ##################
 
@@ -621,6 +619,12 @@ class ComplexParameter(Parameter):
     """produce unique hash for this value in the config"""
     self.normalize(config)
     return hashlib.sha256(repr(self._get(config))).hexdigest()
+
+  def get_value(self, config):
+    return self._get(config)
+
+  def set_value(self, config, value):
+    self._set(config, value)
 
   def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
     """
@@ -660,6 +664,9 @@ class ComplexParameter(Parameter):
     """
     if not self.same_value(cfg_b, cfg_c):
       self.randomize(cfg_dst)
+
+  def sv_mutate(self, cfg, mchoice='randomize', *args, **kwargs): 
+    getattr(self, mchoice)(cfg, *args, **kwargs)
 
   @abc.abstractmethod
   def randomize(self, config):
@@ -745,7 +752,6 @@ class EnumParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, len(self.options))
 
-  #TODO: ordinal discrete sv
   def sv_mutate(self, cfg, *args, **kwargs):
     self.randomize(cfg)
 
@@ -783,16 +789,16 @@ class PermutationParameter(ComplexParameter):
     return math.factorial(max(1, len(self._items)))
 
   # Stochastic Variator     
-  def sv_mutate(self, cfg, mchoice='randomize', *args, **kwargs):
-    getattr(self, mname)(cfg)
+  def sv_mutate(self, cfg, mchoice='random_swap', *args, **kwargs):
+    getattr(self, mchoice)(cfg, cfg, *args, **kwargs)
   
   def sv_cross(self, new, cfg1, cfg2, xchoice='OX1', strength=0.3, *args, **kwargs):
-    d = int(round(self.size*strength))
-    if d<1:
+    dd = int(round(self.size*strength))
+    if dd<1:
       log.warning('Crossover length too small. Cannot create new solution.')
-    if  d>=self.size:
+    if  dd>=self.size:
       log.warning('Crossover length too big. Cannot create new solution.')
-    getattr(self, cname)(new, cfg1, cfg2, d=self.size*strength)
+    getattr(self, xchoice)(new, cfg1, cfg2, d=dd, *args, **kwargs)
   
   def sv_swarm(self, position, global_best, local_best, xchoice='OX1', omega=1, phi_g=0.5, phi_l=0.5,  strength=0.3, velocity=0, *args, **kwargs):
     if random.uniform(0,1)>omega:
@@ -804,48 +810,49 @@ class PermutationParameter(ComplexParameter):
 
 
   # swap-based operators
-  def random_swap(self, cfg, d=5):
+  def random_swap(self, dest, cfg, *args, **kwargs):
     """
     swap a random pair of items seperated by distance d
     """
-    new = self.parent.copy(cfg)
-    p = self.get_value(new)
-    r = random.randint(0, len(p) - d - 1)
-    self.apply_swaps([(r, r + d)], new)
-    return new
+    p = self.get_value(cfg)[:]
+    r = random.randint(0, len(p)-1)
+    s = random.randint(0, len(p)-1)
+    v1 = p[r]
+    v2 = p[s]
+    p[r]=v2
+    p[s]=v1
+    self.set_value(dest, p)
 
-  def random_invert(self, cfg, d=5):
+  def random_invert(self, dest, cfg, strength=0.3, *args, **kwargs):
     """
     randomly invert a length-d subsection of the permutation
     """
-    new = self.parent.copy(cfg)
-    p = self.get_value(new)
+    p = self.get_value(cfg)[:]
+    d = int(round(len(p)*strength))
     r = random.randint(0, len(p) - d)
     subpath = p[r:r + d][:]
     subpath.reverse()
     p[r:r + d] = subpath
-    return new
+    self.set_value(dest, p)
 
 
   # Crossover operators
-  def PX(self, dest, cfg1, cfg2, d=None):
+  def PX(self, dest, cfg1, cfg2, d):
     """
     Partition crossover (Whitley 2009?)
     Change the order of items up to c1 in cfg1 according to their order in cfg2.
     """
 
-    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = random.randint(0,len(p1))
     self.set_value(dest, sorted(p1[:c1], key=lambda x: p2.index(x))+p1[c1:])
 
-  def PMX(self, dest, cfg1, cfg2, d=5):
+  def PMX(self, dest, cfg1, cfg2, d):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
     """
     
-    d = int(round(d))
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
     
@@ -881,12 +888,11 @@ class PermutationParameter(ComplexParameter):
     self.set_value(dest, p1)
 
 
-  def CX(self, dest, cfg1, cfg2, d=None):
+  def CX(self, dest, cfg1, cfg2, d):
     """
     Implementation of cyclic crossover. Exchange the items occupying the same positions
     in two permutations.
     """
-    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     p = p1[:]
@@ -911,7 +917,6 @@ class PermutationParameter(ComplexParameter):
     Two parents exchange subpaths with the same number of nodes while order the remaining
     nodes are maintained in each parent. 
     """
-    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -926,7 +931,6 @@ class PermutationParameter(ComplexParameter):
     Ordered crossover variation 3 (Deep 2010)
     Parents have different cut points. (good for tsp which is a cycle?)
     """
-    d = int(round(d))
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -938,9 +942,6 @@ class PermutationParameter(ComplexParameter):
     [c1.remove(i) for i in p2[r2:r2+d]]
     self.set_value(dest, c1[:r1]+p2[r2:r2+d]+c1[r1:])
       
-  def add_difference(self, cfg_dst, b, cfg_b, cfg_c):
-    self.apply_swaps(self.scale_swaps(self.swap_dist(cfg_c, cfg_b), b), cfg_dst)
-
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
 
