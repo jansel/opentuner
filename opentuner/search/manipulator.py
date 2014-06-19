@@ -330,7 +330,6 @@ class Parameter(object):
   # Stochastic variators 
   def sv_swarm(self, position, global_best, local_best, *args, **kwargs):
     log.debug('%s is not updated', self.__class__)
-    pass
   
 class PrimitiveParameter(Parameter):
   """
