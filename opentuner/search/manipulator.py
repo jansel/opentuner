@@ -329,6 +329,7 @@ class Parameter(object):
     return 1
 
   # Stochastic variators 
+<<<<<<< HEAD
   def sv_mix(self, dest, cfgs, ratio,  *args, **kwargs):
     """ 
     Stochastically recombine values from multiple parent configurations and save the 
@@ -353,7 +354,6 @@ class Parameter(object):
     """
     self.sv_mix(current, [current, cfg1, cfg2], [c, c1, c2])  # default to probablistic treatment
 
-  
 class PrimitiveParameter(Parameter):
   """
   a single dimension in a cartesian space, with a minimum and a maximum value
