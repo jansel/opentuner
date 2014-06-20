@@ -15,7 +15,10 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
+# Functions for building FCEUX movie files (.fm2 files)
+
 def fm2_line(up, down, left, right, a, b, start, select, reset=False):
+  """formats one frame of input with the given button presses"""
   return ''.join(('|1|' if reset else '|0|') +
     ('R' if right else '.') +
     ('L' if left else '.') +
@@ -34,6 +37,7 @@ def maxd(iterable, default):
     return default
 
 def fm2_lines(up, down, left, right, a, b, start, select, reset=set(), minFrame=None, maxFrame=None):
+  """formats many frames using the given button-press sets"""
   if minFrame is None:
     minFrame = 0
   if maxFrame is None:
