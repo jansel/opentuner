@@ -537,7 +537,7 @@ class IntegerParameter(NumericParameter):
     # Add Gaussian noise
     p = random.gauss(s, sigma * k)
     # Discretize and bound 
-    p = min(vmax, max(round(p), vmin))
+    p = int(min(vmax, max(round(p), vmin)))
     self.set_value(position, p)
     return v
 
