@@ -329,7 +329,6 @@ class Parameter(object):
     return 1
 
   # Stochastic variators 
-<<<<<<< HEAD
   def sv_mix(self, dest, cfgs, ratio,  *args, **kwargs):
     """ 
     Stochastically recombine values from multiple parent configurations and save the 
