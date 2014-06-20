@@ -110,7 +110,7 @@ def interpret_cfg(cfg):
     jump_frame = cfg['jump_frame{}'.format(i)]
     jump_duration = cfg['jump_duration{}'.format(i)]
     jumping.update(xrange(jump_frame, jump_frame + jump_duration))
-  return (left, right, down, running, jumping)
+  return left, right, down, running, jumping
 
 class SMBMI(MeasurementInterface):
   def __init__(self, args):
