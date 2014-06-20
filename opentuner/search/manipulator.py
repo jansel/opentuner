@@ -329,9 +329,28 @@ class Parameter(object):
     return 1
 
   # Stochastic variators 
-  def sv_swarm(self, position, global_best, local_best, *args, **kwargs):
-    log.debug('%s is not updated', self.__class__)
+  def sv_mix(self, dest, cfgs, ratio,  *args, **kwargs):
+    """ 
+    Stochastically recombine values from multiple parent configurations and save the 
+    resulting value in dest. 
+    cfgs: list of configuration data (dict)
+    ratio: list of floats
+    """
+    assert len(cfgs)==len(ratio)
+    r = random.random()
+    c = numpy.array(ratio, dtype=float)/sum(ratio)
+    for i in range(len(c)):
+      if r < sum(c[:i+1]):
+        self.copy_value(dest, cfgs[i])
+        break
 
+  def sv_swarm(self, current, cfg1, cfg2, c, c1, c2, *args, **kwargs):
+    """
+    Stochastically 'move' value in current configuration towards those in two other configurations. 
+    current, cfg1, cfg2: configuration data (dict)
+    c, c1, c2: float
+    """
+    self.sv_mix(current, [current, cfg1, cfg2], [c, c1, c2])  # default to probablistic treatment
 
 class PrimitiveParameter(Parameter):
   """
@@ -504,21 +523,21 @@ class IntegerParameter(NumericParameter):
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5,
-               phi_l=0.5, velocity=0, sigma=0.2, *args, **kwargs):
-    """ Updates position and returns new velocity """
-    vmin, vmax = self.legal_range(position)
+  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
+               c2=0.5, velocity=0, sigma=0.2, *args, **kwargs):
+    """ Updates current and returns new velocity """
+    vmin, vmax = self.legal_range(current)
     k = vmax - vmin
-    v = velocity * omega + (self.get_value(global_best) - self.get_value(
-      position)) * phi_g * random.random() + (self.get_value(
-      local_best) - self.get_value(position)) * phi_l * random.random()
+    v = velocity * c + (self.get_value(cfg1) - self.get_value(
+      current)) * c1 * random.random() + (self.get_value(
+      cfg2) - self.get_value(current)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
     s = k / (1 + numpy.exp(-v)) + vmin
     # Add Gaussian noise
     p = random.gauss(s, sigma * k)
     # Discretize and bound 
-    p = min(vmax, max(round(p), vmin))
-    self.set_value(position, p)
+    p = int(min(vmax, max(round(p), vmin)))
+    self.set_value(current, p)
     return v
 
 
@@ -528,15 +547,15 @@ class FloatParameter(NumericParameter):
     kwargs['value_type'] = float
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5,
-               phi_l=0.5, velocity=0, *args, **kwargs):
-    vmin, vmax = self.legal_range(position)
-    v = velocity * omega + (self.get_value(global_best) - self.get_value(
-      position)) * phi_g * random.random() + (self.get_value(
-      local_best) - self.get_value(position)) * phi_l * random.random()
-    p = self.get_value(position) + v
+  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
+               c2=0.5, velocity=0, *args, **kwargs):
+    vmin, vmax = self.legal_range(current)
+    v = velocity * c + (self.get_value(cfg1) - self.get_value(
+      current)) * c1 * random.random() + (self.get_value(
+      cfg2) - self.get_value(current)) * c2 * random.random()
+    p = self.get_value(current) + v
     p = min(vmax, max(p, vmin))
-    self.set_value(position, p)
+    self.set_value(current, p)
     return v
 
 
@@ -716,22 +735,22 @@ class BooleanParameter(ComplexParameter):
   def search_space_size(self):
     return 2
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5,
-               phi_l=0.5, velocity=0, *args, **kwargs):
+  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
+               c2=0.5, velocity=0, *args, **kwargs):
     """ 
-    Updates position and returns new velocity.
-    position, global_best, local_best are all configuration data;
-    omega, phi_g, phi_l, velocity are floats;
+    Updates current and returns new velocity.
+    current, cfg1, cfg2 are all configuration data;
+    c, c1, c2, velocity are floats;
     Return updated velocities for each element in the BooleanArrayParameter.
     """
-    v = velocity * omega + (self.get_value(global_best) - self.get_value(
-      position)) * phi_g * random.random() + (self.get_value(
-      local_best) - self.get_value(position)) * phi_l * random.random()
+    v = velocity * c + (self.get_value(cfg1) - self.get_value(
+      current)) * c1 * random.random() + (self.get_value(
+      cfg2) - self.get_value(current)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
     s = 1 / (1 + numpy.exp(-v))
     # Decide position randomly  
     p = (s - random.random()) > 0
-    self.set_value(position, p)
+    self.set_value(current, p)
     return v
 
 
@@ -823,14 +842,14 @@ class PermutationParameter(ComplexParameter):
       log.warning('Crossover length too big. Cannot create new solution.')
     getattr(self, xchoice)(new, cfg1, cfg2, d=dd, *args, **kwargs)
 
-  def sv_swarm(self, position, global_best, local_best, xchoice='OX1', omega=1,
-               phi_g=0.5, phi_l=0.5, strength=0.3, velocity=0, *args, **kwargs):
-    if random.uniform(0, 1) > omega:
-      if random.uniform(0, 1) < phi_g:
+  def sv_swarm(self, current, cfg1, cfg2, xchoice='OX1', c=1,
+               c1=0.5, c2=0.5, strength=0.3, velocity=0, *args, **kwargs):
+    if random.uniform(0, 1) > c:
+      if random.uniform(0, 1) < c1:
         # Select crossover operator
-        self.sv_cross(position, position, global_best, xchoice, strength)
+        self.sv_cross(current, current, cfg1, xchoice, strength)
       else:
-        self.sv_cross(position, position, local_best, xchoice, strength)
+        self.sv_cross(current, current, cfg2, xchoice, strength)
 
 
   # swap-based operators
@@ -1182,14 +1201,14 @@ class Array(ComplexParameter):
     p = numpy.concatenate([p1[:r], p2[r:r + d], p1[r + d:]])
     self.set_value(dest, p)
 
-  def sv_swarm(self, position, global_best, local_best, omega=1, phi_g=0.5,
-               phi_l=0.5, velocity=0, strength=0.3, *args, **kwargs):
-    if random.uniform(0, 1) > omega:
-      if random.uniform(0, 1) < phi_g:
+  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
+               c2=0.5, velocity=0, strength=0.3, *args, **kwargs):
+    if random.uniform(0, 1) > c:
+      if random.uniform(0, 1) < c1:
         # Select crossover operator
-        self.sv_cross(position, position, global_best, strength)
+        self.sv_cross(current, current, cfg1, strength)
       else:
-        self.sv_cross(position, position, local_best, strength)
+        self.sv_cross(current, current, cfg2, strength)
 
   def get_value(self, config):
     return self._get(config)
@@ -1199,22 +1218,22 @@ class Array(ComplexParameter):
 
 
 class BooleanArray(Array):
-  def sv_swarm_parallel(self, position, global_best, local_best, omega=1,
-                        phi_g=0.5, phi_l=0.5, velocities=0):
+  def sv_swarm_parallel(self, current, cfg1, cfg2, c=1,
+                        c1=0.5, c2=0.5, velocities=0):
     """ 
-    Updates position and returns the updated velocity array.
-    position, global_best, local_best are configuration data;
-    omega, phi_g, phi_l are floats;
+    Updates current and returns the updated velocity array.
+    current, cfg1, cfg2 are configuration data;
+    c, c1, c2 are floats;
     velocities is a numpy array of floats;
     """
-    vs = velocities * omega + (self.get_value(global_best) - self.get_value(
-      position)) * phi_g * random.random() + (self.get_value(
-      local_best) - self.get_value(position)) * phi_l * random.random()
+    vs = velocities * c + (self.get_value(cfg1) - self.get_value(
+      current)) * c1 * random.random() + (self.get_value(
+      cfg2) - self.get_value(current)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
     ss = 1 / (1 + numpy.exp(-vs))
     # Decide position randomly  
     ps = (ss - numpy.random.rand(1, self.size)) > 0
-    self.set_value(position, ps)
+    self.set_value(current, ps)
     return vs
 
   def randomize(self, config):
@@ -1242,14 +1261,14 @@ class FloatArray(Array):
     self.fmax - self.fmin) + self.fmin
     return value
 
-  def sv_swarm_parallel(self, position, global_best, local_best, omega=1,
-                        phi_g=0.5, phi_l=0.5, velocities=0):
-    vs = velocities * omega + (self.get_value(global_best) - self.get_value(
-      position)) * phi_g * random.random() + (self.get_value(
-      local_best) - self.get_value(position)) * phi_l * random.random()
-    p = self.get_value(position) + vs
+  def sv_swarm_parallel(self, current, cfg1, cfg2, c=1,
+                        c1=0.5, c2=0.5, velocities=0):
+    vs = velocities * c + (self.get_value(cfg1) - self.get_value(
+      current)) * c1 * random.random() + (self.get_value(
+      cfg2) - self.get_value(current)) * c2 * random.random()
+    p = self.get_value(current) + vs
     p = min(self.max_value, max(p, self.min_value))
-    self.set_value(position, p)
+    self.set_value(current, p)
     return v
 
   def sv_mutate(self, dest, *args, **kwargs):
