@@ -74,7 +74,10 @@ def run_movie(fm2):
   with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
     f.write(fm2)
     f.flush()
-    (stdout, stderr) = subprocess.Popen(["xvfb-run", "-a", "fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--nogui", "--volume", "0", "smb.nes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    stdout, stderr = subprocess.Popen(["xvfb-run", "-a", "fceux",
+        "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--nogui",
+        "--volume", "0", "smb.nes"], stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE).communicate()
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
   if not match:
     print stderr
