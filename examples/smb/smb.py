@@ -146,12 +146,12 @@ class SMBMI(MeasurementInterface):
   def run(self, desired_result, input, limit):
     pass
 
-def new_bests_movie(tuning_run):
-  (stdout, stderr) = subprocess.Popen(["sqlite3", "opentuner.db/jbosboom-VirtualBox.db", "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+def new_bests_movie(tuning_run, database):
+  (stdout, stderr) = subprocess.Popen(["sqlite3", database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
   cids = stdout.split()
   print '\n'.join(fm2_smb_header())
   for cid in cids:
-    (stdout, stderr) = subprocess.Popen(["sqlite3", "opentuner.db/jbosboom-VirtualBox.db", "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    (stdout, stderr) = subprocess.Popen(["sqlite3", database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     cfg = pickle.loads(base64.b16decode(stdout.strip()[2:-1]))
     left, right, down, running, jumping = interpret_cfg(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
@@ -163,7 +163,10 @@ if __name__ == '__main__':
   argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
   args = argparser.parse_args()
   if args.tuning_run:
-    new_bests_movie(int(args.tuning_run))
+    if args.database is not None:
+      new_bests_movie(int(args.tuning_run), str(args.database))
+    else:
+      print "must specify --database"
   else:
     SMBMI.main(args)
 
