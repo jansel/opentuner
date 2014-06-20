@@ -96,8 +96,8 @@ def interpret_cfg(cfg):
   running = set()
   start = 0
   for i in xrange(0, 1000):
-    move = cfg["move"+str(i)]
-    move_duration = cfg["move_duration"+str(i)]
+    move = cfg['move{}'.format(i)]
+    move_duration = cfg['move_duration{}'.format(i)]
     if "R" in move:
       right.update(xrange(start, start + move_duration))
     if "L" in move:
@@ -107,8 +107,8 @@ def interpret_cfg(cfg):
     start += move_duration
   jumping = set()
   for i in xrange(0, 1000):
-    jump_frame = cfg["jump_frame"+str(i)]
-    jump_duration = cfg["jump_duration"+str(i)]
+    jump_frame = cfg['jump_frame{}'.format(i)]
+    jump_duration = cfg['jump_duration{}'.format(i)]
     jumping.update(xrange(jump_frame, jump_frame + jump_duration))
   return (left, right, down, running, jumping)
 
@@ -120,12 +120,12 @@ class SMBMI(MeasurementInterface):
   def manipulator(self):
     m = ConfigurationManipulator()
     for i in xrange(0, 1000):
-      m.add_parameter(EnumParameter("move"+str(i), ["R", "L", "RB", "LB", "N", "LR", "LRB", "R2", "RB2", "R3", "RB3"]))
-      m.add_parameter(IntegerParameter("move_duration"+str(i), 1, 60))
+      m.add_parameter(EnumParameter('move{}'.format(i), ["R", "L", "RB", "LB", "N", "LR", "LRB", "R2", "RB2", "R3", "RB3"]))
+      m.add_parameter(IntegerParameter('move_duration{}'.format(i), 1, 60))
       #m.add_parameter(BooleanParameter("D"+str(i)))
     for i in xrange(0, 1000):
-      m.add_parameter(IntegerParameter("jump_frame"+str(i), 0, 24000))
-      m.add_parameter(IntegerParameter("jump_duration"+str(i), 1, 32))
+      m.add_parameter(IntegerParameter('jump_frame{}'.format(i), 0, 24000))
+      m.add_parameter(IntegerParameter('jump_duration{}'.format(i), 1, 32))
     return m
 
   def compile(self, cfg, id):
