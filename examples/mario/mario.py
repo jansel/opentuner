@@ -1,4 +1,12 @@
 #!/usr/bin/python
+
+"""OpenTuner plays Super Mario Bros. for NES
+
+We write a movie file and ask the emulator to play it back while running
+fceux-hook.lua, which checks for death/flagpole and prints the fitness to
+stdout where OpenTuner, as the parent process, can read it.
+"""
+
 import adddeps #fix sys.path
 import argparse
 import base64
