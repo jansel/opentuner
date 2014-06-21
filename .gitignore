@@ -44,3 +44,6 @@ opentuner.log
 .*.swo
 opentuner.db
 .idea
+
+# SMB ROM (for SMB demo)
+smb.nes
