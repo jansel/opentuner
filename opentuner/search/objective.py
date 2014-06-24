@@ -258,11 +258,13 @@ result1.time),
     a time limit to kill a result after such that it can be compared to config
     """
     results = self.driver.results_query(config=config)
+    if len(results) == 0:
+      return None
     if self.accuracy_target > min(map(_.accuracy, results)):
       m = self.low_accuracy_limit_multiplier
     else:
       m = 1.0
-    return m*max(map(_.time, results))
+    return m * max(map(_.time, results))
 
 
   def filter_acceptable(self, query):
