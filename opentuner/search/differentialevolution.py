@@ -138,5 +138,7 @@ class DifferentialEvolutionAlt(DifferentialEvolution):
 
 register(DifferentialEvolution())
 register(DifferentialEvolutionAlt())
+register(DifferentialEvolution(population_size=100, cr=0.2,
+                               name='DifferentialEvolution_20_100'))
 
 

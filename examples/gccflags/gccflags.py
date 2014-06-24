@@ -28,14 +28,14 @@ log = logging.getLogger('gccflags')
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('source', help='source file to compile')
 argparser.add_argument('--compile-template',
-                       default='{cc} {source} -o {output} {flags}',
+                       default='{cc} {source} -o {output} -lpthread {flags}',
                        help='command to compile {source} into {output} with'
                             ' {flags}')
-argparser.add_argument('--compile-limit', type=float, default=60,
+argparser.add_argument('--compile-limit', type=float, default=30,
                        help='kill gcc if it runs more than {default} sec')
 argparser.add_argument('--scaler', type=int, default=4,
                        help='by what factor to try increasing parameters')
-argparser.add_argument('--cc', default='gcc', help='g++ or gcc')
+argparser.add_argument('--cc', default='g++', help='g++ or gcc')
 argparser.add_argument('--output', default='./tmp.bin',
                        help='temporary file for compiler to write to')
 argparser.add_argument('--debug', action='store_true',
@@ -43,10 +43,13 @@ argparser.add_argument('--debug', action='store_true',
                             'of args to reproduce error')
 argparser.add_argument('--memory-limit', default=1024 ** 3, type=int,
                        help='memory limit for child process')
-argparser.add_argument('--flags-histogram', action='store_true',
-                       help='print out a histogram of flags')
 argparser.add_argument('--no-cached-flags', action='store_true',
                        help='regenerate the lists of legal flags each time')
+argparser.add_argument('--flags-histogram', action='store_true',
+                       help='print out a histogram of flags')
+argparser.add_argument('--flag-importance',
+                       help='Test the importance of different flags from a '
+                            'given json file.')
 
 
 class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
@@ -336,17 +339,56 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     with open('gccflags_final_config.cmd', 'w') as fd:
       fd.write(self.make_command(configuration.data))
 
+  def flags_histogram(self, session):
+    counter = collections.Counter()
+    q = session.query(TuningRun).filter_by(state='COMPLETE')
+    total = q.count()
+    for tr in q:
+      print tr.program.name
+      for flag in self.cfg_to_flags(tr.final_config.data):
+        counter[flag] += 1.0 / total
+    print counter.most_common(20)
+
+  def flag_importance(self):
+    """
+    Test the importance of each flag by measuring the performance with that
+    flag removed.  Print out a table for paper
+    """
+    with open(self.args.flag_importance) as fd:
+      best_cfg = json.load(fd)
+    flags = self.cfg_to_flags(best_cfg)
+    counter = collections.Counter()
+    baseline_time = self.flags_mean_time(flags)
+    for flag in flags[1:]:
+      delta_flags = [f for f in flags if f != flag]
+      flag_time = self.flags_mean_time(delta_flags)
+      impact = max(0.0, flag_time - baseline_time)
+      counter[flag] = impact
+      print flag, '{:.4f}'.format(impact)
+    total_impact = sum(counter.values())
+    remaining_impact = total_impact
+    print r'\bf Flag & \bf Importance \\\hline'
+    for flag, impact in counter.most_common(20):
+      print r'{} & {:.1f}\% \\\hline'.format(flag, 100.0 * impact / total_impact)
+      remaining_impact -= impact
+    print r'{} other flags & {:.1f}% \\'.format(
+      len(flags) - 20, 100.0 * remaining_impact / total_impact)
+
+  def flags_mean_time(self, flags, trials=10):
+    precompiled = self.compile_with_flags(flags, 0)
+    total = 0.0
+    for _ in xrange(trials):
+      total += self.run_precompiled(None, None, None, precompiled, 0).time
+    return total / trials
+
   def prefix_hook(self, session):
     if self.args.flags_histogram:
-      counter = collections.Counter()
-      q = session.query(TuningRun).filter_by(state='COMPLETE')
-      total = q.count()
-      for tr in q:
-        print tr.program.name
-        for flag in self.cfg_to_flags(tr.final_config.data):
-          counter[flag] += 1.0 / total
-      print counter.most_common(20)
+      self.flags_histogram(session)
       sys.exit(0)
+    if self.args.flag_importance:
+      self.flag_importance()
+      sys.exit(0)
+
 
 
 def invert_gcc_flag(flag):
