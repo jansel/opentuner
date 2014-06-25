@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-
 import adddeps  # fix sys.path
 
+import math
 import argparse
 import ast
 import collections
@@ -41,6 +41,8 @@ argparser.add_argument('--output', default='./tmp.bin',
 argparser.add_argument('--debug', action='store_true',
                        help='on gcc errors try to find minimal set '
                             'of args to reproduce error')
+argparser.add_argument('--force-killall', action='store_true',
+                       help='killall cc1plus before each collection')
 argparser.add_argument('--memory-limit', default=1024 ** 3, type=int,
                        help='memory limit for child process')
 argparser.add_argument('--no-cached-flags', action='store_true',
@@ -254,6 +256,8 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
 
   def run_precompiled(self, desired_result, input, limit, compile_result,
                       result_id):
+    if self.args.force_killall:
+      os.system('killall -9 cc1plus 2>/dev/null')
     # Make sure compile was successful
     if compile_result == self.compile_results['timeout']:
       return Result(state='TIMEOUT', time=float('inf'))
@@ -363,6 +367,8 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       delta_flags = [f for f in flags if f != flag]
       flag_time = self.flags_mean_time(delta_flags)
       impact = max(0.0, flag_time - baseline_time)
+      if math.isinf(impact):
+        impact = 0.0
       counter[flag] = impact
       print flag, '{:.4f}'.format(impact)
     total_impact = sum(counter.values())
@@ -371,7 +377,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     for flag, impact in counter.most_common(20):
       print r'{} & {:.1f}\% \\\hline'.format(flag, 100.0 * impact / total_impact)
       remaining_impact -= impact
-    print r'{} other flags & {:.1f}% \\'.format(
+    print r'{} other flags & {:.1f}% \\\hline'.format(
       len(flags) - 20, 100.0 * remaining_impact / total_impact)
 
   def flags_mean_time(self, flags, trials=10):
