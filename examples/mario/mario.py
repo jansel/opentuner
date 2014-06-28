@@ -25,6 +25,7 @@ from opentuner.search.objective import MinimizeTime
 
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
+argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -86,13 +87,16 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True, minFrame=None, m
   else:
     return "\n".join(lines)
 
-def run_movie(fm2):
+def run_movie(fm2, headless=True):
   with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
     f.write(fm2)
     f.flush()
-    stdout, stderr = subprocess.Popen(["xvfb-run", "-a", "fceux",
-        "--playmov", f.name, "--loadlua", "fceux-hook.lua", "--nogui",
-        "--volume", "0", "smb.nes"], stdout=subprocess.PIPE,
+    cmd = []
+    if headless:
+      cmd += ["xvfb-run", "-a"]
+    cmd += ["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua",
+        "--nogui", "--volume", "0", "smb.nes"]
+    stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE).communicate()
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
   if not match:
@@ -132,6 +136,7 @@ class SMBMI(MeasurementInterface):
   def __init__(self, args):
     super(SMBMI, self).__init__(args)
     self.parallel_compile = True
+    self.headless = not args.headful
 
   def manipulator(self):
     m = ConfigurationManipulator()
@@ -148,7 +153,7 @@ class SMBMI(MeasurementInterface):
     left, right, down, running, jumping = interpret_cfg(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     try:
-      wl, x_pos, framecount = run_movie(fm2)
+      wl, x_pos, framecount = run_movie(fm2, self.headless)
     except ValueError:
       return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
     print wl, x_pos, framecount
