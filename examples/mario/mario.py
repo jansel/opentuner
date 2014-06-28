@@ -27,6 +27,7 @@ argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
+argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -88,15 +89,15 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True, minFrame=None, m
   else:
     return "\n".join(lines)
 
-def run_movie(fm2, headless=True, xvfb_delay=1):
+def run_movie(fm2, args):
   with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
     f.write(fm2)
     f.flush()
     cmd = []
-    if headless:
-      cmd += ["xvfb-run", "-a", "-w", str(xvfb_delay)]
-    cmd += ["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua",
-        "--nogui", "--volume", "0", "smb.nes"]
+    if not args.headful:
+      cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay)]
+    cmd += [args.fceux_path, "--playmov", f.name, "--loadlua",
+        "fceux-hook.lua", "--nogui", "--volume", "0", "smb.nes"]
     stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE).communicate()
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
@@ -137,7 +138,7 @@ class SMBMI(MeasurementInterface):
   def __init__(self, args):
     super(SMBMI, self).__init__(args)
     self.parallel_compile = True
-    self.headless = not args.headful
+    self.args = args
 
   def manipulator(self):
     m = ConfigurationManipulator()
@@ -154,7 +155,7 @@ class SMBMI(MeasurementInterface):
     left, right, down, running, jumping = interpret_cfg(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     try:
-      wl, x_pos, framecount = run_movie(fm2, self.headless)
+      wl, x_pos, framecount = run_movie(fm2, self.args)
     except ValueError:
       return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
     print wl, x_pos, framecount
@@ -171,23 +172,23 @@ class SMBMI(MeasurementInterface):
   def run(self, desired_result, input, limit):
     pass
 
-def new_bests_movie(tuning_run, database):
-  (stdout, stderr) = subprocess.Popen(["sqlite3", database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+def new_bests_movie(args):
+  (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
   cids = stdout.split()
   print '\n'.join(fm2_smb_header())
   for cid in cids:
-    (stdout, stderr) = subprocess.Popen(["sqlite3", database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     cfg = pickle.loads(base64.b16decode(stdout.strip()[2:-1]))
     left, right, down, running, jumping = interpret_cfg(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
-    _, _, framecount = run_movie(fm2)
+    _, _, framecount = run_movie(fm2, args)
     print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
 
 if __name__ == '__main__':
   args = argparser.parse_args()
   if args.tuning_run:
     if args.database is not None:
-      new_bests_movie(int(args.tuning_run), str(args.database))
+      new_bests_movie(args)
     else:
       print "must specify --database"
   else:
