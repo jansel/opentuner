@@ -97,7 +97,8 @@ def run_movie(fm2, args):
     if not args.headful:
       cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay)]
     cmd += [args.fceux_path, "--playmov", f.name, "--loadlua",
-        "fceux-hook.lua", "--nogui", "--volume", "0", "smb.nes"]
+        "fceux-hook.lua", "--nogui", "--volume", "0", "--no-config", "1",
+        "smb.nes"]
     stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE).communicate()
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
