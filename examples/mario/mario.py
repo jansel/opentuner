@@ -23,6 +23,9 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
+argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
+argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
+
 # Functions for building FCEUX movie files (.fm2 files)
 
 def fm2_line(up, down, left, right, a, b, start, select, reset=False):
@@ -175,8 +178,6 @@ def new_bests_movie(tuning_run, database):
     print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
 
 if __name__ == '__main__':
-  argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
-  argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
   args = argparser.parse_args()
   if args.tuning_run:
     if args.database is not None:
