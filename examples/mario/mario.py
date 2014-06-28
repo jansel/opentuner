@@ -26,6 +26,7 @@ from opentuner.search.objective import MinimizeTime
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
+argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -87,13 +88,13 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True, minFrame=None, m
   else:
     return "\n".join(lines)
 
-def run_movie(fm2, headless=True):
+def run_movie(fm2, headless=True, xvfb_delay=1):
   with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
     f.write(fm2)
     f.flush()
     cmd = []
     if headless:
-      cmd += ["xvfb-run", "-a"]
+      cmd += ["xvfb-run", "-a", "-w", str(xvfb_delay)]
     cmd += ["fceux", "--playmov", f.name, "--loadlua", "fceux-hook.lua",
         "--nogui", "--volume", "0", "smb.nes"]
     stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
