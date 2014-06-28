@@ -61,6 +61,7 @@ def fm2_smb_header():
     "romFilename smb.nes",
     "romChecksum base64:jjYwGG411HcjG/j9UOVM3Q==",
     "guid 51473540-E9D7-11E3-ADFC-46CE3219C4E0",
+    "fourscore 0",
     "port0 1",
     "port1 1",
     "port2 0"]
