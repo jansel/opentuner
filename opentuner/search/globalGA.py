@@ -4,16 +4,18 @@ import random
 from technique import SearchTechnique
 from opentuner.search import technique
 
-class EvolutionaryTechnique(SearchTechnique):
+class GlobalEvolutionaryTechnique(SearchTechnique):
   def __init__(self,
                mutation_rate = 0.1,
                crossover_rate = 0.0,
                must_mutate_count = 1,
+	       crossover_strength = 0.1,
                *pargs, **kwargs):
-    super(EvolutionaryTechnique, self).__init__(*pargs, **kwargs)
+    super(GlobalEvolutionaryTechnique, self).__init__(*pargs, **kwargs)
     self.mutation_rate = mutation_rate
     self.crossover_rate = crossover_rate
     self.must_mutate_count = must_mutate_count
+    self.crossover_strength = crossover_strength
 
   def desired_configuration(self):
     """
@@ -55,8 +57,15 @@ class EvolutionaryTechnique(SearchTechnique):
     """
     param.randomize(cfg)
 
-  def crossover(self):
-    raise Exception('Not implemented')
+  def crossover(self, cfgs):
+    cfg1, cfg2, = cfgs
+    new = self.manipulator.copy(cfg1)
+    params = self.manipulator.parameters(cfg1)
+    random.shuffle(params)
+    d = int(self.crossover_strength*len(params))
+    for param in params[:d]:
+      param.set_value(new, param.get_value(cfg2))
+    return new
 
   def selection(self):
     """return a list of parent configurations to use"""
@@ -103,46 +112,10 @@ class NormalMutationMixin(object):
       random.choice(param.manipulators(cfg))(cfg)
 
 
-class CrossoverMixin(object):
-  def __init__(self, crossover,   *pargs, **kwargs):
-    super(CrossoverMixin, self).__init__(*pargs, **kwargs)
-    self.crossover_op = crossover
-    self.name = 'ga-'+crossover
-
-  def crossover(self, cfgs):
-    """
-    Crossover the first permtation parameter, if found, of two parents and
-    return one offspring cfg
-    """
-    cfg1, cfg2, = cfgs
-    new = self.manipulator.copy(cfg1)
-    params = self.manipulator.parameters(cfg1)
-    for param in params:
-      if param.is_permutation() and param.size>6:
-        getattr(param, self.crossover_op)(new, cfg1, cfg2, d=param.size/3)
-    return new
-
-
-class UniformGreedyMutation(GreedySelectionMixin, EvolutionaryTechnique):
+class UniformGreedyMutation(GreedySelectionMixin, GlobalEvolutionaryTechnique):
   pass
 
-class NormalGreedyMutation(NormalMutationMixin, GreedySelectionMixin, EvolutionaryTechnique):
+class NormalGreedyMutation(NormalMutationMixin, GreedySelectionMixin, GlobalEvolutionaryTechnique):
   pass
 
-class GA(CrossoverMixin, UniformGreedyMutation):
-  pass
-
-technique.register(GA(crossover = 'OX3', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(GA(crossover = 'OX1', mutation_rate=0.10,crossover_rate=0.8))
-technique.register(GA(crossover = 'PX', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(GA(crossover = 'CX', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(GA(crossover = 'PMX', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(UniformGreedyMutation(name='ga-base', mutation_rate=0.10))
-
-technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))
-technique.register(UniformGreedyMutation(name='UniformGreedyMutation10', mutation_rate=0.10))
-technique.register(UniformGreedyMutation(name='UniformGreedyMutation20', mutation_rate=0.20))
-technique.register(NormalGreedyMutation(name='NormalGreedyMutation05', mutation_rate=0.05))
-technique.register(NormalGreedyMutation(name='NormalGreedyMutation10', mutation_rate=0.10))
-technique.register(NormalGreedyMutation(name='NormalGreedyMutation20', mutation_rate=0.20))
-
+technique.register(NormalGreedyMutation( crossover_rate=0.5, crossover_strength=0.2, name='GGA'))

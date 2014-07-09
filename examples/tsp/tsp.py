@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 #
-# This is a simple testcase purely for testing the autotuner
+# This is a simple testcase purely for testing the autotuner on permutations
 #
-# http://en.wikipedia.org/wiki/Rosenbrock_function
-#
-# Also supports some other test functions taken from:
-# http://en.wikipedia.org/wiki/Test_functions_for_optimization
+# http://en.wikipedia.org/wiki/Travelling_salesman_problem
 #
 
 import adddeps #fix sys.path

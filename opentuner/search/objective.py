@@ -38,7 +38,7 @@ class SearchObjective(object):
   def config_relative(self, config1, config2):
     """return None, or a relative goodness of resultsdb.models.Configuration"""
     return self.result_relative(self.driver.results_query(config=config1).one(),
-				self.driver.results_query(config=config2).one())
+                                self.driver.results_query(config=config2).one())
 
 
   def __init__(self):
@@ -60,15 +60,22 @@ class SearchObjective(object):
 
   def relative(self, a, b):
     if isinstance(a, Configuration):
-      return self.config_relative(a,b)
+      return self.config_relative(a, b)
     if isinstance(a, Result):
-      return self.result_relative(a,b)
+      return self.result_relative(a, b)
     assert None
 
-  def lt(self, a, b):  return self.compare(a, b) <  0
-  def lte(self, a, b): return self.compare(a, b) <= 0
-  def gt(self, a, b):  return self.compare(a, b) >  0
-  def gte(self, a, b): return self.compare(a, b) >= 0
+  def lt(self, a, b):
+    return self.compare(a, b) < 0
+
+  def lte(self, a, b):
+    return self.compare(a, b) <= 0
+
+  def gt(self, a, b):
+    return self.compare(a, b) > 0
+
+  def gte(self, a, b):
+    return self.compare(a, b) >= 0
 
   def min(self, *l):
     if len(l) == 1:
@@ -102,9 +109,9 @@ class SearchObjective(object):
     """
     a3 = Result()
     b3 = Result()
-    a3.time       = _project(a1.time,       a2.time,       factor)
-    a3.accuracy   = _project(a1.accuracy,   a2.accuracy,   factor)
-    a3.energy     = _project(a1.energy,     a2.energy,     factor)
+    a3.time = _project(a1.time, a2.time, factor)
+    a3.accuracy = _project(a1.accuracy, a2.accuracy, factor)
+    a3.energy = _project(a1.energy, a2.energy, factor)
     a3.confidence = _project(a1.confidence, a2.confidence, factor)
     return self.result_compare(a3, b3)
 
@@ -134,10 +141,12 @@ class SearchObjective(object):
     else:
       return result.time
 
+
 def _project(a1, a2, factor):
   if a1 is None or a2 is None:
     return None
-  return a2 + factor*(a2-a1)
+  return a2 + factor * (a2 - a1)
+
 
 class MinimizeTime(SearchObjective):
   """
@@ -160,8 +169,8 @@ class MinimizeTime(SearchObjective):
   def result_relative(self, result1, result2):
     """return None, or a relative goodness of resultsdb.models.Result"""
     if result2.time == 0:
-      return  float('inf')*result1.time
-    return result1.time/result2.time
+      return float('inf') * result1.time
+    return result1.time / result2.time
 
 
 class MaximizeAccuracy(SearchObjective):
@@ -182,8 +191,8 @@ class MaximizeAccuracy(SearchObjective):
     """return None, or a relative goodness of resultsdb.models.Result"""
     # note opposite order
     if result1.accuracy == 0:
-      return float('inf')*result2.accuracy
-    return result2.accuracy/result1.accuracy
+      return float('inf') * result2.accuracy
+    return result2.accuracy / result1.accuracy
 
   def stats_quality_score(self, result, worst_result, best_result):
     """return a score for statistics"""
@@ -200,6 +209,7 @@ class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):
   """
   maximize Result().accuracy, break ties with Result().size
   """
+
   def result_order_by_terms(self):
     """return database columns required to order by the objective"""
     return [-Result.accuracy, Result.size]
@@ -213,12 +223,13 @@ class MaximizeAccuracyMinimizeSize(MaximizeAccuracy):
     """
     produce a string version of a resultsdb.models.Result()
     """
-    return "accuracy=%.8f, size=%.1f" %  (result.accuracy, result.size)
+    return "accuracy=%.8f, size=%.1f" % (result.accuracy, result.size)
 
   def result_relative(self, result1, result2):
     """return None, or a relative goodness of resultsdb.models.Result"""
-    #unimplemented for now
-    log.warning('result_relative() not yet implemented for %s', self.__class__.__name__)
+    # unimplemented for now
+    log.warning('result_relative() not yet implemented for %s',
+                self.__class__.__name__)
     return None
 
 
@@ -243,26 +254,28 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
 
   def result_compare(self, result1, result2):
     """cmp() compatible comparison of resultsdb.models.Result"""
-    return cmp((-min(self.accuracy_target, result1.accuracy), 
-result1.time),
+    return cmp((-min(self.accuracy_target, result1.accuracy),
+                result1.time),
                (-min(self.accuracy_target, result2.accuracy), result2.time))
 
   def config_compare(self, config1, config2):
     """cmp() compatible comparison of resultsdb.models.Configuration"""
     return self.result_compare(
-        self.driver.results_query(config=config1, objective_ordered=True)[0],
-        self.driver.results_query(config=config2, objective_ordered=True)[0])
+      self.driver.results_query(config=config1, objective_ordered=True)[0],
+      self.driver.results_query(config=config2, objective_ordered=True)[0])
 
   def limit_from_config(self, config):
     """
     a time limit to kill a result after such that it can be compared to config
     """
     results = self.driver.results_query(config=config)
+    if len(results) == 0:
+      return None
     if self.accuracy_target > min(map(_.accuracy, results)):
       m = self.low_accuracy_limit_multiplier
     else:
       m = 1.0
-    return m*max(map(_.time, results))
+    return m * max(map(_.time, results))
 
 
   def filter_acceptable(self, query):
@@ -276,8 +289,9 @@ result1.time),
 
   def result_relative(self, result1, result2):
     """return None, or a relative goodness of resultsdb.models.Result"""
-    #unimplemented for now
-    log.warning('result_relative() not yet implemented for %s', self.__class__.__name__)
+    # unimplemented for now
+    log.warning('result_relative() not yet implemented for %s',
+                self.__class__.__name__)
     return None
 
 
