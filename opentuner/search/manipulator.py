@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import abc
 import collections
 import copy
