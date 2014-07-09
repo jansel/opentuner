@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab autoindent smarttab
 import abc
 import collections

@@ -8,6 +8,25 @@ from sqlalchemy import (
 import sqlalchemy
 import re
 
+from cPickle import dumps, loads
+from gzip import zlib
+class CompressedPickler(object):
+  @classmethod
+  def dumps(cls, obj, protocol=2):
+    s = dumps(obj, protocol)
+    sz = zlib.compress(s, 9)
+    if len(sz) < len(s):
+      return sz
+    else:
+      return s
+
+  @classmethod
+  def loads(cls, string):
+    try:
+      s = zlib.decompress(string)
+    except:
+      s = string
+    return loads(s)
 
 class Base(object):
   @declared_attr
@@ -66,7 +85,7 @@ class Configuration(Base):
   program_id = Column(ForeignKey(Program.id))
   program = relationship(Program)
   hash = Column(String(64))
-  data = Column(PickleType)
+  data = Column(PickleType(pickler=CompressedPickler))
 
   @classmethod
   def get(cls, session, program, hashv, datav):
@@ -141,7 +160,7 @@ class Input(Base):
 
   #optional, for use by InputManager
   path = Column(Text)
-  extra = Column(PickleType)
+  extra = Column(PickleType(pickler=CompressedPickler))
 
 
 class TuningRun(Base):
@@ -157,8 +176,8 @@ class TuningRun(Base):
   input_class = relationship(InputClass, backref='tuning_runs')
 
   name = Column(String(128), default='unnamed')
-  args = Column(PickleType)
-  objective = Column(PickleType)
+  args = Column(PickleType(pickler=CompressedPickler))
+  objective = Column(PickleType(pickler=CompressedPickler))
 
   state = Column(Enum('QUEUED', 'RUNNING', 'COMPLETE', 'ABORTED',
                       name='t_tr_state'),
