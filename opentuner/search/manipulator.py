@@ -632,6 +632,9 @@ class PowerOfTwoParameter(ScaledNumericParameter, IntegerParameter):
   def legal_range(self, config):
     return int(math.log(self.min_value, 2)), int(math.log(self.max_value, 2))
 
+  def search_space_size(self):
+    return int(math.log(super(PowerOfTwoParameter, self).search_space_size(), 2))
+
 
 # #################
 
