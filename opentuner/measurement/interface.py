@@ -160,6 +160,13 @@ class MeasurementInterface(object):
       return FixedInputManager()
     return self._input_manager
 
+  def seed_configurations(self):
+    """
+    Extra seed configuration objects to add to those given on the command line.
+    Configuration objects (typically dictionaries) not database objects.
+    """
+    return []
+
   def kill_all(self):
     self.pid_lock.acquire()
     for pid in self.pids:

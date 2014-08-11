@@ -40,9 +40,10 @@ class SearchDriver(DriverBase):
   DesiredResults
   """
 
-  def __init__(self, manipulator, **kwargs):
+  def __init__(self, manipulator, extra_seeds=None, **kwargs):
     super(SearchDriver, self).__init__(**kwargs)
-
+    if extra_seeds is None:
+      extra_seeds = []
     self.manipulator = manipulator
     self.wait_for_results = self.tuning_run_main.results_wait
     self.commit = self.tuning_run_main.commit
@@ -59,7 +60,7 @@ class SearchDriver(DriverBase):
     for t in self.plugins:
       t.set_driver(self)
     self.root_technique.set_driver(self)
-    self.seed_cfgs = []
+    self.seed_cfgs = list(extra_seeds)
     for cfg_filename in reversed(self.args.seed_configuration):
       if os.path.exists(cfg_filename):
         self.seed_cfgs.append(manipulator.load_from_file(cfg_filename))

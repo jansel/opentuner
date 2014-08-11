@@ -95,7 +95,7 @@ class TuningRunMain(object):
     # show internal parameter representation
     if args.print_params:
       cfg = manipulator.seed_config()
-      d =  manipulator.parameters_dict(cfg)
+      d = manipulator.parameters_dict(cfg)
       params_dict ={} 
       for k in d: 
         cls = d[k].__class__.__name__
@@ -103,7 +103,7 @@ class TuningRunMain(object):
         if cls in params_dict:
           params_dict[cls].append(p)
         else:
-          params_dict[cls]=[p]
+          params_dict[cls] = [p]
       for k in params_dict:
         print k, params_dict[k]
         print
@@ -169,6 +169,7 @@ class TuningRunMain(object):
         'session': self.session,
         'tuning_run_main': self,
         'tuning_run': self.tuning_run,
+        'extra_seeds': self.measurement_interface.seed_configurations(),
       }
 
       self.search_driver = self.search_driver_cls(**driver_kwargs)
