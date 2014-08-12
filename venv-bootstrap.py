@@ -1913,7 +1913,7 @@ def create_bootstrap_script(extra_text, python_version=''):
 
 default_target_dir = 'venv'
 
-pip_install_packages = filter(len, open('python-packages').readlines())
+pip_install_packages = filter(len, open('requirements.txt').readlines())
 
 import os
 import subprocess

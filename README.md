@@ -30,14 +30,24 @@ On Ubuntu/Debian there can be installed with:
 [debian-packages-deps]: https://raw.github.com/jansel/opentuner/master/debian-packages-deps
 [sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
 
-Python dependencies
--------------------
 
-A list of python dependencies can be found in [python-packages][] these can
-either be installed system-wide with `pip` or `easy_install`.
+Installation
+-------------------
+OpenTuner (and dependencies) can be installed with
+
+    sudo pip install opentuner
+
+This will not install any of the example programs.
+
+
+Development installation 
+-------------------
+For development (running OpenTuner out of a git checkout), a list of python
+dependencies can be found in [requirements.txt][] these can either be
+installed system-wide with `pip` or `easy_install`.
 
     sudo apt-get install python-pip
-    sudo pip install -r python-packages
+    sudo pip install -r requirements.txt
 
 Or you can use virtual env to create a isolated python environment by running:
 
@@ -46,7 +56,8 @@ Or you can use virtual env to create a isolated python environment by running:
 which will create a ./venv/bin/python (./venv/Scripts/python.exe on windows)
 with all the required packages installed.
 
-[python-packages]: https://raw.github.com/jansel/opentuner/master/python-packages
+[requirements.txt]: https://raw.github.com/jansel/opentuner/master/requirements.txt
+
 
 Checking Installation
 ---------------------
@@ -55,6 +66,7 @@ Quickly checking that a successful installation has been made, may be performed
 by running an example program such as:
 
     ./examples/rosenbrock/rosenbrock.py
+
 
 Tutorials
 ---------
