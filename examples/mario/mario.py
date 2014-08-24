@@ -15,6 +15,7 @@ import tempfile
 import shutil
 import subprocess
 import re
+import zlib
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -179,7 +180,7 @@ def new_bests_movie(args):
   print '\n'.join(fm2_smb_header())
   for cid in cids:
     (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-    cfg = pickle.loads(base64.b16decode(stdout.strip()[2:-1]))
+    cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
     left, right, down, running, jumping = interpret_cfg(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     _, _, framecount = run_movie(fm2, args)
