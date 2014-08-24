@@ -15,6 +15,8 @@ import tempfile
 import shutil
 import subprocess
 import re
+import zlib
+import abc
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -111,39 +113,56 @@ def run_movie(fm2, args):
   framecount = int(match.group(3))
   return (wl, x_pos, framecount)
 
-# logically part of SMBMI as it's coupled to the parameterization
-def interpret_cfg(cfg):
-  right = set()
-  left = set()
-  down = set()
-  running = set()
-  start = 0
-  for i in xrange(0, 1000):
-    move = cfg['move{}'.format(i)]
-    move_duration = cfg['move_duration{}'.format(i)]
-    if "R" in move:
-      right.update(xrange(start, start + move_duration))
-    if "L" in move:
-      left.update(xrange(start, start + move_duration))
-    if "B" in move:
-      running.update(xrange(start, start + move_duration))
-    start += move_duration
-  jumping = set()
-  for i in xrange(0, 1000):
-    jump_frame = cfg['jump_frame{}'.format(i)]
-    jump_duration = cfg['jump_duration{}'.format(i)]
-    jumping.update(xrange(jump_frame, jump_frame + jump_duration))
-  return left, right, down, running, jumping
+class Representation(object):
+  """Interface for pluggable tuning representations."""
+  __metaclass__ = abc.ABCMeta
 
-class SMBMI(MeasurementInterface):
-  def __init__(self, args):
-    super(SMBMI, self).__init__(args)
-    self.parallel_compile = True
-    self.args = args
+  @abc.abstractmethod
+  def manipulator():
+    """Return a ConfigurationManipulator for this representation."""
+    pass
 
+  @abc.abstractmethod
+  def interpret(cfg):
+    """Unpack this representation into button-press sets (L, R, D, B, A)."""
+    pass
+
+class NaiveRepresentation(Representation):
+  """Uses a parameter per (button, frame) pair."""
+  def manipulator(self):
+    m = ConfigurationManipulator()
+    for i in xrange(0, 12000):
+      m.add_parameter(BooleanParameter('L{}'.format(i)))
+      m.add_parameter(BooleanParameter('R{}'.format(i)))
+      m.add_parameter(BooleanParameter('D{}'.format(i)))
+      m.add_parameter(BooleanParameter('B{}'.format(i)))
+      m.add_parameter(BooleanParameter('A{}'.format(i)))
+    return m
+
+  def interpret(self, cfg):
+    left = set()
+    right = set()
+    down = set()
+    running = set()
+    jumping = set()
+    for i in xrange(0, 12000):
+      if cfg['L{}'.format(i)]:
+        left.add(i)
+      if cfg['R{}'.format(i)]:
+        right.add(i)
+      if cfg['D{}'.format(i)]:
+        down.add(i)
+      if cfg['B{}'.format(i)]:
+        running.add(i)
+      if cfg['A{}'.format(i)]:
+        jumping.add(i)
+    return left, right, down, running, jumping
+
+class DurationRepresentation(Representation):
   def manipulator(self):
     m = ConfigurationManipulator()
     for i in xrange(0, 1000):
+      #bias 3:1 in favor of moving right
       m.add_parameter(EnumParameter('move{}'.format(i), ["R", "L", "RB", "LB", "N", "LR", "LRB", "R2", "RB2", "R3", "RB3"]))
       m.add_parameter(IntegerParameter('move_duration{}'.format(i), 1, 60))
       #m.add_parameter(BooleanParameter("D"+str(i)))
@@ -152,8 +171,41 @@ class SMBMI(MeasurementInterface):
       m.add_parameter(IntegerParameter('jump_duration{}'.format(i), 1, 32))
     return m
 
+  def interpret(self, cfg):
+    left = set()
+    right = set()
+    down = set()
+    running = set()
+    start = 0
+    for i in xrange(0, 1000):
+      move = cfg['move{}'.format(i)]
+      move_duration = cfg['move_duration{}'.format(i)]
+      if "R" in move:
+        right.update(xrange(start, start + move_duration))
+      if "L" in move:
+        left.update(xrange(start, start + move_duration))
+      if "B" in move:
+        running.update(xrange(start, start + move_duration))
+      start += move_duration
+    jumping = set()
+    for i in xrange(0, 1000):
+      jump_frame = cfg['jump_frame{}'.format(i)]
+      jump_duration = cfg['jump_duration{}'.format(i)]
+      jumping.update(xrange(jump_frame, jump_frame + jump_duration))
+    return left, right, down, running, jumping
+
+class SMBMI(MeasurementInterface):
+  def __init__(self, args, representation):
+    super(SMBMI, self).__init__(args)
+    self.parallel_compile = True
+    self.representation = representation
+    self.args = args
+
+  def manipulator(self):
+    return self.representation.manipulator()
+
   def compile(self, cfg, id):
-    left, right, down, running, jumping = interpret_cfg(cfg)
+    left, right, down, running, jumping = self.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     try:
       wl, x_pos, framecount = run_movie(fm2, self.args)
@@ -179,8 +231,8 @@ def new_bests_movie(args):
   print '\n'.join(fm2_smb_header())
   for cid in cids:
     (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-    cfg = pickle.loads(base64.b16decode(stdout.strip()[2:-1]))
-    left, right, down, running, jumping = interpret_cfg(cfg)
+    cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
+    left, right, down, running, jumping = DurationRepresentation().interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     _, _, framecount = run_movie(fm2, args)
     print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
@@ -193,5 +245,5 @@ if __name__ == '__main__':
     else:
       print "must specify --database"
   else:
-    SMBMI.main(args)
+    SMBMI.main(args, representation=DurationRepresentation())
 
