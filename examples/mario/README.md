@@ -13,3 +13,8 @@ Once you've finished a tuning run, you can get its id from the database and run 
 
 - use the [fm2 format](http://www.fceux.com/web/help/fceux.html?fm2.html)'s subtitle support in new-bests movies to show run number and fitness score
 - command-line option to skip `xvfb-run` for live demos
+
+## Links
+
+- [Videos showing OpenTuner player Super Mario Bros](https://www.youtube.com/playlist?list=PLngnz1zPEA08FWy8wF9JbGqjlm-elHmlb)
+- [Slides describing representation and results](http://groups.csail.mit.edu/commit/papers/2014/ansel-pact14-opentuner-slides.pdf) (see slide 16)

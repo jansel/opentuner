@@ -37,10 +37,14 @@ OpenTuner (and dependencies) can be installed with
 
     sudo pip install opentuner
 
+or
+
+    pip install --user opentuner
+
 This will not install any of the example programs.
 
 
-Development installation 
+Development installation
 -------------------
 For development (running OpenTuner out of a git checkout), a list of python
 dependencies can be found in [requirements.txt][] these can either be
@@ -81,12 +85,16 @@ More coming soon!
 Papers
 ---------
 
-- [OpenTuner: An Extensible Framework for Program Autotuning][techreport1]. <br>
-  Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Una-May O'Reilly,  Saman Amarasinghe. <br>
-  MIT CSAIL Technical Report MIT-CSAIL-TR-2013-026.
-  November 1, 2013.
+- [OpenTuner: An Extensible Framework for Program Autotuning][paper1]. <br>
+  Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Jonathan Ragan-Kelley,
+  Jeffrey Bosboom, Una-May O'Reilly, Saman Amarasinghe. <br>
+  International Conference on Parallel Architectures and Compilation
+  Techniques. <br>
+  Edmonton, Canada. August, 2014. [Slides][slides1]. [Bibtex][bibtex1].
 
-[techreport1]: http://dspace.mit.edu/handle/1721.1/81958
+[paper1]: http://groups.csail.mit.edu/commit/papers/2014/ansel-pact14-opentuner.pdf
+[bibtex1]: http://groups.csail.mit.edu/commit/bibtex.cgi?key=ansel:pact:2014
+[slides1]: http://groups.csail.mit.edu/commit/papers/2014/ansel-pact14-opentuner-slides.pdf
 
 
 Contributing Code
@@ -98,4 +106,14 @@ on github and [submit a pull request][pull-req].  You can also submit a
 
 [pull-req]: https://www.openshift.com/wiki/github-workflow-for-submitting-pull-requests
 [email-patch]: http://alblue.bandlem.com/2011/12/git-tip-of-week-patches-by-email.html
+
+
+Support
+-------
+OpenTuner is supported in part by the United States Department of Energy
+[X-Stack][xstack] program as part of [D-TEC][dtec].
+
+[xstack]: http://science.energy.gov/ascr/research/computer-science/ascr-x-stack-portfolio/
+[dtec]: http://www.dtec-xstack.org/
+
 
