@@ -4,9 +4,9 @@
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
@@ -59,13 +59,29 @@ which are primarily python 2.6+ (not 3.x) and sqlite3 (or your
 </code></pre>
 
 <h2>
-<a name="python-dependencies" class="anchor" href="#python-dependencies"><span class="octicon octicon-link"></span></a>Python dependencies</h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>A list of python dependencies can be found in <a href="https://raw.github.com/jansel/opentuner/master/python-packages">python-packages</a> these can
-either be installed system-wide with <code>pip</code> or <code>easy_install</code>.</p>
+<p>OpenTuner (and dependencies) can be installed with</p>
+
+<pre><code>sudo pip install opentuner
+</code></pre>
+
+<p>or</p>
+
+<pre><code>pip install --user opentuner
+</code></pre>
+
+<p>This will not install any of the example programs.</p>
+
+<h2>
+<a name="development-installation" class="anchor" href="#development-installation"><span class="octicon octicon-link"></span></a>Development installation</h2>
+
+<p>For development (running OpenTuner out of a git checkout), a list of python
+dependencies can be found in <a href="https://raw.github.com/jansel/opentuner/master/requirements.txt">requirements.txt</a> these can either be
+installed system-wide with <code>pip</code> or <code>easy_install</code>.</p>
 
 <pre><code>sudo apt-get install python-pip
-sudo pip install -r python-packages
+sudo pip install -r requirements.txt
 </code></pre>
 
 <p>Or you can use virtual env to create a isolated python environment by running:</p>
@@ -97,16 +113,24 @@ by running an example program such as:</p>
 
 <ul>
 <li>
-<a href="http://dspace.mit.edu/handle/1721.1/81958">OpenTuner: An Extensible Framework for Program Autotuning</a>. <br>
-Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Una-May O'Reilly,  Saman Amarasinghe. <br>
-MIT CSAIL Technical Report MIT-CSAIL-TR-2013-026.
-November 1, 2013.</li>
+<a href="http://groups.csail.mit.edu/commit/papers/2014/ansel-pact14-opentuner.pdf">OpenTuner: An Extensible Framework for Program Autotuning</a>. <br>
+Jason Ansel, Shoaib Kamil, Kalyan Veeramachaneni, Jonathan Ragan-Kelley,
+Jeffrey Bosboom, Una-May O'Reilly, Saman Amarasinghe. <br>
+International Conference on Parallel Architectures and Compilation
+Techniques. <br>
+Edmonton, Canada. August, 2014. <a href="http://groups.csail.mit.edu/commit/papers/2014/ansel-pact14-opentuner-slides.pdf">Slides</a>. <a href="http://groups.csail.mit.edu/commit/bibtex.cgi?key=ansel:pact:2014">Bibtex</a>.</li>
 </ul><h2>
 <a name="contributing-code" class="anchor" href="#contributing-code"><span class="octicon octicon-link"></span></a>Contributing Code</h2>
 
 <p>The preferred way to contribute code to OpenTuner is to fork the project
 on github and <a href="https://www.openshift.com/wiki/github-workflow-for-submitting-pull-requests">submit a pull request</a>.  You can also submit a
 <a href="http://alblue.bandlem.com/2011/12/git-tip-of-week-patches-by-email.html">patch via email</a> to <a href="mailto:jansel@csail.mit.edu">jansel@csail.mit.edu</a>.</p>
+
+<h2>
+<a name="support" class="anchor" href="#support"><span class="octicon octicon-link"></span></a>Support</h2>
+
+<p>OpenTuner is supported in part by the United States Department of Energy
+<a href="http://science.energy.gov/ascr/research/computer-science/ascr-x-stack-portfolio/">X-Stack</a> program as part of <a href="http://www.dtec-xstack.org/">D-TEC</a>.</p>
         </section>
 
         <footer>
