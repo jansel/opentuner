@@ -17,6 +17,7 @@ import subprocess
 import re
 import zlib
 import abc
+import sys
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -25,11 +26,19 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
+class InstantiateAction(argparse.Action):
+  def __init__(self, *pargs, **kwargs):
+    super(InstantiateAction, self).__init__(*pargs, **kwargs)
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    setattr(namespace, self.dest, getattr(sys.modules[__name__], values)())
+
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
+argparser.add_argument('--representation', default='DurationRepresentation', action=InstantiateAction, help='name of representation class')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -195,17 +204,16 @@ class DurationRepresentation(Representation):
     return left, right, down, running, jumping
 
 class SMBMI(MeasurementInterface):
-  def __init__(self, args, representation):
+  def __init__(self, args):
     super(SMBMI, self).__init__(args)
     self.parallel_compile = True
-    self.representation = representation
     self.args = args
 
   def manipulator(self):
-    return self.representation.manipulator()
+    return self.args.representation.manipulator()
 
   def compile(self, cfg, id):
-    left, right, down, running, jumping = self.representation.interpret(cfg)
+    left, right, down, running, jumping = self.args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     try:
       wl, x_pos, framecount = run_movie(fm2, self.args)
@@ -232,7 +240,7 @@ def new_bests_movie(args):
   for cid in cids:
     (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
-    left, right, down, running, jumping = DurationRepresentation().interpret(cfg)
+    left, right, down, running, jumping = args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     _, _, framecount = run_movie(fm2, args)
     print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
@@ -245,5 +253,5 @@ if __name__ == '__main__':
     else:
       print "must specify --database"
   else:
-    SMBMI.main(args, representation=DurationRepresentation())
+    SMBMI.main(args)
 
