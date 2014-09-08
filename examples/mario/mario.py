@@ -12,7 +12,6 @@ import argparse
 import base64
 import pickle
 import tempfile
-import shutil
 import subprocess
 import re
 import zlib
