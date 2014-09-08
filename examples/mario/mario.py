@@ -39,6 +39,7 @@ argparser.add_argument('--headful', action='store_true', help='run headful (not 
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
 argparser.add_argument('--representation', default='DurationRepresentation', action=InstantiateAction, help='name of representation class')
+argparser.add_argument('--fitness-function', default='Progress', action=InstantiateAction, help='name of fitness function class')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -203,6 +204,28 @@ class DurationRepresentation(Representation):
       jumping.update(xrange(jump_frame, jump_frame + jump_duration))
     return left, right, down, running, jumping
 
+class FitnessFunction(object):
+  """Interface for pluggable fitness functions."""
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def __call__(won, x_pos, elapsed_frames):
+    """Return the fitness (float, lower is better)."""
+    pass
+
+class Progress(FitnessFunction):
+  def __call__(self, won, x_pos, elapsed_frames):
+    return -float(x_pos)
+
+class ProgressPlusTimeRemaining(FitnessFunction):
+  def __call__(self, won, x_pos, elapsed_frames):
+    """x_pos plus 1 for each frame remaining on the timer on a win.  This results in a large discontinuity at wins.  This was the fitness function used for the OpenTuner paper, though the paper only discussed time-to-first-win."""
+    return -float(x_pos + 400*60 - elapsed_frames) if won else -float(x_pos)
+
+class ProgressTimesAverageSpeed(FitnessFunction):
+  def __call__(self, won, x_pos, elapsed_frames):
+    return -x_pos * (float(x_pos)/elapsed_frames)
+
 class SMBMI(MeasurementInterface):
   def __init__(self, args):
     super(SMBMI, self).__init__(args)
@@ -220,12 +243,7 @@ class SMBMI(MeasurementInterface):
     except ValueError:
       return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
     print wl, x_pos, framecount
-    if "died" in wl:
-      return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos))
-    else:
-      #add fitness for frames remaining on timer
-      #TODO: this results in a large discontinuity; is that right?
-      return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos + 400*60 - framecount))
+    return opentuner.resultsdb.models.Result(state='OK', time=self.args.fitness_function("won" in wl, x_pos, framecount))
 
   def run_precompiled(self, desired_result, input, limit, compile_result, id):
     return compile_result
