@@ -17,6 +17,7 @@ import re
 import zlib
 import abc
 import sys
+import os
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -270,5 +271,8 @@ if __name__ == '__main__':
     else:
       print "must specify --database"
   else:
-    SMBMI.main(args)
+    if os.path.isfile('smb.nes'):
+      SMBMI.main(args)
+    else:
+      print "smb.nes not found"
 
