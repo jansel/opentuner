@@ -32,7 +32,7 @@
 #include <iostream>
 #include <cassert>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	// "Compiled for Linux
 #else
 	// Windows doesn't define these values by default, Linux does
