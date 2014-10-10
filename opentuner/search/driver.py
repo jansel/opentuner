@@ -175,6 +175,7 @@ class SearchDriver(DriverBase):
     for result in (self.results_query()
                        .filter_by(was_new_best=None)
                        .order_by(Result.collection_date)):
+      self.plugin_proxy.on_result(result)
       if self.best_result is None:
         self.best_result = result
         result.was_new_best = True

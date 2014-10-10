@@ -98,26 +98,30 @@ class LogDisplayPlugin(DisplayPlugin):
                      )
 
 class FileDisplayPlugin(SearchPlugin):
-  def __init__(self, out, details,  *args, **kwargs):
+  def __init__(self, out, details, *args, **kwargs):
     super(FileDisplayPlugin, self).__init__(*args, **kwargs)
     self.last_best = float('inf')
     self.start_date = datetime.now()
-    self.out = open(out, "w")
+    if out:
+      self.out = open(out, "w")
+    else:
+      self.out = None
     if out == details:
       self.details = self.out
+      self.out = None
     elif details:
       self.details = open(details, "w")
     else:
       self.details = None
 
   def on_result(self, result):
-    if result.time < self.last_best:
+    if self.out and result.time < self.last_best:
       self.last_best = result.time
       print >>self.out, \
           (result.collection_date - self.start_date).total_seconds(), \
           result.time
       self.out.flush()
-    elif self.details:
+    if self.details:
       print >>self.details, \
           (result.collection_date - self.start_date).total_seconds(), \
           result.time
@@ -127,7 +131,7 @@ def get_enabled(args):
   plugins = []
   if not args.quiet:
     plugins.append(LogDisplayPlugin(args.display_frequency))
-  if args.results_log:
+  if args.results_log or args.results_log_details:
     plugins.append(FileDisplayPlugin(args.results_log,
                                      args.results_log_details))
   return plugins
