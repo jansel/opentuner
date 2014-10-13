@@ -4,6 +4,9 @@ title: OpenTuner - Technique Tutorial
 permalink: /tutorial/techniques/index.html
 ---
 
+Creating OpenTuner Techniques
+==========================
+
 This tutorial will walk through the basics of adding a new search
 technique to OpenTuner.  We will add the technique pattern search (see
 <http://en.wikipedia.org/wiki/Pattern_search_(optimization)>).  If you do
