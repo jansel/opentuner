@@ -166,12 +166,7 @@ class SearchDriver(DriverBase):
     self.plugin_proxy.after_techniques()
     return tests_this_generation
 
-  def run_generation_results(self, offset=0):
-    self.commit()
-    self.plugin_proxy.before_results_wait()
-    self.wait_for_results(self.generation + offset)
-    self.plugin_proxy.after_results_wait()
-
+  def process_new_results(self):
     for result in (self.results_query()
                        .filter_by(was_new_best=None)
                        .order_by(Result.collection_date)):
@@ -185,9 +180,14 @@ class SearchDriver(DriverBase):
         self.plugin_proxy.on_new_best_result(result)
       else:
         result.was_new_best = False
-
     self.result_callbacks()
 
+  def run_generation_results(self, offset=0):
+    self.commit()
+    self.plugin_proxy.before_results_wait()
+    self.wait_for_results(self.generation + offset)
+    self.plugin_proxy.after_results_wait()
+    self.process_new_results()
 
   @property
   def plugin_proxy(self):
@@ -237,6 +237,22 @@ class SearchDriver(DriverBase):
       self.generation += 1
 
     self.plugin_proxy.after_main()
+
+  def external_main_begin(self):
+    self.plugin_proxy.set_driver(self)
+    self.plugin_proxy.before_main()
+
+  def external_main_generation(self):
+    if self.generation > 0:
+      self.plugin_proxy.after_results_wait()
+    self.process_new_results()
+    self.run_generation_techniques()
+    self.commit()
+    self.plugin_proxy.before_results_wait()
+
+  def external_main_end(self):
+    self.plugin_proxy.after_main()
+
 
 
 

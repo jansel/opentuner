@@ -28,6 +28,7 @@ argparser.add_argument('--database',
 argparser.add_argument('--print-params','-pp',action='store_true',
                        help='show parameters of the configuration being tuned')
 
+
 class CleanStop(Exception):
   pass
 
@@ -142,7 +143,6 @@ class TuningRunMain(object):
     self.objective = objective
     self.objective_copy = copy.copy(objective)
     self.last_commit_time = time.time()
-
 
   def init(self):
     if self.tuning_run is None:

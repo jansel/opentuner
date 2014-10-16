@@ -60,7 +60,6 @@ class MeasurementDriver(DriverBase):
       self.session.add(m)
       return m
 
-
   def get_machine_class(self):
     """
     get (or create) the machine class we are currently running on
@@ -80,6 +79,27 @@ class MeasurementDriver(DriverBase):
       return min(desired_result.limit, self.upper_limit_multiplier * best.time)
     else:
       return self.default_limit_multiplier * best.time
+
+  def report_result(self, desired_result, result, input=None):
+    result.configuration = desired_result.configuration
+    result.input = input
+    result.machine = self.machine
+    result.tuning_run = self.tuning_run
+    result.collection_date = datetime.now()
+    self.session.add(result)
+    desired_result.result = result
+    desired_result.state = 'COMPLETE'
+    self.input_manager.after_run(desired_result, input)
+    result.collection_cost = self.lap_timer()
+    self.session.flush()  # populate result.id
+    log.debug(
+        'Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
+        result.id,
+        result.configuration.id,
+        result.time,
+        result.accuracy if result.accuracy is not None else float('NaN'),
+        result.collection_cost)
+    self.commit()
 
   def run_desired_result(self, desired_result, compile_result=None,
                          exec_id=None):
@@ -105,27 +125,7 @@ class MeasurementDriver(DriverBase):
                                             desired_result.limit,
                                             compile_result, exec_id)
 
-    result.configuration = desired_result.configuration
-    result.input = input
-    result.machine = self.machine
-    result.tuning_run = self.tuning_run
-    result.collection_date = datetime.now()
-    self.session.add(result)
-    desired_result.result = result
-    desired_result.state = 'COMPLETE'
-
-    self.input_manager.after_run(desired_result, input)
-
-    result.collection_cost = self.lap_timer()
-    self.session.flush()  # populate result.id
-    log.debug(
-      'Result(id=%d, cfg=%d, time=%.4f, accuracy=%.2f, collection_cost=%.2f)',
-      result.id,
-      result.configuration.id,
-      result.time,
-      result.accuracy if result.accuracy is not None else float('NaN'),
-      result.collection_cost)
-    self.commit()
+    self.report_result(desired_result, result, input)
 
   def lap_timer(self):
     """return the time elapsed since the last call to lap_timer"""
@@ -151,16 +151,20 @@ class MeasurementDriver(DriverBase):
       self.session.rollback()
     return False
 
-  def process_all(self):
-    """
-    process all desired_results in the database
-    """
-    self.lap_timer()  #reset timer
+  def query_pending_desired_results(self):
     q = (self.session.query(DesiredResult)
          .filter_by(tuning_run=self.tuning_run,
                     state='REQUESTED')
          .order_by(DesiredResult.generation,
                    DesiredResult.priority.desc()))
+    return q
+
+  def process_all(self):
+    """
+    process all desired_results in the database
+    """
+    self.lap_timer()  # reset timer
+    q = self.query_pending_desired_results()
 
     if self.interface.parallel_compile:
       desired_results = []
@@ -182,7 +186,8 @@ class MeasurementDriver(DriverBase):
         compile_results = thread_pool.map_async(compile_result,
                                                 thread_args).get(9999999)
       except Exception:
-        # Need to kill other processes because only one thread receives exception
+        # Need to kill other processes because only one thread receives
+        # exception
         self.interface.kill_all()
         raise
       # print 'Running %d results' % len(thread_args)

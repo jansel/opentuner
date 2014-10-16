@@ -61,20 +61,20 @@ class MeasurementInterface(object):
 
   def compile(self, config_data, id):
     """
-    Compiles according to the configuration in config_data (obtained from desired_result.configuration)
-    Should use id paramater to determine output location of executable
-    Return value will be passed to run_precompiled as compile_result, useful for storing error/timeout information
+    Compiles according to the configuration in config_data (obtained from
+    desired_result.configuration) Should use id paramater to determine output
+    location of executable Return value will be passed to run_precompiled
+    as compile_result, useful for storing error/timeout information
     """
     pass
 
   def run_precompiled(self, desired_result, input, limit, compile_result, id):
     """
-    Runs the given desired result on input and produce a Result()
-    Abort early if limit (in seconds) is reached
-    Assumes that the executable to be measured is already compiled
-      in an executable corresponding to identifier id
-    compile_result is the return result of compile(), will be None if compile was not called
-    If id = None, must call run()
+    Runs the given desired result on input and produce a Result() Abort
+    early if limit (in seconds) is reached Assumes that the executable
+    to be measured is already compiled in an executable corresponding to
+    identifier id compile_result is the return result of compile(), will be
+    None if compile was not called If id = None, must call run()
     """
     return self.run(desired_result, input, limit)
 
@@ -108,10 +108,10 @@ class MeasurementInterface(object):
   def db_program_version(self, session):
     """return a version identifier for the program being tuned"""
     return resultsdb.models.ProgramVersion.get(
-      session=session,
-      project=self.project_name(),
-      name=self.program_name(),
-      version=self.program_version(),
+        session=session,
+        project=self.project_name(),
+        name=self.program_name(),
+        version=self.program_version(),
     )
 
   def set_driver(self, measurement_driver):
@@ -252,6 +252,11 @@ class MeasurementInterface(object):
     from opentuner.tuningrunmain import TuningRunMain
 
     return TuningRunMain(cls(args, *pargs, **kwargs), args).main()
+
+
+class DefaultMeasurementInterface(MeasurementInterface):
+  def run(self, desired_result, input, limit):
+    raise RuntimeError('MeasurementInterface.run() not implemented')
 
 
 def preexec_setpgid_setrlimit(memory_limit):
