@@ -96,7 +96,14 @@ class MeasurementInterface(object):
     """
     called at the end of autotuning with the best resultsdb.models.Configuration
     """
-    pass
+    try:
+      config_str = repr(config.data)
+      if len(config_str) > 256:
+        config_str = config_str[:256] + '...'
+      log.info('final configuration: %s', config_str)
+      log.info('you may want to implement save_final_config(), to store this')
+    except:
+      log.error('error printing configuration', exc_info=True)
 
   def db_program_version(self, session):
     """return a version identifier for the program being tuned"""
