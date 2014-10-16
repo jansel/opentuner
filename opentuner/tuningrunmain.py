@@ -7,6 +7,7 @@ import math
 import os
 import socket
 import sys
+import time
 import uuid
 from datetime import datetime
 
@@ -111,7 +112,6 @@ class TuningRunMain(object):
 
     input_manager = measurement_interface.input_manager()
     objective = measurement_interface.objective()
-    
 
     if not args.database:
       #args.database = 'sqlite://' #in memory
@@ -141,6 +141,7 @@ class TuningRunMain(object):
     self.manipulator = manipulator
     self.objective = objective
     self.objective_copy = copy.copy(objective)
+    self.last_commit_time = time.time()
 
 
   def init(self):
@@ -182,8 +183,10 @@ class TuningRunMain(object):
       self.tuning_run.input_class = self.input_manager.get_input_class()
 
   def commit(self, force=False):
-    if force or not self.fake_commit:
+    if (force or not self.fake_commit or
+            time.time() - self.last_commit_time > 30):
       self.session.commit()
+      self.last_commit_time = time.time()
     else:
       self.session.flush()
 
