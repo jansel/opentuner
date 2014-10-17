@@ -1,4 +1,5 @@
 import argparse
+import copy
 import logging
 import os
 
@@ -52,7 +53,8 @@ class SearchDriver(DriverBase):
     self.test_count = 0
     self.plugins = plugin.get_enabled(self.args)
     self.pending_result_callbacks = list()  # (DesiredResult, function) tuples
-    self.root_technique = technique.get_root(self.args)
+    # deepcopy is required to have multiple tuning runs in a single process
+    self.root_technique = copy.deepcopy(technique.get_root(self.args))
     self.objective.set_driver(self)
     self.pending_config_ids = set()
     self.best_result = None

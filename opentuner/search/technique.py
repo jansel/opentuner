@@ -244,7 +244,7 @@ def get_enabled(args):
 
 def get_root(args):
   from metatechniques import RoundRobinMetaSearchTechnique
-  enabled=get_enabled(args)
+  enabled = get_enabled(args)
   if len(enabled) == 1:
     return enabled[0]
   return RoundRobinMetaSearchTechnique(get_enabled(args))
