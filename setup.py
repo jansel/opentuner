@@ -18,7 +18,7 @@ except ImportError:
 
 setup(
   name='opentuner',
-  version='0.3.0',
+  version='0.4.0',
   url='http://opentuner.org/',
   license='MIT',
   author='Jason Ansel',
