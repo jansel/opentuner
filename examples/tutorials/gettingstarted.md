@@ -1,19 +1,20 @@
 Tutorial: Optimizing Block Matrix Multiplication
 ================================================
 
-This tutorial assumes that you have checked out a copy of opentuner. For information on how to do this, refer [here][technique-tutorial]
+This tutorial assumes that you have checked out a copy of opentuner. For guidelines on how to get opentuner set up, refer [here][technique-tutorial].
 
 [technique-tutorial]: http://opentuner.org/tutorial/setup
 
 Identifying a Program to Autotune
 ---------------------------------
 
-In order to do autotuning, you first need something to autotune. This will normally be your own program that you want to make either fast or better in some way.  For this tutorial we will use a blocked version
-of matrix multiply as an example. We will use opentuner to find the optimal value of the block size parameter.
+In order to do autotuning, you first need something to autotune. This will normally be your own program that you want to make either fast or better in some way.  For this tutorial we will use a blocked version of matrix multiply as an example. We will use opentuner to find the optimal value of the block size parameter.
 
-We will autotone the sample code below(based off of modification of code found here), making sure to take the block size as a command line input to the program. 
+We will autotone the sample code below(based off of modification of code found [here][matrix-multiply-code]), making sure to take the block size as a compile time constant to the program. 
 
-Save the sample code below to examples/gccflags/apps/mmm_block.cpp
+[technique-tutorial]: http://csapp.cs.cmu.edu/public/waside/waside-blocking.pdf
+
+Save the sample code below to examples/tutorials/mmm_block.cpp
 
     #include <stdio.h>
     #include <cstdlib>
@@ -54,7 +55,7 @@ Creating a New Autotuner with Opentuner
 ------------------------------------
 Now we need to create a program that uses OpenTuner to optimize the program we just saved.
 
-Save the following code to examples/gccflags/mmm_tuner.py
+Save the following code to examples/tutorials/mmm_tuner.py
 
     #!/usr/bin/env python
     #
@@ -90,13 +91,15 @@ Save the following code to examples/gccflags/mmm_tuner.py
         """
         cfg = desired_result.configuration.data
 
-        gcc_cmd = 'g++ apps/mmm_block.cpp -DBLOCK_SIZE=5 -o ./tmp.bin'   
+        gcc_cmd = 'g++ mmm_block.cpp '  
+        gcc_cmd += '-DBLOCK_SIZE='+ cfg['blockSize']
+        gcc_cmd += ' -o ./tmp.bin'
 
         compile_result = self.call_program(gcc_cmd)
         assert compile_result['returncode'] == 0
 
         run_cmd = './tmp.bin'
-        run_cmd += ' {0}'.format(cfg['blockSize'])
+
         run_result = self.call_program(run_cmd)
         assert run_result['returncode'] == 0
 
@@ -112,6 +115,7 @@ Save the following code to examples/gccflags/mmm_tuner.py
     if __name__ == '__main__':
       argparser = opentuner.default_argparser()
       GccFlagsTuner.main(argparser.parse_args())
+
 
 This file consists of several components, each of which will be discussed in further detail below.
 
@@ -144,13 +148,15 @@ The run method actually runs opentuner under the given configuration and returns
       """
       cfg = desired_result.configuration.data
 
-      gcc_cmd = 'g++ apps/mmm_block.cpp -DBLOCK_SIZE=5 -o ./tmp.bin'  
+      gcc_cmd = 'g++ mmm_block.cpp '  
+      gcc_cmd += '-DBLOCK_SIZE='+ cfg['blockSize']
+      gcc_cmd += ' -o ./tmp.bin'
 
       compile_result = self.call_program(gcc_cmd)
       assert compile_result['returncode'] == 0
 
       run_cmd = './tmp.bin'
-      run_cmd += ' {0}'.format(cfg['blockSize'])
+
       run_result = self.call_program(run_cmd)
       assert run_result['returncode'] == 0
 
@@ -171,18 +177,18 @@ We can actually display the result of running opentuner(the optimal block size f
 Generating and Viewing Results
 ------------------------------
 
-Run the following command to autotune our program(The --no-dups option hides warnings about duplicate results):
+Run the following command to autotune our program(The --no-dups flag hides warnings about duplicate results and the --stop-after parameter specifies that we are running opentuner for a maximum of 30 seconds):
     
-    python mmm_tuner.py --no-dups
+    python mmm_tuner.py --no-dups --stop-after=30
 
-The results of each run configuration will be displayed, and will look similar to:
+The results of each run configuration will be displayed as follows(output lines are truncated for readability here):
     
-    [     5s]    INFO opentuner.search.metatechniques: AUCBanditMetaTechniqueA: [('NormalGreedyMutation', 484), ('UniformGreedyMutation', 12), ('DifferentialEvolutionAlt', 4), ('RandomNelderMead', 1)]
-    [     8s]    INFO opentuner.search.metatechniques: AUCBanditMetaTechniqueA: [('NormalGreedyMutation', 489), ('UniformGreedyMutation', 8), ('DifferentialEvolutionAlt', 4)]
-    [    10s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'blockSize': 5}, cost time=0.0082, found by UniformGreedyMutation
-    [    13s]    INFO opentuner.search.metatechniques: AUCBanditMetaTechniqueA: [('NormalGreedyMutation', 445), ('DifferentialEvolutionAlt', 48), ('UniformGreedyMutation', 8)]
-    [    20s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'blockSize': 5}, cost time=0.0082, found by UniformGreedyMutation,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt,DifferentialEvolutionAlt
-    [    21s]    INFO opentuner.search.metatechniques: AUCBanditMetaTechniqueA: [('NormalGreedyMutation', 357), ('DifferentialEvolutionAlt', 140), ('UniformGreedyMutation', 4)]
+    [    10s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
+    [    19s]    INFO opentuner.search.metatechniques: AUCBanditMetaTechniqueA: [('DifferentialEvolutionAlt', 477), ('UniformGreedyMutation', 18), ('NormalGreedyMutation', 5), ('RandomNelderMead', 1)]
+    [    20s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
+    [    30s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
+    [    30s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
+    Optimal block size written to mmm_final_config.json: {'BLOCK_SIZE': 4}
 
 
 Look up the optimal BlockSize value by inspecting the following created file:
@@ -191,4 +197,4 @@ Look up the optimal BlockSize value by inspecting the following created file:
 
 In this example, the output file content was as follows:
 
-    {"blockSize": 5}
+    {'BLOCK_SIZE': 4}

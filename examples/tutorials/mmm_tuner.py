@@ -22,7 +22,7 @@ class GccFlagsTuner(MeasurementInterface):
     """
     manipulator = ConfigurationManipulator()
     manipulator.add_parameter(
-      IntegerParameter('blockSize', 1, 10))
+      IntegerParameter('BLOCK_SIZE', 1, 10))
     return manipulator
 
   def run(self, desired_result, input, limit):
@@ -32,13 +32,15 @@ class GccFlagsTuner(MeasurementInterface):
     """
     cfg = desired_result.configuration.data
 
-    gcc_cmd = 'g++ apps/mmm_block.cpp -DBLOCK_SIZE=5 -o ./tmp.bin'   
+    gcc_cmd = 'g++ mmm_block.cpp '  
+    gcc_cmd += ' -D{0}={1}'.format('BLOCK_SIZE',cfg['BLOCK_SIZE'])
+    gcc_cmd += ' -o ./tmp.bin'
 
     compile_result = self.call_program(gcc_cmd)
     assert compile_result['returncode'] == 0
 
     run_cmd = './tmp.bin'
-    run_cmd += ' {0}'.format(cfg['blockSize'])
+
     run_result = self.call_program(run_cmd)
     assert run_result['returncode'] == 0
 
