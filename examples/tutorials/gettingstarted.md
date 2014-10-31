@@ -12,7 +12,7 @@ In order to do autotuning, you first need something to autotune. This will norma
 
 We will autotone the sample code below(based off of modification of code found [here][matrix-multiply-code]), making sure to take the block size as a compile time constant to the program. 
 
-[technique-tutorial]: http://csapp.cs.cmu.edu/public/waside/waside-blocking.pdf
+[matrix-multiply-code]: http://csapp.cs.cmu.edu/public/waside/waside-blocking.pdf
 
 Save the sample code below to examples/tutorials/mmm_block.cpp
 
@@ -21,24 +21,24 @@ Save the sample code below to examples/tutorials/mmm_block.cpp
 
     int main(int argc, const char** argv)
     {
-      int BlockSize = atoi(argv[1])*5;
-      int n = BlockSize * (n/BlockSize);
+
+      int n = BLOCK_SIZE * (n/BLOCK_SIZE);
       int a[100][100];
       int b[100][100];
       int c[100][100];
       int sum=0;
-      for(int k1=0;k1<n;k1+=BlockSize)
+      for(int k1=0;k1<n;k1+=BLOCK_SIZE)
       {
-          for(int j1=0;j1<n;j1+=BlockSize)
+          for(int j1=0;j1<n;j1+=BLOCK_SIZE)
           {
-              for(int k1=0;k1<n;k1+=BlockSize)
+              for(int k1=0;k1<n;k1+=BLOCK_SIZE)
               {
                   for(int i=0;i<n;i++)
                   {
-                      for(int j=j1;j<j1+BlockSize;j++)
+                      for(int j=j1;j<j1+BLOCK_SIZE;j++)
                       {
                           sum = c[i][j];
-                          for(int k=k1;k<k1+BlockSize;k++)
+                          for(int k=k1;k<k1+BLOCK_SIZE;k++)
                           {               
                               sum += a[i][k] * b[k][j];
                           }
