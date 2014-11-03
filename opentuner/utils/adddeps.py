@@ -9,8 +9,5 @@ if 'venv' not in ','.join(sys.path):
   if isfile(venv_activate):
     execfile(venv_activate, dict(__file__=venv_activate))
 
-try:
-  import opentuner
-except:
-  sys.path.append(project_root)
+sys.path.insert(0, project_root)
 

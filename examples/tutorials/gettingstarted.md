@@ -1,16 +1,29 @@
+---
+layout: default
+title: OpenTuner - Using OpenTuner
+permalink: /tutorial/gettingstarted/index.html
+---
+
 Tutorial: Optimizing Block Matrix Multiplication
 ================================================
 
-This tutorial assumes that you have checked out a copy of opentuner. For guidelines on how to get opentuner set up, refer [here][technique-tutorial].
+This tutorial assumes that you have checked out a copy of opentuner. For
+guidelines on how to get opentuner set up, refer [here][setup].
 
-[technique-tutorial]: http://opentuner.org/tutorial/setup
+[setup]: http://opentuner.org/tutorial/setup/
 
 Identifying a Program to Autotune
 ---------------------------------
 
-In order to do autotuning, you first need something to autotune. This will normally be your own program that you want to make either fast or better in some way.  For this tutorial we will use a blocked version of matrix multiply as an example. We will use opentuner to find the optimal value of the block size parameter.
+In order to do autotuning, you first need something to autotune. This will
+normally be your own program that you want to make either fast or better in
+some way.  For this tutorial we will use a blocked version of matrix multiply
+as an example. We will use opentuner to find the optimal value of the block
+size parameter.
 
-We will autotone the sample code below(based off of modification of code found [here][matrix-multiply-code]), making sure to take the block size as a compile time constant to the program. 
+We will autotone the sample code below(based off of modification of code
+found [here][matrix-multiply-code]), making sure to take the block size as
+a compile time constant to the program.
 
 [matrix-multiply-code]: http://csapp.cs.cmu.edu/public/waside/waside-blocking.pdf
 
