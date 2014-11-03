@@ -237,7 +237,8 @@ def get_enabled(args):
     args.technique = ['AUCBanditMetaTechniqueA']
 
   for unknown in set(args.technique) - set(map(_.name, techniques)):
-    log.error("unknown technique %s", unknown)
+    log.error('unknown technique %s', unknown)
+    raise Exception('Unknown technique: --technique={}'.format(unknown))
 
   return [t for t in techniques if t.name in args.technique]
 
