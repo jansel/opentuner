@@ -269,7 +269,7 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     a time limit to kill a result after such that it can be compared to config
     """
     results = self.driver.results_query(config=config)
-    if len(results) == 0:
+    if results.count() == 0:
       return None
     if self.accuracy_target > min(map(_.accuracy, results)):
       m = self.low_accuracy_limit_multiplier
