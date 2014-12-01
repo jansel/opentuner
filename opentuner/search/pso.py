@@ -13,7 +13,7 @@ class PSO(technique.SequentialSearchTechnique ):
     """
     super(PSO, self).__init__(*pargs, **kwargs)
     self.crossover = crossover
-    self.name = 'pso-'+crossover
+    self.name = 'pso-'+crossover.replace("op3_cross_","")
     self.init_pop = init_pop
     self.N = N
 
@@ -71,11 +71,11 @@ class HybridParticle(object):
     """
     m = self.manipulator
     for p in m.params:
-      self.velocity[p.name] = p.sv_swarm(self.position, global_best, self.best, c=self.omega, c1=self.phi_g, c2=self.phi_l, xchoice=self.crossover_choice, velocity=self.velocity[p.name])
+      self.velocity[p.name] = p.op3_swarm(self.position, global_best, self.best, c=self.omega, c1=self.phi_g, c2=self.phi_l, xchoice=self.crossover_choice, velocity=self.velocity[p.name])
 
 
-technique.register(PSO(crossover = 'OX3'))
-technique.register(PSO(crossover = 'OX1'))
-technique.register(PSO(crossover = 'PMX'))
-technique.register(PSO(crossover = 'PX'))
-technique.register(PSO(crossover = 'CX'))
+technique.register(PSO(crossover = 'op3_cross_OX3'))
+technique.register(PSO(crossover = 'op3_cross_OX1'))
+technique.register(PSO(crossover = 'op3_cross_PMX'))
+technique.register(PSO(crossover = 'op3_cross_PX'))
+technique.register(PSO(crossover = 'op3_cross_CX'))

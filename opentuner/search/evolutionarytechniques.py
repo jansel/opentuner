@@ -53,7 +53,7 @@ class EvolutionaryTechnique(SearchTechnique):
     """
     mutate single parameter of cfg in place
     """
-    param.randomize(cfg)
+    param.op1_randomize(cfg)
 
   def crossover(self):
     raise Exception('Not implemented')
@@ -98,7 +98,7 @@ class NormalMutationMixin(object):
     mutate single parameter of cfg in place
     """
     if param.is_primitive():
-      param.normal_mutation(cfg, self.sigma)
+      param.op1_normal_mutation(cfg, self.sigma)
     else:
       random.choice(param.manipulators(cfg))(cfg)
 
@@ -107,7 +107,7 @@ class CrossoverMixin(object):
   def __init__(self, crossover,   *pargs, **kwargs):
     super(CrossoverMixin, self).__init__(*pargs, **kwargs)
     self.crossover_op = crossover
-    self.name = 'ga-'+crossover
+    self.name = 'ga-'+crossover.replace("op3_cross_","")
 
   def crossover(self, cfgs):
     """
@@ -132,11 +132,11 @@ class NormalGreedyMutation(NormalMutationMixin, GreedySelectionMixin, Evolutiona
 class GA(CrossoverMixin, UniformGreedyMutation):
   pass
 
-technique.register(GA(crossover = 'OX3', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(GA(crossover = 'OX1', mutation_rate=0.10,crossover_rate=0.8))
-technique.register(GA(crossover = 'PX', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(GA(crossover = 'CX', mutation_rate=0.10, crossover_rate=0.8))
-technique.register(GA(crossover = 'PMX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'op3_cross_OX3', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'op3_cross_OX1', mutation_rate=0.10,crossover_rate=0.8))
+technique.register(GA(crossover = 'op3_cross_PX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'op3_cross_CX', mutation_rate=0.10, crossover_rate=0.8))
+technique.register(GA(crossover = 'op3_cross_PMX', mutation_rate=0.10, crossover_rate=0.8))
 technique.register(UniformGreedyMutation(name='ga-base', mutation_rate=0.10))
 
 technique.register(UniformGreedyMutation(name='UniformGreedyMutation05', mutation_rate=0.05))

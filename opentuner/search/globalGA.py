@@ -55,7 +55,7 @@ class GlobalEvolutionaryTechnique(SearchTechnique):
     """
     mutate single parameter of cfg in place
     """
-    param.randomize(cfg)
+    param.op1_randomize(cfg)
 
   def crossover(self, cfgs):
     cfg1, cfg2, = cfgs
@@ -107,7 +107,7 @@ class NormalMutationMixin(object):
     mutate single parameter of cfg in place
     """
     if param.is_primitive():
-      param.normal_mutation(cfg, self.sigma)
+      param.op1_normal_mutation(cfg, self.sigma)
     else:
       random.choice(param.manipulators(cfg))(cfg)
 

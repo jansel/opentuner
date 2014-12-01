@@ -67,7 +67,7 @@ class ConfigurationManipulatorBase(object):
     dst = self.copy(cfg_a)
     dst_params = self.proxy(dst)
     for k in self.param_names(dst, cfg_a, cfg_b, cfg_c):
-      dst_params[k].set_linear(a, cfg_a, b, cfg_b, c, cfg_c)
+      dst_params[k].op4_set_linear(cfg_a, cfg_b, cfg_c, a, b, c)
     return dst
 
   def _get_serializer(self, filename, format=None):
@@ -163,7 +163,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     """produce a random configuration"""
     cfg = self.seed_config()
     for p in self.parameters(cfg):
-      p.randomize(cfg)
+      p.op1_randomize(cfg)
     return cfg
 
   def parameters(self, config):
@@ -204,10 +204,11 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
   def applySVs(self, cfg, sv_map, args, kwargs):
     """
     Apply operators to each parameter according to given map. Updates cfg.
-    Parameters with no operators specified are not updated. 
+    Parameters with no operators specified are not updated.
     cfg: configuration data
     sv_map: python dict that maps string parameter name to class method name
-    arg_map: python dict that maps string parameter name to class method arguments
+    arg_map: python dict that maps string parameter name to class method
+    arguments
     """
     # TODO: check consistency between sv_map and cfg
     param_dict = self.parameters_dict(cfg)
@@ -222,7 +223,7 @@ class Parameter(object):
   """
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, name):
+  def __init__(self, name, **kwargs):
     self.name = name
     self.parent = None
     super(Parameter, self).__init__()
@@ -278,9 +279,9 @@ class Parameter(object):
     a list of manipulator functions to change this value in the config
     manipulators must be functions that take a config and change it in place
 
-    default implementation just has randomize as only operation
+    default implementation just has op1_randomize as only operation
     """
-    return [self.randomize]
+    return [self.op1_randomize]
 
   def normalize(self, config):
     """
@@ -295,8 +296,12 @@ class Parameter(object):
     return []
 
   @abc.abstractmethod
-  def randomize(self, config):
-    """randomize this value without taking into account the current position"""
+  def op1_randomize(self, cfg):
+    """
+    Set this parameter's value in a configuration to a random value
+
+    :param config: the configuration to be changed
+    """
     pass
 
   @abc.abstractmethod
@@ -320,40 +325,66 @@ class Parameter(object):
     return
 
   @abc.abstractmethod
-  def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
-    """set this value to a*cfg_a + b*cfg_b, + c*cfg_c"""
+  def op4_set_linear(self, cfg, cfg_a, cfg_b, cfg_c, a, b, c):
+    """
+    Sets the parameter value in a configuration to a linear combination of 3
+    other configurations: :math:`a*cfg_a + b*cfg_b + c*cfg_c`
+
+    :param cfg: the configuration to be changed
+    :param cfg_a: a parent configuration
+    :param cfg_b: a parent configuration
+    :param cfg_c: a parent configuration
+    :param a: weight for cfg_a
+    :param b: weight for cfg_b
+    :param c: weight for cfg_c
+    """
     pass
 
   def search_space_size(self):
     return 1
 
-  # Stochastic variators 
-  def sv_mix(self, dest, cfgs, ratio,  *args, **kwargs):
-    """ 
-    Stochastically recombine values from multiple parent configurations and save the 
-    resulting value in dest. 
-    cfgs: list of configuration data (dict)
-    ratio: list of floats
+  # Stochastic variators
+  def op3_swarm(self, cfg, cfg1, cfg2, c, c1, c2, *args, **kwargs):
     """
-    assert len(cfgs)==len(ratio)
+    Stochastically 'move' the parameter value in a configuration towards those
+    in two parent configurations. This is done by calling :py:meth:`opn_stochastic_mix`
+
+    :param cfg: the configuration to be changed
+    :param cfg1: a parent configuration
+    :param cfg2: a parent configuration
+    :param c: weight of original configuration
+    :param c1: weight for cfg1
+    :param c2: weight for cfg2
+    """
+    # default to probabilistic treatment
+    self.opn_stochastic_mix(cfg, [cfg, cfg1, cfg2], [c, c1, c2])
+
+  def opn_stochastic_mix(self, cfg, cfgs, ratio, *args, **kwargs):
+    """
+    Stochastically recombine a list of parent values into a single result.
+
+    This randomly copies a value from a list of parents configurations according
+    to a list of weights.
+
+    :param cfg: the configuration to be changed
+    :param cfgs: a list of parent configurations
+    :param ratio: a list of floats representing the weight of each configuration
+     in cfgs
+
+    """
+    assert len(cfgs) == len(ratio)
     r = random.random()
-    c = numpy.array(ratio, dtype=float)/sum(ratio)
+    c = numpy.array(ratio, dtype=float) / sum(ratio)
     for i in range(len(c)):
-      if r < sum(c[:i+1]):
-        self.copy_value(dest, cfgs[i])
+      if r < sum(c[:i + 1]):
+        self.copy_value(cfg, cfgs[i])
         break
 
-  def sv_swarm(self, current, cfg1, cfg2, c, c1, c2, *args, **kwargs):
-    """
-    Stochastically 'move' value in current configuration towards those in two other configurations. 
-    current, cfg1, cfg2: configuration data (dict)
-    c, c1, c2: float
-    """
-    self.sv_mix(current, [current, cfg1, cfg2], [c, c1, c2])  # default to probablistic treatment
 
 class PrimitiveParameter(Parameter):
   """
-  a single dimension in a cartesian space, with a minimum and a maximum value
+  An abstract interface implemented by parameters that represent a single
+  dimension in a cartesian space in a legal range
   """
   __metaclass__ = abc.ABCMeta
 
@@ -397,7 +428,7 @@ class PrimitiveParameter(Parameter):
 
   def set_unit_value(self, config, unit_value):
     """set_value scaled such that range is between 0.0 and 1.0"""
-    assert 0.0 <= unit_value and unit_value <= 1.0
+    assert 0.0 <= unit_value <= 1.0
     low, high = self.legal_range(config)
     if self.is_integer_type():
       # account for rounding
@@ -410,22 +441,14 @@ class PrimitiveParameter(Parameter):
       val = max(low, min(val, high))
       self.set_value(config, self.value_type(val))
 
-  def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
-    """set this value to a*cfg_a + b*cfg_b, + c*cfg_c"""
-    va = self.get_unit_value(cfg_a)
-    vb = self.get_unit_value(cfg_b)
-    vc = self.get_unit_value(cfg_c)
-    v = a * va + b * vb + c * vc
-    v = max(0.0, min(v, 1.0))
-
-    self.set_unit_value(cfg_dst, v)
-
-  def normal_mutation(self, cfg, sigma=0.1, *args, **kwargs):
+  def op1_normal_mutation(self, cfg, sigma=0.1, *args, **kwargs):
     """
-    apply normally distributed noise to the value of this parameter in cfg
+    apply normally distributed noise to this parameter's value in a
+    configuration
 
-    sigma is the stddev of the normal distribution on a unit scale (search
-    space is of size 1)
+    :param cfg: The configuration to be changed
+    :param sigma: the std. deviation of the normally distributed noise on a unit
+     scale
     """
     v = self.get_unit_value(cfg)
     v += random.normalvariate(0.0, sigma)
@@ -436,6 +459,27 @@ class PrimitiveParameter(Parameter):
       v = 1.0 - (v % 1)
     self.set_unit_value(cfg, v)
 
+  def op4_set_linear(self, cfg, cfg_a, cfg_b, cfg_c, a, b, c):
+    """
+    set the parameter value in a configuration to a linear combination of 3
+    other configurations: :math:`a*cfg_a + b*cfg_b + c*cfg_c`
+
+    :param cfg: The configuration to be changed
+    :param cfg_a: a parent configuration
+    :param cfg_b: a parent configuration
+    :param cfg_c: a parent configuration
+    :param a: weight for cfg_a
+    :param b: weight for cfg_b
+    :param c: weight for cfg_c
+    """
+    va = self.get_unit_value(cfg_a)
+    vb = self.get_unit_value(cfg_b)
+    vc = self.get_unit_value(cfg_c)
+    v = a * va + b * vb + c * vc
+    v = max(0.0, min(v, 1.0))
+
+    self.set_unit_value(cfg, v)
+
   def manipulators(self, config):
     """
     a list of manipulator functions to change this value in the config
@@ -443,7 +487,7 @@ class PrimitiveParameter(Parameter):
 
     for primitive params default implementation is uniform random and normal
     """
-    return [self.randomize, self.normal_mutation]
+    return [self.op1_randomize, self.op1_normal_mutation]
 
   @abc.abstractmethod
   def set_value(self, config, value):
@@ -462,6 +506,9 @@ class PrimitiveParameter(Parameter):
 
 
 class NumericParameter(PrimitiveParameter):
+  """
+  A parameter representing a number with a minimumm and maximum value
+  """
   def __init__(self, name, min_value, max_value, **kwargs):
     """min/max are inclusive"""
     assert min_value <= max_value
@@ -485,26 +532,53 @@ class NumericParameter(PrimitiveParameter):
   def legal_range(self, config):
     return self.min_value, self.max_value
 
-  def difference(self, cfg, cfg1, cfg2):
-    v = self.get_value(cfg2) - self.get_value(cfg1)
-    v = max(self.min_value, min(self.max_value, v))
-    self.set_value(cfg, v)
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration to a random value in its legal
+     range
 
-  def scale(self, cfg, k):
-    v = self.get_value(cfg) * k
-    v = max(self.min_value, min(self.max_value, v))
-    self.set_value(cfg, v)
-
-  def sum(self, cfg, *cfgs):
-    v = sum([self.get_value(c) for c in cfgs])
-    v = max(self.min_value, min(self.max_value, v))
-    self.set_value(cfg, v)
-
-  def randomize(self, config):
+    :param config: the configuration to be changed
+    """
     if self.is_integer_type():
       self.set_value(config, random.randint(*self.legal_range(config)))
     else:
       self.set_value(config, random.uniform(*self.legal_range(config)))
+
+  def op1_scale(self, cfg, k):
+    """
+    Scale this parameter's value in a configuration by a constant factor
+
+    :param cfg: the configuration to be changed
+    :param k: the constant factor to scale the parameter value by
+    """
+    v = self.get_value(cfg) * k
+    v = max(self.min_value, min(self.max_value, v))
+    self.set_value(cfg, v)
+
+  def op3_difference(self, cfg, cfg1, cfg2):
+    """
+    Set this parameter's value in a configuration to the difference between this
+    parameter's values in 2 other configs (cfg2 - cfg1)
+
+    :param cfg: the configuration to be changed
+    :param cfg1: The configuration whose parameter value is being subtracted
+    :param cfg2: The configuration whose parameter value is subtracted from
+    """
+    v = self.get_value(cfg2) - self.get_value(cfg1)
+    v = max(self.min_value, min(self.max_value, v))
+    self.set_value(cfg, v)
+
+  def opn_sum(self, cfg, *cfgs):
+    """
+    Set this parameter's value in a configuration to the sum of it's values in a
+     list of configurations
+
+    :param cfg: the configuration to be changed
+    :param cfgs: a list of configurations to sum
+    """
+    v = sum([self.get_value(c) for c in cfgs])
+    v = max(self.min_value, min(self.max_value, v))
+    self.set_value(cfg, v)
 
   def search_space_size(self):
     if self.value_type is float:
@@ -512,31 +586,59 @@ class NumericParameter(PrimitiveParameter):
     else:
       return self.max_value - self.min_value + 1  # inclusive range
 
-  def sv_mutate(self, cfg, mchoice='normal_mutation', *args, **kwargs):
+  def sv_mutate(self, cfg, mchoice='op1_normal_mutation', *args, **kwargs):
     getattr(self, mchoice)(cfg, *args, **kwargs)
 
 
 class IntegerParameter(NumericParameter):
+  """
+  A parameter representing an integer value in a legal range
+  """
   def __init__(self, name, min_value, max_value, **kwargs):
     """min/max are inclusive"""
     kwargs['value_type'] = int
     super(IntegerParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
-               c2=0.5, velocity=0, sigma=0.2, *args, **kwargs):
-    """ Updates current and returns new velocity """
-    vmin, vmax = self.legal_range(current)
+  def op3_swarm(self, cfg, cfg1, cfg2, c=1, c1=0.5,
+                c2=0.5, velocity=0, sigma=0.2, *args, **kwargs):
+    """
+    Simulates a single update step in particle swarm optimization by updating
+    the current position and returning a new velocity.
+
+    The new velocity is given by
+
+    .. math:: c*velocity + r1*c1*(cfg1-cfg) + r2*c2*(cfg2-cfg)
+
+    where r1 and r2 are random values between 0 and 1.
+
+    The new current position is the new velocity with gaussian noise added.
+
+    :param cfg: the configuration to be changed. Represents the current position
+    :param cfg1: a configuration to shift towards. Should be the local best
+     position
+    :param cfg2: a configuration to shift towards. Should be the global best
+     position
+    :param c: the weight of the current velocity
+    :param c1: weight of cfg1
+    :param c2: weight of cfg2
+    :param velocity: the old velocity
+    :param sigma: standard deviation of the gaussian noise, on a unit-scale
+    :return: the new velocity, a float
+
+    """
+    vmin, vmax = self.legal_range(cfg)
     k = vmax - vmin
+    # calculate the new velocity
     v = velocity * c + (self.get_value(cfg1) - self.get_value(
-      current)) * c1 * random.random() + (self.get_value(
-      cfg2) - self.get_value(current)) * c2 * random.random()
+        cfg)) * c1 * random.random() + (self.get_value(
+        cfg2) - self.get_value(cfg)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
     s = k / (1 + numpy.exp(-v)) + vmin
     # Add Gaussian noise
     p = random.gauss(s, sigma * k)
-    # Discretize and bound 
+    # Discretize and bound
     p = int(min(vmax, max(round(p), vmin)))
-    self.set_value(current, p)
+    self.set_value(cfg, p)
     return v
 
 
@@ -546,25 +648,65 @@ class FloatParameter(NumericParameter):
     kwargs['value_type'] = float
     super(FloatParameter, self).__init__(name, min_value, max_value, **kwargs)
 
-  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
-               c2=0.5, velocity=0, *args, **kwargs):
-    vmin, vmax = self.legal_range(current)
+  def op3_swarm(self, cfg, cfg1, cfg2, c=1, c1=0.5,
+                c2=0.5, velocity=0, *args, **kwargs):
+    """
+
+    Simulates a single update step in particle swarm optimization by updating
+    the current position and returning a new velocity.
+
+    The new velocity is given by
+
+    .. math:: c*velocity + r1*c1*(cfg1-cfg) + r2*c2*(cfg2-cfg)
+
+    where r1 and r2 are random values between 0 and 1
+
+    The new current position is the old current position offset by the new
+    velocity:
+
+    :param cfg: the configuration to be changed. Represents the current position
+    :param cfg1: a configuration to shift towards. Should be the local best
+     position
+    :param cfg2: a configuration to shift towards. Should be the global best
+     position
+    :param c: the weight of the current velocity
+    :param c1: weight of cfg1
+    :param c2: weight of cfg2
+    :param velocity: the old velocity
+    :return: the new velocity, a float
+
+    """
+    vmin, vmax = self.legal_range(cfg)
     v = velocity * c + (self.get_value(cfg1) - self.get_value(
-      current)) * c1 * random.random() + (self.get_value(
-      cfg2) - self.get_value(current)) * c2 * random.random()
-    p = self.get_value(current) + v
+        cfg)) * c1 * random.random() + (self.get_value(
+        cfg2) - self.get_value(cfg)) * c2 * random.random()
+    p = self.get_value(cfg) + v
     p = min(vmax, max(p, vmin))
-    self.set_value(current, p)
+    self.set_value(cfg, p)
     return v
 
 
 class ScaledNumericParameter(NumericParameter):
+  """
+    A Parameter that is stored in configurations normally, but has a scaled
+    value when accessed using 'get_value'.
+    Because search techniques interact with Parameters through get_value, these
+    parameters are searched on a different scale (e.g. log scale).
+  """
   @abc.abstractmethod
   def _scale(self, v):
+    """
+    called on a value when getting it from it's configuration. Transforms the
+    actual value to the scale it is searched on
+    """
     return v
 
   @abc.abstractmethod
   def _unscale(self, v):
+    """
+    called on a value when storing it. Transforms a value from it's search scale
+    to it's actual value
+    """
     return v
 
   def set_value(self, config, value):
@@ -579,8 +721,7 @@ class ScaledNumericParameter(NumericParameter):
 
 class LogIntegerParameter(ScaledNumericParameter, FloatParameter):
   """
-  a numeric parameter that is searched on a log scale, but stored without
-  scaling
+  an integer value that is searched on a log scale, but stored without scaling
   """
 
   def _scale(self, v):
@@ -599,8 +740,7 @@ class LogIntegerParameter(ScaledNumericParameter, FloatParameter):
 
 class LogFloatParameter(ScaledNumericParameter, FloatParameter):
   """
-  a numeric parameter that is searched on a log scale, but stored without
-  scaling
+  a float parameter that is searched on a log scale, but stored without scaling
   """
 
   def _scale(self, v):
@@ -612,7 +752,9 @@ class LogFloatParameter(ScaledNumericParameter, FloatParameter):
 
 
 class PowerOfTwoParameter(ScaledNumericParameter, IntegerParameter):
-  """An integer power of two, with a given min and max value"""
+  """
+  An integer power of two, with a min and max value. Searched by the exponent
+  """
 
   def __init__(self, name, min_value, max_value, **kwargs):
     kwargs['value_type'] = int
@@ -635,11 +777,11 @@ class PowerOfTwoParameter(ScaledNumericParameter, IntegerParameter):
     return int(math.log(super(PowerOfTwoParameter, self).search_space_size(), 2))
 
 
-# #################
+##################
 
 class ComplexParameter(Parameter):
   """
-  a non-cartesian parameter that can't be manipulated directly, but has a set
+  A non-cartesian parameter that can't be manipulated directly, but has a set
   of user defined manipulation functions
   """
 
@@ -662,12 +804,23 @@ class ComplexParameter(Parameter):
   def set_value(self, config, value):
     self._set(config, value)
 
-  def set_linear(self, cfg_dst, a, cfg_a, b, cfg_b, c, cfg_c):
+  def op4_set_linear(self, cfg, cfg_a, cfg_b, cfg_c, a, b, c):
     """
-    set this value to a*cfg_a + b*cfg_b + c*cfg_c
+    set this value to :math:`a*cfg_a + b*cfg_b + c*cfg_c`
 
     this operation is not possible in general with complex parameters but
     we make an attempt to "fake" it for common use cases
+
+    basically a call to randomize unless after normalization,
+    a = 1.0, b == -c, and cfg_b == cfg_c, in which case nothing is done
+
+    :param cfg: the configuration to be changed
+    :param cfg_a: a parent configuration
+    :param cfg_b: a parent configuration
+    :param cfg_c: a parent configuration
+    :param a: weight for cfg_a
+    :param b: weight for cfg_b
+    :param c: weight for cfg_c
     """
     # attempt to normalize order, we prefer a==1.0
     if a != 1.0 and b == 1.0:  # swap a and b
@@ -682,11 +835,11 @@ class ComplexParameter(Parameter):
       a, cfg_a, c, cfg_c = c, cfg_c, a, cfg_a
 
     if a == 1.0 and b == -c:
-      self.copy_value(cfg_a, cfg_dst)
-      self.add_difference(cfg_dst, b, cfg_b, cfg_c)
+      self.copy_value(cfg_a, cfg)
+      self.add_difference(cfg, b, cfg_b, cfg_c)  # TODO inline this logic?
     else:
       # TODO: should handle more cases
-      self.randomize()
+      self.op1_randomize(cfg)
 
   def add_difference(self, cfg_dst, scale, cfg_b, cfg_c):
     """
@@ -699,14 +852,17 @@ class ComplexParameter(Parameter):
     we make an attempt to "fake" it
     """
     if not self.same_value(cfg_b, cfg_c):
-      self.randomize(cfg_dst)
+      self.op1_randomize(cfg_dst)
 
-  def sv_mutate(self, cfg, mchoice='randomize', *args, **kwargs):
+  def sv_mutate(self, cfg, mchoice='op1_randomize', *args, **kwargs):
     getattr(self, mchoice)(cfg, *args, **kwargs)
 
   @abc.abstractmethod
-  def randomize(self, config):
-    """randomize this value without taking into account the current position"""
+  def op1_randomize(self, config):
+    """
+    randomize this value without taking into account the current position
+    :param config: the configuration to be changed
+    """
     pass
 
   @abc.abstractmethod
@@ -717,7 +873,7 @@ class ComplexParameter(Parameter):
 
 class BooleanParameter(ComplexParameter):
   def manipulators(self, config):
-    return [self.flip]
+    return [self.op1_flip]
 
   def get_value(self, config):
     return self._get(config)
@@ -725,48 +881,81 @@ class BooleanParameter(ComplexParameter):
   def set_value(self, config, value):
     self._set(config, value)
 
-  def randomize(self, config):
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration randomly
+
+    :param config: the configuration to be changed
+    """
     self._set(config, self.seed_value())
 
   def seed_value(self):
     return random.choice((True, False))
 
-  def flip(self, config):
+  def op1_flip(self, config):
+    """
+    Flip this parameter's value in a configuration
+
+    :param config: the configuration to be changed
+    """
     self._set(config, not self._get(config))
 
   def search_space_size(self):
     return 2
 
-  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
-               c2=0.5, velocity=0, *args, **kwargs):
-    """ 
-    Updates current and returns new velocity.
-    current, cfg1, cfg2 are all configuration data;
-    c, c1, c2, velocity are floats;
-    Return updated velocities for each element in the BooleanArrayParameter.
+  def op3_swarm(self, cfg, cfg1, cfg2, c=1, c1=0.5,
+                c2=0.5, velocity=0, *args, **kwargs):
+    """
+    Simulates a single update step in particle swarm optimization by updating
+    the current position and returning a new velocity.
+
+    The new velocity is given by
+
+    .. math:: c*velocity + r1*c1*(cfg1-cfg) + r2*c2*(cfg2-cfg)
+
+    where r1 and r2 are random values between 0 and 1
+
+    The new current position is randomly chosen based on the new velocity
+
+    :param cfg: the configuration to be changed. Represents the current position
+    :param cfg1: a configuration to shift towards. Should be the local best position
+    :param cfg2: a configuration to shift towards. Should be the global best position
+    :param c: the weight of the current velocity
+    :param c1: weight of cfg1
+    :param c2: weight of cfg2
+    :param velocity: the old velocity
+    :param args:
+    :param kwargs:
+    :return: the new velocity, a float
+
     """
     v = velocity * c + (self.get_value(cfg1) - self.get_value(
-      current)) * c1 * random.random() + (self.get_value(
-      cfg2) - self.get_value(current)) * c2 * random.random()
+        cfg)) * c1 * random.random() + (self.get_value(
+        cfg2) - self.get_value(cfg)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
     s = 1 / (1 + numpy.exp(-v))
-    # Decide position randomly  
+    # Decide position randomly
     p = (s - random.random()) > 0
-    self.set_value(current, p)
+    self.set_value(cfg, p)
     return v
 
 
 class SwitchParameter(ComplexParameter):
   """
-  a switch parameter is an unordered collection of options with no implied
-  correlation between the choices, choices are range(option_count)
+  A parameter representing an unordered collection of options with no implied
+  correlation between the choices. The choices are range(option_count)
   """
 
   def __init__(self, name, option_count):
     self.option_count = option_count
     super(SwitchParameter, self).__init__(name)
 
-  def randomize(self, config):
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration to a random value
+
+    :param config: the configuration to be changed
+    """
     self._set(config, random.randrange(self.option_count))
 
   def seed_value(self):
@@ -785,7 +974,12 @@ class EnumParameter(ComplexParameter):
     super(EnumParameter, self).__init__(name)
     self.options = list(options)
 
-  def randomize(self, config):
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration to a random value
+
+    :param config: the configuration to be changed
+    """
     self._set(config, random.choice(self.options))
 
   def seed_value(self):
@@ -795,23 +989,38 @@ class EnumParameter(ComplexParameter):
     return max(1, len(self.options))
 
   def sv_mutate(self, cfg, *args, **kwargs):
-    self.randomize(cfg)
+    self.op1_randomize(cfg)
 
 
 class PermutationParameter(ComplexParameter):
+  """
+  A parameter representing a permutation (or ordering) as a list of items
+  """
   def __init__(self, name, items):
     super(PermutationParameter, self).__init__(name)
     self._items = list(items)
     self.size = len(items)
 
-  def randomize(self, config):
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration to a random value
+
+    :param config: the configuration to be changed
+    """
     random.shuffle(self._get(config))
     self.normalize(config)
 
-  def small_random_change(self, config):
+  def op1_small_random_change(self, config, p=0.25):
+    """
+    Iterates through the list and probabilistically swaps each element with the
+    next element
+
+    :param p: probability of swapping an element with the next element
+    :param config: the configuration to be changed
+    """
     cfg_item = self._get(config)
     for i in xrange(1, len(cfg_item)):
-      if random.random() < 0.25:
+      if random.random() < p:
         # swap
         cfg_item[i - 1], cfg_item[i] = cfg_item[i], cfg_item[i - 1]
     self.normalize(config)
@@ -820,7 +1029,7 @@ class PermutationParameter(ComplexParameter):
     return list(self._items)  # copy
 
   def manipulators(self, config):
-    return [self.randomize, self.small_random_change]
+    return [self.op1_randomize, self.op1_small_random_change]
 
   def get_value(self, config):
     return self._get(config)
@@ -831,73 +1040,126 @@ class PermutationParameter(ComplexParameter):
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
 
-  # Stochastic Variator     
-  def sv_mutate(self, cfg, mchoice='random_swap', *args, **kwargs):
+  # Stochastic Variator
+  def sv_mutate(self, cfg, mchoice='op2_random_swap', *args, **kwargs):
     getattr(self, mchoice)(cfg, cfg, *args, **kwargs)
 
-  def sv_cross(self, new, cfg1, cfg2, xchoice='OX1', strength=0.3, *args,
-               **kwargs):
+  def op3_cross(self, cfg, cfg1, cfg2, xchoice='op3_cross_OX1', strength=0.3,
+                *args, **kwargs):
+    """
+    Calls the crossover operator specified by xchoice
+    Passes argument d = strength*(size of the permutation)
+
+    :param cfg: the configuration to be changed
+    :param cfg1: a parent configuration
+    :param cfg2: a parent configuration
+    :param xchoice: string specifying which crossover operator to use (should start with op3_cross prefix)
+    :param strength: the strength of the crossover
+    """
     dd = int(round(self.size * strength))
     if dd < 1:
       log.warning('Crossover length too small. Cannot create new solution.')
     if dd >= self.size:
       log.warning('Crossover length too big. Cannot create new solution.')
-    getattr(self, xchoice)(new, cfg1, cfg2, d=dd, *args, **kwargs)
+    getattr(self, xchoice)(cfg, cfg1, cfg2, d=dd, *args, **kwargs)
 
-  def sv_swarm(self, current, cfg1, cfg2, xchoice='OX1', c=1,
-               c1=0.5, c2=0.5, strength=0.3, velocity=0, *args, **kwargs):
+  def op3_swarm(self, cfg, cfg1, cfg2, xchoice='op3_cross_OX1', c=0.5,
+                c1=0.5, c2=0.5, strength=0.3, velocity=0, *args, **kwargs):
+    """
+    Replacement for particle swarm optimization iterative step for permutations.
+    Given a target cfg and 2 parent cfgs, probabilistically performs an
+    op3_cross with one of the 2 parents.
+
+    :param cfg: the configuration to be changed. Represents the current position
+    :param cfg1: a configuration to shift towards. Should be the local best
+     position
+    :param cfg2: a configuration to shift towards. Should be the global best
+     position
+    :param xchoice: which crossover operator should be used
+    :param c: the probability of not performing a crossover
+    :param c1: the probability of performing a crossover with cfg1 (if a
+     crossover is performed)
+    :param c2: unused
+    :param strength: the strength of the crossover
+    :param velocity: the old velocity - unused
+    """
     if random.uniform(0, 1) > c:
       if random.uniform(0, 1) < c1:
         # Select crossover operator
-        self.sv_cross(current, current, cfg1, xchoice, strength)
+        self.op3_cross(cfg, cfg, cfg1, xchoice, strength)
       else:
-        self.sv_cross(current, current, cfg2, xchoice, strength)
-
+        self.op3_cross(cfg, cfg, cfg2, xchoice, strength)
 
   # swap-based operators
-  def random_swap(self, dest, cfg, *args, **kwargs):
+  def op2_random_swap(self, cfg, cfg1, *args, **kwargs):
     """
-    swap a random pair of items seperated by distance d
+    Swap a random pair of items in cfg1 and save the result into cfg
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the configuration whose PermutationParameter's elements are
+     swapped and copied into cfg
     """
-    p = self.get_value(cfg)[:]
+    p = self.get_value(cfg1)[:]
     r = random.randint(0, len(p) - 1)
     s = random.randint(0, len(p) - 1)
     v1 = p[r]
     v2 = p[s]
     p[r] = v2
     p[s] = v1
-    self.set_value(dest, p)
+    self.set_value(cfg, p)
 
-  def random_invert(self, dest, cfg, strength=0.3, *args, **kwargs):
+  def op2_random_invert(self, cfg, cfg1, strength=0.3, *args, **kwargs):
     """
-    randomly invert a length-d subsection of the permutation
+    Reverse the ordering of a random subsection of size d in cfg1 and save the
+    result in cfg where d = strength*total-size
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the configuration whose PermutationParameter is inverted
+    :param strength: the size of the reversed subsection as a fraction of the
+     total size
     """
-    p = self.get_value(cfg)[:]
+    p = self.get_value(cfg1)[:]
     d = int(round(len(p) * strength))
     r = random.randint(0, len(p) - d)
     subpath = p[r:r + d][:]
     subpath.reverse()
     p[r:r + d] = subpath
-    self.set_value(dest, p)
-
+    self.set_value(cfg, p)
 
   # Crossover operators
-  def PX(self, dest, cfg1, cfg2, d):
+  def op3_cross_PX(self, cfg, cfg1, cfg2, d):
     """
     Partition crossover (Whitley 2009?)
-    Change the order of items up to c1 in cfg1 according to their order in cfg2.
+
+    Chooses a random cut point and reorders elements in cfg1 up to the cut point
+    according to their order in cfg2.
+
+    Saves the result in cfg
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the first parent configuration. The "base" configuration
+    :param cfg2: the second parent configuration. Is "crossed into" cfg1
+    :param d: unused
     """
 
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
-    c1 = random.randint(0, len(p1))
-    self.set_value(dest, sorted(p1[:c1], key=lambda x: p2.index(x)) + p1[c1:])
+    c1 = random.randint(2, len(p1))
+    self.set_value(cfg, sorted(p1[:c1], key=lambda x: p2.index(x)) + p1[c1:])
 
-  def PMX(self, dest, cfg1, cfg2, d):
+  def op3_cross_PMX(self, cfg, cfg1, cfg2, d):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
-    """
 
+    Replaces a random section of cfg1 with the corresponding section in cfg2.
+    Displaced elements in cfg1 are moved to the old position of the elements
+    displacing them
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the first parent configuration. The "base" configuration
+    :param cfg2: the second parent configuration. Is "crossed into" cfg1
+    :param d: the size of the crossover
+    """
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
 
@@ -919,7 +1181,7 @@ class PermutationParameter(ComplexParameter):
           pass
         link = pm.pop(pm[n])
         pm[n] = link
-    # Reversed partial map    
+    # Reversed partial map
     pm2 = dict([(v, k) for k, v in pm.items()])
     # Fix conflicts
     for k in pm:
@@ -930,13 +1192,22 @@ class PermutationParameter(ComplexParameter):
     p1[r:r + d] = c2
     p2[r:r + d] = c1
 
-    self.set_value(dest, p1)
+    self.set_value(cfg, p1)
 
-
-  def CX(self, dest, cfg1, cfg2, d):
+  def op3_cross_CX(self, cfg, cfg1, cfg2, d):
     """
-    Implementation of cyclic crossover. Exchange the items occupying the same positions
-    in two permutations.
+    Implementation of a cyclic crossover.
+
+    Repeatedly replaces elements of cfg1 with the element at the same index in
+    cfg2. This is done until a cycle is reached and cfg1 is valid again. The
+    initial replacement is random.
+
+    Saves the result in cfg.
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the first parent configuration. The "base" configuration
+    :param cfg2: the second parent configuration. Is "crossed into" cfg1
+    :param d: unused
     """
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
@@ -954,13 +1225,21 @@ class PermutationParameter(ComplexParameter):
     for j in indices:
       p[j] = p2[j]
 
-    self.set_value(dest, p)
+    self.set_value(cfg, p)
 
-  def OX1(self, dest, cfg1, cfg2, d):
+  def op3_cross_OX1(self, cfg, cfg1, cfg2, d):
     """
     Ordered Crossover (Davis 1985)
-    Two parents exchange subpaths with the same number of nodes while order the remaining
-    nodes are maintained in each parent. 
+
+    Exchanges a subpath from cfg2 into cfg1 while maintaining the order of the
+    remaining elements in cfg1.
+
+    Saves the result in cfg.
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the first parent configuration. The "base" configuration
+    :param cfg2: the second parent configuration. Is "crossed into" cfg1
+    :param d: size of the exchanged subpath
     """
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
@@ -968,14 +1247,21 @@ class PermutationParameter(ComplexParameter):
     c2 = p2[:]
     # Randomly find cut points
     r = random.randint(0, len(
-      p1) - d)  # Todo: treat path as circle i.e. allow cross-boundary cuts
+        p1) - d)  # Todo: treat path as circle i.e. allow cross-boundary cuts
     [c1.remove(i) for i in p2[r:int(r + d)]]
-    self.set_value(dest, c1[:r] + p2[r:r + d] + c1[r:])
+    self.set_value(cfg, c1[:r] + p2[r:r + d] + c1[r:])
 
-  def OX3(self, dest, cfg1, cfg2, d):
+  def op3_cross_OX3(self, cfg, cfg1, cfg2, d):
     """
     Ordered crossover variation 3 (Deep 2010)
-    Parents have different cut points. (good for tsp which is a cycle?)
+
+    Same as op3_cross_OX1, except the parents have different cut points for
+    their subpaths
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the first parent configuration. The "base" configuration
+    :param cfg2: the second parent configuration. Is "crossed into" cfg1
+    :param d: size of the exchanged subpath
     """
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
@@ -986,7 +1272,7 @@ class PermutationParameter(ComplexParameter):
     r1 = random.randint(0, len(p1) - d)
     r2 = random.randint(0, len(p1) - d)
     [c1.remove(i) for i in p2[r2:r2 + d]]
-    self.set_value(dest, c1[:r1] + p2[r2:r2 + d] + c1[r1:])
+    self.set_value(cfg, c1[:r1] + p2[r2:r2 + d] + c1[r1:])
 
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
@@ -1027,7 +1313,6 @@ class ScheduleParameter(PermutationParameter):
     if set(self.deps.keys()) - items:
       raise Exception("ScheduleParameter('%s'): %s is unknown" %
                       (self.name, set(self.deps.keys()) - items))
-
 
   def is_topologically_sorted(self, values):
     used = set()
@@ -1091,8 +1376,8 @@ class SelectorParameter(ComplexParameter):
     self.max_cutoff = max_cutoff
     self.order_param = order_class('{0}/order'.format(name), choices)
     self.offset_params = [
-      offset_class('{0}/offsets/{1}'.format(name, i), 0, max_cutoff)
-      for i in xrange(len(choices) - 1)]
+        offset_class('{0}/offsets/{1}'.format(name, i), 0, max_cutoff)
+        for i in xrange(len(choices) - 1)]
 
   def sub_parameters(self):
     return [self.order_param] + self.offset_params
@@ -1101,8 +1386,8 @@ class SelectorParameter(ComplexParameter):
     return {'order': self.order_param.seed_value(),
             'offsets': [co.seed_value() for co in self.offset_params]}
 
-  def randomize(self, config):
-    random.choice(self.sub_parameters()).randomize(config)
+  def op1_randomize(self, config):
+    random.choice(self.sub_parameters()).op1_randomize(config)
 
   def selector_iter(self, config):
     """
@@ -1118,14 +1403,17 @@ class SelectorParameter(ComplexParameter):
         yield cutoff, order[n + 1]
 
 
-class ArrayParameter(ComplexParameter):
+class ParameterArray(ComplexParameter):
+  """
+  Represents an array of Parameters
+  """
   def __init__(self, name, count, element_type, *args, **kwargs):
-    super(ArrayParameter, self).__init__(name)
+    super(ParameterArray, self).__init__(name)
     self.count = count
 
     self.sub_params = [
-      element_type('{0}/{1}'.format(name, i), *args[i], **kwargs[i])
-      for i in xrange(count)]
+        element_type('{0}/{1}'.format(name, i), *args[i], **kwargs[i])
+        for i in xrange(count)]
 
   def sub_parameters(self):
     return self.sub_params
@@ -1133,64 +1421,75 @@ class ArrayParameter(ComplexParameter):
   def seed_value(self):
     return [p.seed_value() for p in self.sub_params]
 
-  def randomize(self, config):
-    random.choice(self.sub_parameters()).randomize(config)
+  def op1_randomize(self, config):
+    """
+    randomly selects a sub-parameter and randomizes it
+
+    :param config: the configuration to be changed
+    """
+    random.choice(self.sub_parameters()).op1_randomize(config)
 
 
-class BooleanArrayParameter(ArrayParameter):
+class BooleanParameterArray(ParameterArray):
+  """
+  Represents an array of BooleanParameters - currently unimplimented
+  """
   def __init__(self, name, count):
-    super(BooleanArrayParameter, self).__init__(name, count, BooleanParameter)
+    super(BooleanParameterArray, self).__init__(name, count, BooleanParameter)
 
-  def sv_swarm(self, *args, **kwargs):
-    #TODO
+  def op3_swarm(self, cfg, cfg1, cfg2, *args, **kwargs):
+    # TODO
     pass
 
-  def sv_select_cross(self, *args, **kwargs):
-    #TODO
-    pass
-
-  def sv_cross(self, *args, **kwargs):
-    #TODO
-    pass
-
-  def sv_double_cross(self, *args, **kwargs):
-    #TODO
+  def op3_cross(self, cfg, cfg1, cfg2, *args, **kwargs):
+    # TODO
     pass
 
 
-class IntegerArrayParameter(ArrayParameter):
+class IntegerParameterArray(ParameterArray):
+  """
+  Represents an array of IntegerParameters - currently unimplemented
+  """
   def __init__(self, name, min_values, max_values):
     assert len(min_values) == len(max_values)
-    super(IntegerArrayParameter, self).__init__(name, len(min_values),
+    super(IntegerParameterArray, self).__init__(name, len(min_values),
                                                 IntegerParameter,
                                                 min_value=min_values,
                                                 max_value=max_values)
 
-  def sv_swarm(self, *args, **kwargs):
-    #TODO
+  def op3_swarm(self, cfg, cfg1, cfg2, *args, **kwargs):
+    # TODO
     pass
 
-  def sv_select_cross(self, *args, **kwargs):
-    #TODO
-    pass
-
-  def sv_cross(self, *args, **kwargs):
-    #TODO
-    pass
-
-  def sv_double_cross(self, *args, **kwargs):
-    #TODO
+  def op3_cross(self, cfg, cfg1, cfg2, *args, **kwargs):
+    # TODO
     pass
 
 
 class Array(ComplexParameter):
-  """ Alternative implementation for ArrayParameter."""
-  #TODO: constraints? (upper & lower bound etc) 
+  """
+  An interface for parameters representing an array of values.
+  """
+  # TODO: constraints? (upper & lower bound etc)
   def __init__(self, name, size):
     super(Array, self).__init__(name)
     self.size = size
 
-  def sv_cross(self, dest, cfg1, cfg2, strength=0.3, *args, **kwargs):
+  def op3_cross(self, cfg, cfg1, cfg2, strength=0.3, *args, **kwargs):
+    """
+    Crosses two arrays by replacing a random subsection of cfg1 with the
+    corresponding subsection of cfg2.The size of the chunk is a fixed fraction
+    of the total length, given by the strength
+
+    Behaves like a specialized 2-point crossover, where the first cut point is
+    random and the second cut is a set distance after.
+
+    :param cfg: the configuration to be changed
+    :param cfg1: the configuration being inserted into
+    :param cfg2: the configuration being inserted
+    :param strength: the size of the crossover, as a fraction of total array
+     length
+    """
     d = int(round(self.size * strength))
     if d < 1:
       log.debug('Crossover length too small. Cannot create new solution.')
@@ -1199,18 +1498,35 @@ class Array(ComplexParameter):
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     r = random.randint(0, len(
-      p1) - d)  # Todo: treat path as circle i.e. allow cross-boundary cuts
+        p1) - d)  # Todo: treat path as circle i.e. allow cross-boundary cuts
     p = numpy.concatenate([p1[:r], p2[r:r + d], p1[r + d:]])
-    self.set_value(dest, p)
+    self.set_value(cfg, p)
 
-  def sv_swarm(self, current, cfg1, cfg2, c=1, c1=0.5,
-               c2=0.5, velocity=0, strength=0.3, *args, **kwargs):
+  def op3_swarm(self, cfg, cfg1, cfg2, c=1, c1=0.5,
+                c2=0.5, velocity=0, strength=0.3, *args, **kwargs):
+    """
+    Replacement for a particle swarm optimization iterative step for arrays.
+    Given a target cfg and 2 parent cfgs, probabilistically performs an
+    :py:meth:`op3_cross` with one of the 2 parents.
+
+    :param cfg: the configuration to be changed. Represents the cfg position
+    :param cfg1: a configuration to shift towards. Should be the local best
+     position
+    :param cfg2: a configuration to shift towards. Should be the global best
+     position
+    :param c: the probability of not performing a crossover
+    :param c1: the probability of performing a crossover with cfg1 (if a
+     crossover is performed)
+    :param c2: unused
+    :param velocity: the old velocity - unused
+    :param strength: the strength of the crossover
+    """
     if random.uniform(0, 1) > c:
       if random.uniform(0, 1) < c1:
         # Select crossover operator
-        self.sv_cross(current, current, cfg1, strength)
+        self.op3_cross(cfg, cfg, cfg1, strength)
       else:
-        self.sv_cross(current, current, cfg2, strength)
+        self.op3_cross(cfg, cfg, cfg2, strength)
 
   def get_value(self, config):
     return self._get(config)
@@ -1220,25 +1536,52 @@ class Array(ComplexParameter):
 
 
 class BooleanArray(Array):
-  def sv_swarm_parallel(self, current, cfg1, cfg2, c=1,
-                        c1=0.5, c2=0.5, velocities=0):
-    """ 
-    Updates current and returns the updated velocity array.
-    current, cfg1, cfg2 are configuration data;
-    c, c1, c2 are floats;
-    velocities is a numpy array of floats;
+  """
+  Represents an array of boolean values which are either 0 or 1
+  """
+  def op3_swarm_parallel(self, cfg, cfg1, cfg2, c=1,
+                         c1=0.5, c2=0.5, velocities=0):
+    """
+    Simulates a single particle swarm optimization step for each element in the
+    array by updating each position and returning an array of new velocities.
+
+    The new velocities are given by
+
+    .. math:: c*velocity + r1*c1*(cfg1-cfg) + r2*c2*(cfg2-cfg)
+
+    where r1 and r2 are random values between 0 and 1. In each iteration, r1 and
+    r2 are constant across array elements
+
+    The new cfg positions are randomly chosen based on the new velocities
+
+    :param cfg: the configuration to be changed. This represents the current
+     position
+    :param cfg1: a configuration to shift towards. Should be the local best
+     position
+    :param cfg2: a configuration to shift towards. Should be the global best
+     position
+    :param c: the weight of the current velocities
+    :param c1: weight of cfg1
+    :param c2: weight of cfg2
+    :param velocities: the current velocities
+    :return: a numpy array of new velocities
     """
     vs = velocities * c + (self.get_value(cfg1) - self.get_value(
-      current)) * c1 * random.random() + (self.get_value(
-      cfg2) - self.get_value(current)) * c2 * random.random()
+        cfg)) * c1 * random.random() + (self.get_value(
+            cfg2) - self.get_value(cfg)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
     ss = 1 / (1 + numpy.exp(-vs))
-    # Decide position randomly  
+    # Decide position randomly
     ps = (ss - numpy.random.rand(1, self.size)) > 0
-    self.set_value(current, ps)
+    self.set_value(cfg, ps)
     return vs
 
-  def randomize(self, config):
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration randomly
+
+    :param config: the configuration to be changed
+    """
     value = numpy.random.rand(1, self.size) > 0.5
     self._set(config, value)
 
@@ -1247,34 +1590,67 @@ class BooleanArray(Array):
 
 
 class FloatArray(Array):
-  def __init__(self, fmax, fmin):
-    assert fmax == fmin
-    super(FloatArray, self).__init__(name, len(fmax))
+  """
+  Represents an array of float values
+  """
+  def __init__(self, name, size, fmax, fmin):
+    super(FloatArray, self).__init__(name, size)
     self.fmax = fmax
     self.fmin = fmin
 
-  def randomize(self, config):
+  def op1_randomize(self, config):
+    """
+    Set this parameter's value in a configuration randomly
+
+    :param config: the configuration to be changed
+    """
     value = numpy.random.rand(1, self.size) * (
-    self.fmax - self.fmin) + self.fmin
+        self.fmax - self.fmin) + self.fmin
     self._set(config, value)
 
   def seed_value(self):
     value = numpy.random.rand(1, self.size) * (
-    self.fmax - self.fmin) + self.fmin
+        self.fmax - self.fmin) + self.fmin
     return value
 
-  def sv_swarm_parallel(self, current, cfg1, cfg2, c=1,
-                        c1=0.5, c2=0.5, velocities=0):
+  def op3_swarm_parallel(self, cfg, cfg1, cfg2, c=1,
+                         c1=0.5, c2=0.5, velocities=0):
+    """
+    Simulates a single particle swarm optimization step for each element in the
+    array by updating the each position and returning an array of new velocities
+
+    The new velocity is given by
+
+    .. math:: c*velocity + r1*c1*(cfg1-cfg) + r2*c2*(cfg2-cfg)
+
+    where r1 and r2 are random values between 0 and 1. In each iteration, r1 and
+    r2 are constant across array elements
+
+    The new cfg positions are randomly chosen based on the new velocities
+
+    :param cfg: the configuration to be changed. This represents the current
+     position
+    :param cfg1: a configuration to shift towards. Should be the local best
+     position
+    :param cfg2: a configuration to shift towards. Should be the global best
+     position
+    :param c: the weight of the cfg velocities
+    :param c1: weight of cfg1
+    :param c2: weight of cfg2
+    :param velocities: the cfg velocities
+    :return: a numpy array of new velocities
+    """
     vs = velocities * c + (self.get_value(cfg1) - self.get_value(
-      current)) * c1 * random.random() + (self.get_value(
-      cfg2) - self.get_value(current)) * c2 * random.random()
-    p = self.get_value(current) + vs
-    p = min(self.max_value, max(p, self.min_value))
-    self.set_value(current, p)
-    return v
+        cfg)) * c1 * random.random() + (self.get_value(
+        cfg2) - self.get_value(cfg)) * c2 * random.random()
+    p = self.get_value(cfg) + vs
+    p[p > self.fmax] = self.fmax
+    p[p < self.fmin] = self.fmin
+    self.set_value(cfg, p)
+    return vs
 
   def sv_mutate(self, dest, *args, **kwargs):
-    #TODO
+    # TODO
     pass
 
 
@@ -1322,35 +1698,52 @@ class ParameterProxy(object):
 
 
 # Inspection Methods
-def SVs(param):
-  """ 
-  Return a list of operator function names of given parameter 
-  param: a Parameter class   
+def operators(param, num_parents):
   """
-  svs = []
+  Return a list of operators for the given parameter that take the specified
+  number of input configurations
+
+  :param num_parents: a String specifying number of inputs required by the operator.
+    should be one of '1', '2', '3', '4', or 'n'
+  :param param: a Parameter class
+  """
+  ops = []
   methods = inspect.getmembers(param, inspect.ismethod)
   for m in methods:
     name, obj = m
-    if isSV(name):
-      svs.append(name)
-  return svs
+    if is_operator(name, num_parents):
+      ops.append(name)
+  return ops
 
 
-def isSV(name):
-  """ Tells whether a method is an operator by method name """
-  return ('sv_' == name[:3])
+def is_operator(name, num_parents):
+  """
+  Tells whether a method is an operator taking in the specified number of inputs
+  from the method name
+
+  :param name: the method name
+  :param num_parents: a String specifying number of inputs required by the operator.
+    should be one of '1', '2', '3', '4', or 'n'
+  """
+  return ('op' + num_parents + '_') == name[:4]
 
 
-def allSVs():
-  """ Return a dictionary mapping from parameter names to lists of operator function names """
-  svs = {}
+def all_operators():
+  """
+  Return a dictionary mapping from parameter names to lists of operator function
+  names
+  """
+  ops = {}
   for p in all_params():
     name, obj = p
-    svs[name] = SVs(obj)
-  return svs
-
+    all_ops = []
+    for num in ['1', '2', '3', '4', 'n']:
+      all_ops += operators(obj, num)
+    ops[name] = all_ops
+  return ops
 
 def all_params():
   params = inspect.getmembers(sys.modules[__name__], lambda x: inspect.isclass(
     x) and x.__module__ == __name__ and issubclass(x, Parameter))
   return params
+
