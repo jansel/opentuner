@@ -1,3 +1,19 @@
+OpenTuner Tutorial @ CGO 2015
+=======================
+
+We will be giving a [tutorial][tutorialsite] at [CGO 2015][cgo2015].
+CGO will take place at the San Francisco Airport Marriott Waterfront and
+the OpenTuner tutorial will be on Sunday morning, Feb 8th 2015.
+
+- [Early Registration Deadline][cgoreg]: Jan 11, 2015
+- [Hotel Reservation Cut-off][cgohotel]: Jan 16, 2015
+- More information on the [CGO website][cgo2015]
+
+[cgoreg]: https://www.regonline.com/cgo2015
+[cgohotel]: https://aws.passkey.com/g/40122128
+[cgo2015]: http://cgo.org/cgo2015/
+[tutorialsite]: http://opentuner.org/tutorial/cgo2015/
+
 OpenTuner
 =========
 
