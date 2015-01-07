@@ -7,15 +7,20 @@ permalink: /tutorial/cgo2015/index.html
 Tutorial at CGO 2015
 =================
 
-
 We will be giving an OpenTuner tutorial at the [2015 International Symposium
-on Code Generation and Optimization][cgo] (CGO).  CGO will be held February
-7-11, 2015 in the San Francisco Bay Area, CA, USA.
+on Code Generation and Optimization][cgo2015] (CGO).  CGO will be held February
+7-11, 2015 at the San Francisco Airport Marriott Waterfront.
 
 The OpenTuner tutorial will take place Sunday morning, February 8, 2015.
-We will add more details as they become available.
 
-[cgo]: http://cgo.org/cgo2015/
+- [Early Registration Deadline][cgoreg]: Jan 11, 2015
+- [Hotel Reservation Cut-off][cgohotel]: Jan 16, 2015
+- More information on the [CGO website][cgo2015]
+
+[cgoreg]: https://www.regonline.com/cgo2015
+[cgohotel]: https://aws.passkey.com/g/40122128
+[cgo2015]: http://cgo.org/cgo2015/
+
 
 Brief Tutorial Description
 ------
