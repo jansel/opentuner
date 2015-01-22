@@ -223,7 +223,7 @@ class Parameter(object):
   """
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, name, **kwargs):
+  def __init__(self, name):
     self.name = name
     self.parent = None
     super(Parameter, self).__init__()
@@ -688,11 +688,12 @@ class FloatParameter(NumericParameter):
 
 class ScaledNumericParameter(NumericParameter):
   """
-    A Parameter that is stored in configurations normally, but has a scaled
-    value when accessed using 'get_value'.
-    Because search techniques interact with Parameters through get_value, these
-    parameters are searched on a different scale (e.g. log scale).
+  A Parameter that is stored in configurations normally, but has a scaled
+  value when accessed using 'get_value'.
+  Because search techniques interact with Parameters through get_value, these
+  parameters are searched on a different scale (e.g. log scale).
   """
+
   @abc.abstractmethod
   def _scale(self, v):
     """
