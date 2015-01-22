@@ -20,6 +20,12 @@ Additionally, the following methods may be overridden for further customization
  * :meth:`select_parameters <ComposableSearchTechnique.select_parameters>`
  * :meth:`get_default_operator <ComposableSearchTechnique.get_default_operator>`
 
+The following methods are useful when choosing parents or updating the population:
+
+ * :meth:`lt <ComposableSearchTechnique.lt>`
+ * :meth:`lte <ComposableSearchTechnique.lte>`
+ * :meth:`get_global_best_configuration <ComposableSearchTechnique.get_global_best_configuration>`
+
 .. autoclass:: ComposableSearchTechnique
 
 	.. automethod:: minimum_number_of_parents
