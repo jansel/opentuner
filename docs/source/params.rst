@@ -16,7 +16,7 @@ Parameter Types and Operators
 
 Each parameter has a set of operators. These operators take in a set of parent configurations and mutate the corresponding parameter value in the first configuration according to the parent values. Operators form the set of available transformations for search techniques to generate new configurations to test.
 
-Operator methods can be identified by the prefix 'op#_', where # is the number of required input configurations. The prefix 'opn_' specifies an arbitrary number of input configurations, as a list. The first argument into an operator is always the configuration that will be mutated. This is followed by the required parent configurations, then any required arguments, and finally optional arguments.
+Operator methods can be identified by the prefix 'op#_', where # is the number of required input configurations. The prefix 'opn\_' specifies an arbitrary number of input configurations, as a list. The first argument into an operator is always the configuration that will be mutated. This is followed by the required parent configurations, then any required arguments, and finally optional arguments.
 
 Any operators defined for a Parameter are inherited by its subclasses.
 

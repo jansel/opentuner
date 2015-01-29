@@ -1,7 +1,7 @@
 import unittest
 import opentuner
 import mock
-from opentuner.search import technique
+from opentuner.search.composableevolutionarytechniques import ComposableEvolutionaryTechnique
 from opentuner.search import manipulator
 
 def faked_random(nums):
@@ -16,9 +16,9 @@ def fake_random(nums):
     yield nums[i]
     i = (i+1) % len(nums)
 
-class EmptyComposableSearchTechnique(technique.ComposableSearchTechnique):
+class EmptyComposableEvolutionaryTechnique(ComposableEvolutionaryTechnique):
   def __init__(self, *pargs, **kwargs):
-    super(EmptyComposableSearchTechnique, self).__init__(*pargs, **kwargs)
+    super(EmptyComposableEvolutionaryTechnique, self).__init__(*pargs, **kwargs)
 
   def minimum_number_of_parents(self):
     return 4
@@ -38,13 +38,13 @@ class ComposableSearchTechniqueTests(unittest.TestCase):
 
   def setUp(self):
     self.operator_map = {}
-    technique.ComposableSearchTechnique.add_to_map(self.operator_map,
+    ComposableEvolutionaryTechnique.add_to_map(self.operator_map,
                                   manipulator.PermutationParameter,
                                   "op3_cross", xchoice='op3_cross_CX')
-    technique.ComposableSearchTechnique.add_to_map(self.operator_map,
+    ComposableEvolutionaryTechnique.add_to_map(self.operator_map,
                                   "FloatArray",
                                   "op3_cross", strength=0.4)
-    self.technique = EmptyComposableSearchTechnique(operator_map = self.operator_map)
+    self.technique = EmptyComposableEvolutionaryTechnique(operator_map = self.operator_map)
 
   def test_add_to_map(self):
     op_map = {}
