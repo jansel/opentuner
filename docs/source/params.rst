@@ -5,21 +5,20 @@ Parameters
 ****************
 
 This will be an overview of parameters in OpenTuner.
-Parameters are created with a name. Most methods in parameters operate on configurations, dict-like objects spawned by the ConfigurationManipulator. Configurations contain values corresponding to a collection of instances of named parameters.
 
-A Parameter’s methods mutate the value in a configuration corresponding to the name of the particular parameter instance.
+Each Parameter instance is created with a name. Most methods in parameters operate on configurations, dict-like objects spawned by the ConfigurationManipulator. Configurations contain values corresponding to a collection of instances of named parameters.
 
-
-This can talk about the concept of operators.
-
-This can talk about extending parameters or something
+A Parameter’s methods may mutate the value in a configuration corresponding to the name of the particular parameter instance. These methods are called operators.
 
 ==============================
 Parameter Types and Operators
 ==============================
 
-Maybe a generic overview of operators here? Talk about operator prefixes and why they matter here...?? Mention that parameters inherit operators
+Each parameter has a set of operators. These operators take in a set of parent configurations and mutate the corresponding parameter value in the first configuration according to the parent values. Operators form the set of available transformations for search techniques to generate new configurations to test.
 
+Operator methods can be identified by the prefix 'op#_', where # is the number of required input configurations. The prefix 'opn_' specifies an arbitrary number of input configurations, as a list. The first argument into an operator is always the configuration that will be mutated. This is followed by the required parent configurations, then any required arguments, and finally optional arguments.
+
+Any operators defined for a Parameter are inherited by its subclasses.
 
 -----------------
 Parameter
@@ -62,8 +61,6 @@ Numeric Parameter
 .. autoclass:: NumericParameter
 	:show-inheritance:
 
-	Custom description of this parameter
-
 	*Inherited Operators:*
 
 	:meth:`PrimitiveParameter.op1_normal_mutation`,
@@ -72,9 +69,6 @@ Numeric Parameter
 	:meth:`Parameter.opn_stochastic_mix`
 
 	.. automethod:: op1_randomize
-
-		**Example:
-		Here we can put an image or whatever**
 
 	.. automethod:: op1_scale
 
@@ -205,8 +199,6 @@ Complex Parameter
 	:meth:`Parameter.opn_stochastic_mix`
 
 	.. automethod:: op1_randomize
-
-	**This paragraph can have examples for the above operator**
 
 	.. automethod:: op4_set_linear
 

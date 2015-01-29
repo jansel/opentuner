@@ -360,11 +360,32 @@ class ComposableSearchTechnique(SequentialSearchTechnique):
     return self.driver.best_result.configuration.data
 
   def get_default_operator(self, param_type):
+    """
+    Given a parameter type, return a dictionary with information about the
+    operator to be used for the parameter. The returned dictionary must contain
+    the following 3 key, value pairs
+      1. 'op_name' - the string name of the operator
+      2. 'args' - an iterable of the non-configuration arguments in order
+      3. 'kwargs' - a dictionary from any optional arguments to their values
+
+    :return: a dictionary containing information about the operator to apply for
+    the input parameter type
+    """
     return {'op_name': 'op1_void', 'args': [], 'kwargs': {}}
 
   # HELPER METHODS FOR BUILDING OPERATOR MAP
   @classmethod
   def add_to_map(cls, operator_map, param_type, operator_name, *args, **kwargs):
+    """
+    A helper method for adding parameter to operator mappings into the operator
+    map.
+
+    :param operator_map: the operator map to add to
+    :param param_type: the parameter type to use the this operator on
+    :param operator_name: the string name of the operator method
+    :param *args: any non-configuration arguments to the operator
+    :param **kwargs: any keyword arguemnts for the operator
+    """
     if(isinstance(param_type, Parameter)):
       ptype = type(param_type)
     elif (type(param_type) == str):
