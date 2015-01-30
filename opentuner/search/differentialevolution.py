@@ -115,7 +115,7 @@ class DifferentialEvolution(SearchTechnique):
     for i, k in enumerate(params):
       if i < self.n_cross or random.random() < self.cr:
         # cfg = x1 + use_f*(x2 - x3)
-        cfg_params[k].set_linear(1.0, x1, use_f, x2, -use_f, x3)
+        cfg_params[k].op4_set_linear(x1, x2, x3, 1.0, use_f, -use_f)
 
     return cfg
 

@@ -1,0 +1,5 @@
+argparse>=1.2.1
+django==1.6.1
+fn>=0.2.12
+SQLAlchemy>=0.8.2
+virtualenv==1.9.1

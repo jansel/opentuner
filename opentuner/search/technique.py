@@ -154,7 +154,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     return not self.done
 
 class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
-  def __init__(self, novelty_threshold = 50, *pargs, **kwargs):
+  def __init__(self, novelty_threshold=50, *pargs, **kwargs):
     super(SequentialSearchTechnique, self).__init__(*pargs, **kwargs)
     self.pending_tests = []
     self.novelty_threshold = novelty_threshold

@@ -240,16 +240,16 @@ register(AUCBanditMetaTechnique([
         patternsearch.PatternSearch(),
       ], name = "AUCBanditMetaTechniqueC"))
 register(AUCBanditMetaTechnique([
-        PSO(crossover = 'OX3'),
-        PSO(crossover = 'OX1'),
-        PSO(crossover = 'CX'),
-        PSO(crossover = 'PMX'),
-        PSO(crossover = 'PX'),
-        evolutionarytechniques.GA(crossover = 'OX3', mutation_rate=0.01, crossover_rate=0.8),
-        evolutionarytechniques.GA(crossover = 'OX1', mutation_rate=0.01, crossover_rate=0.8),
-        evolutionarytechniques.GA(crossover = 'CX', mutation_rate=0.01, crossover_rate=0.8),
-        evolutionarytechniques.GA(crossover = 'PX', mutation_rate=0.01, crossover_rate=0.8),
-        evolutionarytechniques.GA(crossover = 'PMX', mutation_rate=0.01, crossover_rate=0.8),
+        PSO(crossover = 'op3_cross_OX3'),
+        PSO(crossover = 'op3_cross_OX1'),
+        PSO(crossover = 'op3_cross_CX'),
+        PSO(crossover = 'op3_cross_PMX'),
+        PSO(crossover = 'op3_cross_PX'),
+        evolutionarytechniques.GA(crossover = 'op3_cross_OX3', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'op3_cross_OX1', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'op3_cross_CX', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'op3_cross_PX', mutation_rate=0.01, crossover_rate=0.8),
+        evolutionarytechniques.GA(crossover = 'op3_cross_PMX', mutation_rate=0.01, crossover_rate=0.8),
         evolutionarytechniques.UniformGreedyMutation(name='ga-base', mutation_rate=0.01)	
       ], name = "PSO_GA_Bandit"))
 register(AUCBanditMetaTechnique([
@@ -264,12 +264,12 @@ register(AUCBanditMetaTechnique([
 	simulatedannealing.PseudoAnnealingSearch()
       ], name = "test2"))
 register(AUCBanditMetaTechnique([
-	PSO(crossover='OX1'),
-	PSO(crossover='PMX'),
-	PSO(crossover='PX'),
-	evolutionarytechniques.GA(crossover='OX1', crossover_rate=0.5), 
-	evolutionarytechniques.GA(crossover='PMX', crossover_rate=0.5), 
-	evolutionarytechniques.GA(crossover='PX', crossover_rate=0.5), 
+	PSO(crossover='op3_cross_OX1'),
+	PSO(crossover='op3_cross_PMX'),
+	PSO(crossover='op3_cross_PX'),
+	evolutionarytechniques.GA(crossover='op3_cross_OX1', crossover_rate=0.5),
+	evolutionarytechniques.GA(crossover='op3_cross_PMX', crossover_rate=0.5),
+	evolutionarytechniques.GA(crossover='op3_cross_PX', crossover_rate=0.5),
 	differentialevolution.DifferentialEvolutionAlt(),
         globalGA.NormalGreedyMutation( crossover_rate=0.5, crossover_strength=0.2, name='GGA')
 	], name='PSO_GA_DE'))

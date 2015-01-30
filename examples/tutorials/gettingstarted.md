@@ -21,7 +21,7 @@ some way.  For this tutorial we will use a blocked version of matrix multiply
 as an example. We will use opentuner to find the optimal value of the block
 size parameter.
 
-We will autotone the sample code below(based off of modification of code
+We will autotune the sample code below(based off of modification of code
 found [here][matrix-multiply-code]), making sure to take the block size as
 a compile time constant to the program.
 
@@ -52,7 +52,7 @@ Save the sample code below to examples/tutorials/mmm_block.cpp
                       {
                           sum = c[i][j];
                           for(int k=k1;k<k1+BLOCK_SIZE;k++)
-                          {               
+                          {
                               sum += a[i][k] * b[k][j];
                           }
                           c[i][j] = sum;
@@ -104,7 +104,7 @@ Save the following code to examples/tutorials/mmm_tuner.py
         """
         cfg = desired_result.configuration.data
 
-        gcc_cmd = 'g++ mmm_block.cpp '  
+        gcc_cmd = 'g++ mmm_block.cpp '
         gcc_cmd += '-DBLOCK_SIZE='+ cfg['blockSize']
         gcc_cmd += ' -o ./tmp.bin'
 
@@ -161,7 +161,7 @@ The run method actually runs opentuner under the given configuration and returns
       """
       cfg = desired_result.configuration.data
 
-      gcc_cmd = 'g++ mmm_block.cpp '  
+      gcc_cmd = 'g++ mmm_block.cpp '
       gcc_cmd += '-DBLOCK_SIZE='+ cfg['blockSize']
       gcc_cmd += ' -o ./tmp.bin'
 
@@ -191,11 +191,11 @@ Generating and Viewing Results
 ------------------------------
 
 Run the following command to autotune our program(The --no-dups flag hides warnings about duplicate results and the --stop-after parameter specifies that we are running opentuner for a maximum of 30 seconds):
-    
+
     python mmm_tuner.py --no-dups --stop-after=30
 
 The results of each run configuration will be displayed as follows(output lines are truncated for readability here):
-    
+
     [    10s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
     [    19s]    INFO opentuner.search.metatechniques: AUCBanditMetaTechniqueA: [('DifferentialEvolutionAlt', 477), ('UniformGreedyMutation', 18), ('NormalGreedyMutation', 5), ('RandomNelderMead', 1)]
     [    20s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
@@ -205,7 +205,7 @@ The results of each run configuration will be displayed as follows(output lines 
 
 
 Look up the optimal BlockSize value by inspecting the following created file:
-    
+
     mmm_final_config.json
 
 In this example, the output file content was as follows:
