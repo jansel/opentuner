@@ -204,6 +204,33 @@ class DurationRepresentation(Representation):
       jumping.update(xrange(jump_frame, jump_frame + jump_duration))
     return left, right, down, running, jumping
 
+class AlphabetRepresentation(Representation):
+  def manipulator(self):
+    m = ConfigurationManipulator()
+    for i in xrange(0, 400*60):
+      m.add_parameter(EnumParameter('{}'.format(i), xrange(0, 16)))
+    return m
+
+  def interpret(self, cfg):
+    left = set()
+    right = set()
+    down = set()
+    running = set()
+    jumping = set()
+    for i in xrange(0, 400*60):
+      bits = cfg[str(i)]
+      if bits & 1:
+        left.add(i)
+      if bits & 2:
+        right.add(i)
+      if bits & 4:
+        running.add(i)
+      if bits & 8:
+        jumping.add(i)
+      #if bits & 16:
+      #  down.add(i)
+    return left, right, down, running, jumping
+
 class FitnessFunction(object):
   """Interface for pluggable fitness functions."""
   __metaclass__ = abc.ABCMeta
