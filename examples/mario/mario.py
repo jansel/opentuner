@@ -12,11 +12,12 @@ import argparse
 import base64
 import pickle
 import tempfile
-import shutil
 import subprocess
 import re
 import zlib
 import abc
+import sys
+import os
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -25,11 +26,20 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
+class InstantiateAction(argparse.Action):
+  def __init__(self, *pargs, **kwargs):
+    super(InstantiateAction, self).__init__(*pargs, **kwargs)
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    setattr(namespace, self.dest, getattr(sys.modules[__name__], values)())
+
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
+argparser.add_argument('--representation', default='DurationRepresentation', action=InstantiateAction, help='name of representation class')
+argparser.add_argument('--fitness-function', default='Progress', action=InstantiateAction, help='name of fitness function class')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -194,30 +204,73 @@ class DurationRepresentation(Representation):
       jumping.update(xrange(jump_frame, jump_frame + jump_duration))
     return left, right, down, running, jumping
 
+class AlphabetRepresentation(Representation):
+  def manipulator(self):
+    m = ConfigurationManipulator()
+    for i in xrange(0, 400*60):
+      m.add_parameter(EnumParameter('{}'.format(i), xrange(0, 16)))
+    return m
+
+  def interpret(self, cfg):
+    left = set()
+    right = set()
+    down = set()
+    running = set()
+    jumping = set()
+    for i in xrange(0, 400*60):
+      bits = cfg[str(i)]
+      if bits & 1:
+        left.add(i)
+      if bits & 2:
+        right.add(i)
+      if bits & 4:
+        running.add(i)
+      if bits & 8:
+        jumping.add(i)
+      #if bits & 16:
+      #  down.add(i)
+    return left, right, down, running, jumping
+
+class FitnessFunction(object):
+  """Interface for pluggable fitness functions."""
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def __call__(won, x_pos, elapsed_frames):
+    """Return the fitness (float, lower is better)."""
+    pass
+
+class Progress(FitnessFunction):
+  def __call__(self, won, x_pos, elapsed_frames):
+    return -float(x_pos)
+
+class ProgressPlusTimeRemaining(FitnessFunction):
+  def __call__(self, won, x_pos, elapsed_frames):
+    """x_pos plus 1 for each frame remaining on the timer on a win.  This results in a large discontinuity at wins.  This was the fitness function used for the OpenTuner paper, though the paper only discussed time-to-first-win."""
+    return -float(x_pos + 400*60 - elapsed_frames) if won else -float(x_pos)
+
+class ProgressTimesAverageSpeed(FitnessFunction):
+  def __call__(self, won, x_pos, elapsed_frames):
+    return -x_pos * (float(x_pos)/elapsed_frames)
+
 class SMBMI(MeasurementInterface):
-  def __init__(self, args, representation):
+  def __init__(self, args):
     super(SMBMI, self).__init__(args)
     self.parallel_compile = True
-    self.representation = representation
     self.args = args
 
   def manipulator(self):
-    return self.representation.manipulator()
+    return self.args.representation.manipulator()
 
   def compile(self, cfg, id):
-    left, right, down, running, jumping = self.representation.interpret(cfg)
+    left, right, down, running, jumping = self.args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     try:
       wl, x_pos, framecount = run_movie(fm2, self.args)
     except ValueError:
       return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
     print wl, x_pos, framecount
-    if "died" in wl:
-      return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos))
-    else:
-      #add fitness for frames remaining on timer
-      #TODO: this results in a large discontinuity; is that right?
-      return opentuner.resultsdb.models.Result(state='OK', time=-float(x_pos + 400*60 - framecount))
+    return opentuner.resultsdb.models.Result(state='OK', time=self.args.fitness_function("won" in wl, x_pos, framecount))
 
   def run_precompiled(self, desired_result, input, limit, compile_result, id):
     return compile_result
@@ -232,7 +285,7 @@ def new_bests_movie(args):
   for cid in cids:
     (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
-    left, right, down, running, jumping = DurationRepresentation().interpret(cfg)
+    left, right, down, running, jumping = args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     _, _, framecount = run_movie(fm2, args)
     print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
@@ -245,5 +298,8 @@ if __name__ == '__main__':
     else:
       print "must specify --database"
   else:
-    SMBMI.main(args, representation=DurationRepresentation())
+    if os.path.isfile('smb.nes'):
+      SMBMI.main(args)
+    else:
+      print "smb.nes not found"
 
