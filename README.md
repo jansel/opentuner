@@ -1,19 +1,3 @@
-OpenTuner Tutorial @ CGO 2015
-=======================
-
-We will be giving a [tutorial][tutorialsite] at [CGO 2015][cgo2015].
-CGO will take place at the San Francisco Airport Marriott Waterfront and
-the OpenTuner tutorial will be on Sunday morning, Feb 8th 2015.
-
-- [Early Registration Deadline][cgoreg]: Jan 11, 2015
-- [Hotel Reservation Cut-off][cgohotel]: Jan 16, 2015
-- More information on the [CGO website][cgo2015]
-
-[cgoreg]: https://www.regonline.com/cgo2015
-[cgohotel]: https://aws.passkey.com/g/40122128
-[cgo2015]: http://cgo.org/cgo2015/
-[tutorialsite]: http://opentuner.org/tutorial/cgo2015/
-
 OpenTuner
 =========
 
@@ -63,8 +47,8 @@ This will not install any of the example programs.
 Development installation
 -------------------
 For development (running OpenTuner out of a git checkout), a list of python
-dependencies can be found in [requirements.txt][] these can either be
-installed system-wide with `pip` or `easy_install`.
+dependencies can be found in [requirements.txt][] these can be installed
+system-wide with `pip`.
 
     sudo apt-get install python-pip
     sudo pip install -r requirements.txt
@@ -91,10 +75,10 @@ by running an example program such as:
 Tutorials
 ---------
 
-- A tutorial for creating new techniques can be found [here][technique-tutorial].
+- [Tutorial: Optimizing Block Matrix Multiplication][gettingstarted]
+- [Creating OpenTuner Techniques][technique-tutorial].
 
-More coming soon!
-
+[gettingstarted]: http://opentuner.org/tutorial/gettingstarted/
 [technique-tutorial]:  https://github.com/jansel/opentuner/wiki/TechniqueTutorial
 
 
@@ -117,11 +101,9 @@ Contributing Code
 -----------------
 
 The preferred way to contribute code to OpenTuner is to fork the project
-on github and [submit a pull request][pull-req].  You can also submit a
-[patch via email][email-patch] to jansel@csail.mit.edu.
+on github and [submit a pull request][pull-req].
 
 [pull-req]: https://www.openshift.com/wiki/github-workflow-for-submitting-pull-requests
-[email-patch]: http://alblue.bandlem.com/2011/12/git-tip-of-week-patches-by-email.html
 
 
 Support
@@ -131,5 +113,4 @@ OpenTuner is supported in part by the United States Department of Energy
 
 [xstack]: http://science.energy.gov/ascr/research/computer-science/ascr-x-stack-portfolio/
 [dtec]: http://www.dtec-xstack.org/
-
 
