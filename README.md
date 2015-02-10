@@ -75,11 +75,11 @@ by running an example program such as:
 Tutorials
 ---------
 
-- [Tutorial: Optimizing Block Matrix Multiplication][gettingstarted]
+- [Optimizing Block Matrix Multiplication][gettingstarted]
 - [Creating OpenTuner Techniques][technique-tutorial].
 
 [gettingstarted]: http://opentuner.org/tutorial/gettingstarted/
-[technique-tutorial]:  https://github.com/jansel/opentuner/wiki/TechniqueTutorial
+[technique-tutorial]:  http://opentuner.org/tutorial/techniques/
 
 
 Papers
