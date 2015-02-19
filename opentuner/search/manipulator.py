@@ -1123,7 +1123,7 @@ class PermutationParameter(ComplexParameter):
     self.set_value(cfg, p)
 
   # Crossover operators
-  def op3_cross_PX(self, cfg, cfg1, cfg2, d):
+  def op3_cross_PX(self, cfg, cfg1, cfg2, d=0):
     """
     Partition crossover (Whitley 2009?)
 
@@ -1137,13 +1137,12 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: unused
     """
-
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = random.randint(2, len(p1))
     self.set_value(cfg, sorted(p1[:c1], key=lambda x: p2.index(x)) + p1[c1:])
 
-  def op3_cross_PMX(self, cfg, cfg1, cfg2, d):
+  def op3_cross_PMX(self, cfg, cfg1, cfg2, d=0):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
 
@@ -1156,6 +1155,8 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: the size of the crossover
     """
+    if d == 0:
+      d = max(1, int(round(self.size * 0.3))) # default to 1/3 of permutation size
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
 
@@ -1190,7 +1191,7 @@ class PermutationParameter(ComplexParameter):
 
     self.set_value(cfg, p1)
 
-  def op3_cross_CX(self, cfg, cfg1, cfg2, d):
+  def op3_cross_CX(self, cfg, cfg1, cfg2, d=0):
     """
     Implementation of a cyclic crossover.
 
@@ -1223,7 +1224,7 @@ class PermutationParameter(ComplexParameter):
 
     self.set_value(cfg, p)
 
-  def op3_cross_OX1(self, cfg, cfg1, cfg2, d):
+  def op3_cross_OX1(self, cfg, cfg1, cfg2, d=0):
     """
     Ordered Crossover (Davis 1985)
 
@@ -1237,6 +1238,8 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: size of the exchanged subpath
     """
+    if d == 0:
+      d = max(1, int(round(self.size * 0.3))) # default to 1/3 of permutation size
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -1247,7 +1250,7 @@ class PermutationParameter(ComplexParameter):
     [c1.remove(i) for i in p2[r:int(r + d)]]
     self.set_value(cfg, c1[:r] + p2[r:r + d] + c1[r:])
 
-  def op3_cross_OX3(self, cfg, cfg1, cfg2, d):
+  def op3_cross_OX3(self, cfg, cfg1, cfg2, d=0):
     """
     Ordered crossover variation 3 (Deep 2010)
 
@@ -1259,6 +1262,8 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: size of the exchanged subpath
     """
+    if d == 0:
+      d = max(1, int(round(self.size * 0.3))) # default to 1/3 of permutation size
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -1705,6 +1710,42 @@ def operators(param, num_parents):
     name, obj = m
     if is_operator(name, num_parents):
       ops.append(name)
+  return ops
+
+def composable_operators(param, min_num_parents):
+  """
+  Return a list of operators for the given parameter that can be programatically composed
+  with a composable technique generating min_num_parents.
+
+  Programatically composable operators have no non-cfg arguments
+
+  :param param: a Parameter class
+  :param min_num_parents: the minimum number of parents passed to the operator
+  """
+  if min_num_parents < 1:
+    return []
+
+  allowed_num_parents = ['n']
+  for i in range(1,5):
+    if i > min_num_parents:
+      break
+    allowed_num_parents.append(str(i))
+
+  ops = []
+  methods = inspect.getmembers(param, inspect.ismethod)
+  for m in methods:
+    name, obj = m
+    argspec = inspect.getargspec(obj)
+    numargs = len(argspec.args) - (len(argspec.defaults) if argspec.defaults else 0)
+    for num_parents in allowed_num_parents:
+      if is_operator(name, num_parents):
+        if num_parents == 'n':
+          if numargs == 3: # self, cfg, cfgs
+            ops.append(name)
+        else:
+          if numargs == (1 + int(num_parents)):
+            ops.append(name)
+        break
   return ops
 
 

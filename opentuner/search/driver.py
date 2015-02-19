@@ -2,6 +2,7 @@ import argparse
 import copy
 import logging
 import os
+import sys
 
 from datetime import datetime
 from fn import _
@@ -11,6 +12,7 @@ from opentuner.resultsdb.models import DesiredResult
 from opentuner.resultsdb.models import Result
 from opentuner.search import plugin
 from opentuner.search import technique
+from opentuner.search.bandittechniques import AUCBanditMetaTechnique
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +56,17 @@ class SearchDriver(DriverBase):
     self.plugins = plugin.get_enabled(self.args)
     self.pending_result_callbacks = list()  # (DesiredResult, function) tuples
     # deepcopy is required to have multiple tuning runs in a single process
-    self.root_technique = copy.deepcopy(technique.get_root(self.args))
+    if self.args.list_techniques:
+      techniques, generators = technique.all_techniques()
+      for t in techniques:
+        print t.name
+      sys.exit(0)
+
+    if self.args.generate_bandit_technique:
+      # generate a bandit
+      self.root_technique = AUCBanditMetaTechnique.generate_technique(manipulator)
+    else:
+      self.root_technique = copy.deepcopy(technique.get_root(self.args))
     self.objective.set_driver(self)
     self.pending_config_ids = set()
     self.best_result = None
