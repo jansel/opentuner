@@ -154,11 +154,12 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     return not self.done
 
 class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
-  def __init__(self, novelty_threshold=50, *pargs, **kwargs):
+  def __init__(self, novelty_threshold=50, reset_threshold=500, *pargs, **kwargs):
     super(SequentialSearchTechnique, self).__init__(*pargs, **kwargs)
     self.pending_tests = []
     self.novelty_threshold = novelty_threshold
     self.rounds_since_novel_request = 0
+    self.reset_threshold = reset_threshold
 
   def yield_nonblocking(self, cfg):
     """
@@ -177,6 +178,10 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
       if (self.rounds_since_novel_request % self.novelty_threshold) == 0:
         log.warning("%s has not requested a new result for %d rounds",
                     self.name, self.rounds_since_novel_request)
+        if (self.rounds_since_novel_request > self.reset_threshold):
+          log.warning("%s is being reset", self.name)
+          subgen = self.main_generator()
+          self.rounds_since_novel_request = 0
         yield None # give other techniques a shot
       try:
         p = subgen.next()
