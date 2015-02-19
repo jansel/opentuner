@@ -372,6 +372,58 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
   def get_default_operator(self, param_type):
     return {'op_name': 'op4_set_linear', 'args': [1.0, self.use_f, -self.use_f], 'kwargs': {}}
 
+class GreedyComposableTechnique(ComposableEvolutionaryTechnique):
+  """
+  Always mixes in global best as parents
+  """
+  def __init__(self,
+               mutation_rate = 0.1,
+               must_mutate_count = 1,
+               population_size = 10,
+               *pargs, **kwargs):
+    super(GreedyComposableTechnique, self).__init__(*pargs, **kwargs)
+    self.mutation_rate = mutation_rate
+    self.must_mutate_count = must_mutate_count
+    self.population_size = population_size
+
+  def minimum_number_of_parents(self):
+    # specify that we will return at least 4 cfgs from get_parents
+    # this maximizes # of operators we can use
+    return 4
+
+  def get_parents(self, population):
+    population.sort(key=_.timestamp) # sort population by timestamp
+
+    # get a 50-50 mix of base and best cfgs as many operators do nothing given identical input cfgs
+    cfg = self.manipulator.copy(population[0].config)
+    # duplicate to get a total of 4 configurations to fulfill the promise in minimum_number_of_parents
+    cfgs = [self.get_global_best_configuration(), cfg]*2
+    # return a random 50-50 mix of the current configuration and global best to pass into operators
+    random.shuffle(cfgs)
+    return cfgs
+
+  def update_population(self, config, population):
+    # replace the oldest configuration if the new one is better.
+    population.sort(key=_.timestamp)
+    if self.lt(config, population[0].config):
+      population[0].config = config
+
+    # mark that oldest configuration is updated
+    population[0].touch()
+
+    return population
+
+  def select_parameters(self, params):
+    random.shuffle(params)
+    ret_list = params[:self.must_mutate_count]
+    for param in params[self.must_mutate_count:]:
+      if random.random() < self.mutation_rate:
+        ret_list.append(param)
+    return ret_list
+
+  def get_default_operator(self, param_type):
+    return {'op_name': 'op1_randomize', 'args': [], 'kwargs':{}}
+
 
 register(RandomThreeParentsComposableTechnique(name='ComposableDiffEvolution',
                                                  population_size=30))
