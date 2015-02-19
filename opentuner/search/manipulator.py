@@ -343,6 +343,14 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
+  def op1_void(self, cfg):
+    """
+    The 'null' operator. Does nothing.
+
+    :param cfg: the configuration to be changed
+    """
+    pass
+
   # Stochastic variators
   def op3_swarm(self, cfg, cfg1, cfg2, c, c1, c2, *args, **kwargs):
     """
@@ -507,7 +515,7 @@ class PrimitiveParameter(Parameter):
 
 class NumericParameter(PrimitiveParameter):
   """
-  A parameter representing a number with a minimumm and maximum value
+  A parameter representing a number with a minimum and maximum value
   """
   def __init__(self, name, min_value, max_value, **kwargs):
     """min/max are inclusive"""
@@ -585,9 +593,6 @@ class NumericParameter(PrimitiveParameter):
       return 2 ** 32
     else:
       return self.max_value - self.min_value + 1  # inclusive range
-
-  def sv_mutate(self, cfg, mchoice='op1_normal_mutation', *args, **kwargs):
-    getattr(self, mchoice)(cfg, *args, **kwargs)
 
 
 class IntegerParameter(NumericParameter):
@@ -855,9 +860,6 @@ class ComplexParameter(Parameter):
     if not self.same_value(cfg_b, cfg_c):
       self.op1_randomize(cfg_dst)
 
-  def sv_mutate(self, cfg, mchoice='op1_randomize', *args, **kwargs):
-    getattr(self, mchoice)(cfg, *args, **kwargs)
-
   @abc.abstractmethod
   def op1_randomize(self, config):
     """
@@ -989,9 +991,6 @@ class EnumParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, len(self.options))
 
-  def sv_mutate(self, cfg, *args, **kwargs):
-    self.op1_randomize(cfg)
-
 
 class PermutationParameter(ComplexParameter):
   """
@@ -1040,10 +1039,6 @@ class PermutationParameter(ComplexParameter):
 
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
-
-  # Stochastic Variator
-  def sv_mutate(self, cfg, mchoice='op2_random_swap', *args, **kwargs):
-    getattr(self, mchoice)(cfg, cfg, *args, **kwargs)
 
   def op3_cross(self, cfg, cfg1, cfg2, xchoice='op3_cross_OX1', strength=0.3,
                 *args, **kwargs):
@@ -1650,10 +1645,6 @@ class FloatArray(Array):
     self.set_value(cfg, p)
     return vs
 
-  def sv_mutate(self, dest, *args, **kwargs):
-    # TODO
-    pass
-
 
 ##################
 
@@ -1704,9 +1695,9 @@ def operators(param, num_parents):
   Return a list of operators for the given parameter that take the specified
   number of input configurations
 
+  :param param: a Parameter class
   :param num_parents: a String specifying number of inputs required by the operator.
     should be one of '1', '2', '3', '4', or 'n'
-  :param param: a Parameter class
   """
   ops = []
   methods = inspect.getmembers(param, inspect.ismethod)
@@ -1727,7 +1718,6 @@ def is_operator(name, num_parents):
     should be one of '1', '2', '3', '4', or 'n'
   """
   return ('op' + num_parents + '_') == name[:4]
-
 
 def all_operators():
   """

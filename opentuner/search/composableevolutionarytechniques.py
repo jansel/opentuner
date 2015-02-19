@@ -10,7 +10,7 @@ from opentuner.search.manipulator import Parameter
 
 class PopulationMember(object):
   """
-  An extendable object representing a population member for ComposableSearchTechniques.
+  An extendable object representing a population member for ComposableEvolutionaryTechniques.
   Must have the field "config" which is a configuration
   """
   def __init__(self, config):
@@ -162,7 +162,11 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
 
     :return: the current global best configuration
     """
-    return self.driver.best_result.configuration.data
+    if (self.driver.best_result is not None and
+        self.driver.best_result.state == 'OK'):
+      return self.manipulator.copy(self.driver.best_result.configuration.data)
+    else:
+      return self.manipulator.random()
 
   def get_default_operator(self, param_type):
     """
@@ -176,7 +180,7 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
 
     :return: a dictionary containing information about the operator to apply for the input parameter type
     """
-    return {'op_name': 'op1_void', 'args': [], 'kwargs': {}}
+    return {'op_name': 'op1_nop', 'args': [], 'kwargs': {}}
 
   # HELPER METHODS FOR BUILDING OPERATOR MAP
   @classmethod
@@ -229,7 +233,6 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
          # fail and let other techniques work forever
          while True:
           yield None
-
 
       params = self.select_parameters(self.manipulator.params)
       config = self.get_new_config(parents, params)
@@ -319,10 +322,10 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
   based on DifferentialEvolution
   """
 
-  def __init__(self, cr = 0.9, n_cross=1, information_sharing=1, *pargs, **kwargs):
+  def __init__(self, cr = 0.9, must_mutate_count=1, information_sharing=1, *pargs, **kwargs):
     super(RandomThreeParentsComposableTechnique, self).__init__(*pargs, **kwargs)
     self.cr = cr
-    self.n_cross = n_cross
+    self.must_mutate_count = must_mutate_count
     self.information_sharing = information_sharing
 
   def minimum_number_of_parents(self):
@@ -351,7 +354,7 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
       population[0].config = config
 
     # mark that oldest configuration is updated
-    population[0].touch
+    population[0].touch()
 
     return population
 
@@ -359,10 +362,10 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
     """
     randomly select a subset of parameters to operate on
     """
-    ret_list = []
     random.shuffle(params)
-    for i, k in enumerate(params):
-      if i < self.n_cross or random.random() < self.cr:
+    ret_list = params[:self.must_mutate_count]
+    for param in params[self.must_mutate_count:]:
+      if random.random() < self.cr:
         ret_list.append(k)
     return ret_list
 

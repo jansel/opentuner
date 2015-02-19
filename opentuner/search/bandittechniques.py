@@ -55,7 +55,7 @@ class BanditQueue(object):
     self.request_count += 1
     if log.isEnabledFor(logging.DEBUG) and (self.request_count % 1000) == 0:
       log.debug(str([
-          (t.name, self.exploitation_term(t), self.C * self.exploration_term(t))
+          (t, self.exploitation_term(t), self.C * self.exploration_term(t))
           for t in keys]))
 
     return reversed(keys)
@@ -253,7 +253,7 @@ register(AUCBanditMetaTechnique([
         evolutionarytechniques.GA(crossover = 'op3_cross_CX', mutation_rate=0.01, crossover_rate=0.8),
         evolutionarytechniques.GA(crossover = 'op3_cross_PX', mutation_rate=0.01, crossover_rate=0.8),
         evolutionarytechniques.GA(crossover = 'op3_cross_PMX', mutation_rate=0.01, crossover_rate=0.8),
-        evolutionarytechniques.UniformGreedyMutation(name='ga-base', mutation_rate=0.01)	
+        evolutionarytechniques.UniformGreedyMutation(name='ga-base', mutation_rate=0.01)
       ], name = "PSO_GA_Bandit"))
 register(AUCBanditMetaTechnique([
 	differentialevolution.DifferentialEvolutionAlt(),
