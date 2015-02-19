@@ -75,10 +75,15 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
     driver.add_plugin(self)
 
   def desired_result(self):
-    """create and return a resultsdb.models.DesiredResult"""
+    """
+    create and return a resultsdb.models.DesiredResult
+    returns None if no desired results and False if waiting for results
+    """
     cfg = self.desired_configuration()
     if cfg is None:
       return None
+    if cfg is False:
+      return False
     if type(cfg) is Configuration:
       config = cfg
     else:
@@ -99,6 +104,8 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
     """
     return a cfg that we should test
     given a ConfigurationManipulator and SearchDriver
+    return None if there are no configurations to test
+    return False if waiting for results
     """
     return dict()
 
@@ -144,7 +151,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
     to request tests and call driver.get_results() to read the results
 
     in AsyncProceduralSearchTechnique results are ready at an undefined
-    time (`yield None` to stall and wait for them)
+    time (`yield False` to stall and wait for them)
 
     in SequentialSearchTechnique results are ready after the yield
     """
@@ -209,7 +216,7 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
                                     self.pending_tests)
         if self.pending_tests:
           self.rounds_since_novel_request = 0
-          yield None # wait
+          yield False # wait
 
 #list of all techniques
 the_registry = list()

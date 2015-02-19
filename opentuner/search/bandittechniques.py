@@ -154,6 +154,9 @@ class AUCBanditMetaTechnique(MetaSearchTechnique):
   def on_technique_result(self, technique, result):
     self.bandit.on_result(technique.name, result.was_new_best)
 
+  def on_technique_no_desired_result(self, technique):
+    """treat not providing a configuration as not a best"""
+    self.bandit.on_result(technique.name, 0)
 
 
 class AUCBanditMutationTechnique(SearchTechnique):

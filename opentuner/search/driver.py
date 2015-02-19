@@ -132,7 +132,7 @@ class SearchDriver(DriverBase):
                            tuning_run=self.tuning_run)
       else:
         dr = self.root_technique.desired_result()
-      if dr is None:
+      if dr is None or dr is False:
         log.debug("no desired result, skipping to testing phase")
         break
       self.session.flush()  # populate configuration_id
