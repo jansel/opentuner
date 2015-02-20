@@ -343,7 +343,7 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
-  def op1_void(self, cfg):
+  def op1_nop(self, cfg):
     """
     The 'null' operator. Does nothing.
 

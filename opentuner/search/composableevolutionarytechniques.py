@@ -370,7 +370,7 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
     for param in paramset:
       operators = composable_operators(param, t.minimum_number_of_parents())
       # TODO - sometimes use "default" operator (don't choose an operator?
-      # TODO - lower chance of picking op1_void?
+      # TODO - lower chance of picking op1_nop?
       ComposableEvolutionaryTechnique.add_to_map(operator_map, param, random.choice(operators))
 
     t.set_operator_map(operator_map)
