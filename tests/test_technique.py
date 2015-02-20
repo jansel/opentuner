@@ -58,12 +58,12 @@ class ComposableSearchTechniqueTests(unittest.TestCase):
 
   def test_get_default_oeprator(self):
     default = self.technique.get_default_operator(manipulator.PermutationParameter)
-    self.assertDictEqual(default, {'op_name': 'op1_void', 'args': [], 'kwargs': {}})
+    self.assertDictEqual(default, {'op_name': 'op1_nop', 'args': [], 'kwargs': {}})
 
 
   def test_get_operator(self):
     default = self.technique.get_operator(manipulator.IntegerParameter)
-    self.assertDictEqual(default, {'op_name': 'op1_void', 'args': [], 'kwargs': {}})
+    self.assertDictEqual(default, {'op_name': 'op1_nop', 'args': [], 'kwargs': {}})
 
     default = self.technique.get_operator(manipulator.PermutationParameter)
     self.assertDictEqual(default, {'op_name': 'op3_cross','args': (),'kwargs': {'xchoice': 'op3_cross_CX'}})

@@ -1,8 +1,11 @@
 import random
 import time
 import sys
+import json
 from fn import _
+from technique import all_techniques
 from technique import register
+from technique import register_generator
 from technique import SequentialSearchTechnique
 from manipulator import *
 from opentuner.search.manipulator import Parameter
@@ -10,7 +13,7 @@ from opentuner.search.manipulator import Parameter
 
 class PopulationMember(object):
   """
-  An extendable object representing a population member for ComposableSearchTechniques.
+  An extendable object representing a population member for ComposableEvolutionaryTechniques.
   Must have the field "config" which is a configuration
   """
   def __init__(self, config):
@@ -48,9 +51,40 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
     :return:
     """
     super(ComposableEvolutionaryTechnique, self).__init__(*pargs, **kwargs)
+    # generate a name based on operators if no name
+
     self.initial_configurations = initial_configs
     self.population_size = population_size
     self.operator_map = operator_map # map from parameter type to an operator function
+    if not 'name' in kwargs:
+      self.name = self.get_default_name()
+
+  def set_operator_map(self, operator_map):
+    self.operator_map = operator_map
+
+  def use_default_name(self):
+    self.name = self.get_default_name()
+
+  def get_default_name(self):
+    """
+    Gets the default name for this technique based on its operator map
+
+    Name is in the format
+    classname paramname;opname;[arg1,arg2,[[kwarg1,v1][kwarg2,v2]]] paramname2;opname2;...
+    """
+    # TODO - include technique hyperparameters
+    parts = [self.__class__.__name__]
+    for param in sorted(self.operator_map, cmp=lambda x,y: cmp(x.__name__, y.__name__)):
+      subparts = [param.__name__]
+      operator_info = self.operator_map[param]
+      subparts.append(operator_info['op_name'])
+      args = list(operator_info['args'])
+      kwargs = operator_info['kwargs']
+      args.append([(k,kwargs[k]) for k in sorted(kwargs)])
+      subparts.append(json.dumps(args, separators=(',', ':')))
+      parts.append(';'.join(subparts))
+    return ' '.join(parts)
+
 
   def make_population_member(self, config):
     """
@@ -162,7 +196,11 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
 
     :return: the current global best configuration
     """
-    return self.driver.best_result.configuration.data
+    if (self.driver.best_result is not None and
+        self.driver.best_result.state == 'OK'):
+      return self.manipulator.copy(self.driver.best_result.configuration.data)
+    else:
+      return self.manipulator.random()
 
   def get_default_operator(self, param_type):
     """
@@ -176,7 +214,7 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
 
     :return: a dictionary containing information about the operator to apply for the input parameter type
     """
-    return {'op_name': 'op1_void', 'args': [], 'kwargs': {}}
+    return {'op_name': 'op1_nop', 'args': [], 'kwargs': {}}
 
   # HELPER METHODS FOR BUILDING OPERATOR MAP
   @classmethod
@@ -229,7 +267,6 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
          # fail and let other techniques work forever
          while True:
           yield None
-
 
       params = self.select_parameters(self.manipulator.params)
       config = self.get_new_config(parents, params)
@@ -313,16 +350,43 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
 
     return True
 
+  @classmethod
+  def generate_technique(cls, manipulator=None, *args, **kwargs):
+    """
+    generate a composable technique with random operators
+    """
+    from manipulator import composable_operators
+    # randomly select a composable technique to generate
+    t = cls(*args, **kwargs)
+    if manipulator is None:
+      return t
+
+    paramset = set()
+    for p in manipulator.params:
+      paramset.add(type(p))
+
+    # add some random operator for each param
+    operator_map = {}
+    for param in paramset:
+      operators = composable_operators(param, t.minimum_number_of_parents())
+      # TODO - sometimes use "default" operator (don't choose an operator?
+      # TODO - lower chance of picking op1_void?
+      ComposableEvolutionaryTechnique.add_to_map(operator_map, param, random.choice(operators))
+
+    t.set_operator_map(operator_map)
+    t.use_default_name()
+    return t
+
 
 class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
   """
   based on DifferentialEvolution
   """
 
-  def __init__(self, cr = 0.9, n_cross=1, information_sharing=1, *pargs, **kwargs):
+  def __init__(self, cr = 0.9, must_mutate_count=1, information_sharing=1, *pargs, **kwargs):
     super(RandomThreeParentsComposableTechnique, self).__init__(*pargs, **kwargs)
     self.cr = cr
-    self.n_cross = n_cross
+    self.must_mutate_count = must_mutate_count
     self.information_sharing = information_sharing
 
   def minimum_number_of_parents(self):
@@ -351,7 +415,7 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
       population[0].config = config
 
     # mark that oldest configuration is updated
-    population[0].touch
+    population[0].touch()
 
     return population
 
@@ -359,19 +423,74 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
     """
     randomly select a subset of parameters to operate on
     """
-    ret_list = []
     random.shuffle(params)
-    for i, k in enumerate(params):
-      if i < self.n_cross or random.random() < self.cr:
+    ret_list = params[:self.must_mutate_count]
+    for param in params[self.must_mutate_count:]:
+      if random.random() < self.cr:
         ret_list.append(k)
     return ret_list
 
   def get_default_operator(self, param_type):
     return {'op_name': 'op4_set_linear', 'args': [1.0, self.use_f, -self.use_f], 'kwargs': {}}
 
+class GreedyComposableTechnique(ComposableEvolutionaryTechnique):
+  """
+  Always mixes in global best as parents
+  """
+  def __init__(self,
+               mutation_rate = 0.1,
+               must_mutate_count = 1,
+               population_size = 10,
+               *pargs, **kwargs):
+    super(GreedyComposableTechnique, self).__init__(*pargs, **kwargs)
+    self.mutation_rate = mutation_rate
+    self.must_mutate_count = must_mutate_count
+    self.population_size = population_size
+
+  def minimum_number_of_parents(self):
+    # specify that we will return at least 4 cfgs from get_parents
+    # this maximizes # of operators we can use
+    return 4
+
+  def get_parents(self, population):
+    population.sort(key=_.timestamp) # sort population by timestamp
+
+    # get a 50-50 mix of base and best cfgs as many operators do nothing given identical input cfgs
+    cfg = self.manipulator.copy(population[0].config)
+    # duplicate to get a total of 4 configurations to fulfill the promise in minimum_number_of_parents
+    cfgs = [self.get_global_best_configuration(), cfg]*2
+    # return a random 50-50 mix of the current configuration and global best to pass into operators
+    random.shuffle(cfgs)
+    return cfgs
+
+  def update_population(self, config, population):
+    # replace the oldest configuration if the new one is better.
+    population.sort(key=_.timestamp)
+    if self.lt(config, population[0].config):
+      population[0].config = config
+
+    # mark that oldest configuration is updated
+    population[0].touch()
+
+    return population
+
+  def select_parameters(self, params):
+    random.shuffle(params)
+    ret_list = params[:self.must_mutate_count]
+    for param in params[self.must_mutate_count:]:
+      if random.random() < self.mutation_rate:
+        ret_list.append(param)
+    return ret_list
+
+  def get_default_operator(self, param_type):
+    return {'op_name': 'op1_randomize', 'args': [], 'kwargs':{}}
+
 
 register(RandomThreeParentsComposableTechnique(name='ComposableDiffEvolution',
                                                  population_size=30))
+register_generator(RandomThreeParentsComposableTechnique)
+register_generator(GreedyComposableTechnique)
+
 
 op_map = {}
 ComposableEvolutionaryTechnique.add_to_map(op_map,

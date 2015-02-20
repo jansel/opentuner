@@ -1,11 +1,12 @@
 import abc
+import copy
 import logging
 import math
 import random
 from collections import deque
 
 from .metatechniques import MetaSearchTechnique
-from .technique import register, SearchTechnique
+from .technique import register, SearchTechnique, all_techniques, get_random_generator_technique
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class BanditQueue(object):
     self.request_count += 1
     if log.isEnabledFor(logging.DEBUG) and (self.request_count % 1000) == 0:
       log.debug(str([
-          (t.name, self.exploitation_term(t), self.C * self.exploration_term(t))
+          (t, self.exploitation_term(t), self.C * self.exploration_term(t))
           for t in keys]))
 
     return reversed(keys)
@@ -154,6 +155,45 @@ class AUCBanditMetaTechnique(MetaSearchTechnique):
   def on_technique_result(self, technique, result):
     self.bandit.on_result(technique.name, result.was_new_best)
 
+  def on_technique_no_desired_result(self, technique):
+    """treat not providing a configuration as not a best"""
+    self.bandit.on_result(technique.name, 0)
+
+  @classmethod
+  def generate_technique(cls, manipulator=None, num_techniques=5, retry_count=3, generator_weight=10, *args, **kwargs):
+    """
+    Generate a bandit by randomly selecting existing techniques or composable techniques.
+    If a composable technique is selected, the operators are then chosen
+
+    :param manipulator: a ConfigurationManipulator used to enumerate parameters
+    :param num_techniques: max number of subtechniques in the bandit
+    :param retry_count: number of times to try getting a new technique before giving up
+    :param generator_weight: weight to increase probability of choosing to generate a technique
+    """
+    techniques, generators = all_techniques()
+
+    # get set of parameters to consider
+    paramset = set()
+    for p in manipulator.params:
+      paramset.add(type(p))
+
+    # filter techniques to get rid of metatechniques
+    basetechniques = [t for t in techniques if not isinstance(t, MetaSearchTechnique)]
+    bandit_techniques = []
+    for i in range(num_techniques):
+      for j in range(retry_count):
+        # pick a technique or generate a composable
+        if random.random() < float(len(basetechniques)) / (len(basetechniques) + generator_weight*len(generators)):
+          candidate = copy.deepcopy(random.choice(basetechniques))
+        else:
+          # pick a random generator
+          candidate = get_random_generator_technique(generators, manipulator=manipulator)
+        if not (candidate.name in [t.name for t in bandit_techniques]):
+          bandit_techniques.append(candidate)
+          break
+
+    # make a bandit of the output list
+    return cls(bandit_techniques, name="GeneratedBandit", *args, **kwargs)
 
 
 class AUCBanditMutationTechnique(SearchTechnique):
@@ -250,7 +290,7 @@ register(AUCBanditMetaTechnique([
         evolutionarytechniques.GA(crossover = 'op3_cross_CX', mutation_rate=0.01, crossover_rate=0.8),
         evolutionarytechniques.GA(crossover = 'op3_cross_PX', mutation_rate=0.01, crossover_rate=0.8),
         evolutionarytechniques.GA(crossover = 'op3_cross_PMX', mutation_rate=0.01, crossover_rate=0.8),
-        evolutionarytechniques.UniformGreedyMutation(name='ga-base', mutation_rate=0.01)	
+        evolutionarytechniques.UniformGreedyMutation(name='ga-base', mutation_rate=0.01)
       ], name = "PSO_GA_Bandit"))
 register(AUCBanditMetaTechnique([
 	differentialevolution.DifferentialEvolutionAlt(),

@@ -38,6 +38,9 @@ class MetaSearchTechnique(SearchTechniqueBase):
     for technique in techniques:
       dr = technique.desired_result()
       if dr is not None:
+        if dr is False:
+          # technique is waiting for results
+          continue
         self.driver.register_result_callback(dr,
             lambda result: self.on_technique_result(technique, result))
         if self.log_freq:
@@ -45,7 +48,13 @@ class MetaSearchTechnique(SearchTechniqueBase):
           self.debug_log()
         self.request_count += 1
         return dr
+      else:
+        self.on_technique_no_desired_result(technique)
     return None
+
+  def on_technique_no_desired_result(self, technique):
+    """called if a sub-technique returns None"""
+    pass
 
   def on_technique_result(self, technique, result):
     """callback for results of sub-techniques"""

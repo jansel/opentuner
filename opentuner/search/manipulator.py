@@ -343,6 +343,14 @@ class Parameter(object):
   def search_space_size(self):
     return 1
 
+  def op1_void(self, cfg):
+    """
+    The 'null' operator. Does nothing.
+
+    :param cfg: the configuration to be changed
+    """
+    pass
+
   # Stochastic variators
   def op3_swarm(self, cfg, cfg1, cfg2, c, c1, c2, *args, **kwargs):
     """
@@ -507,7 +515,7 @@ class PrimitiveParameter(Parameter):
 
 class NumericParameter(PrimitiveParameter):
   """
-  A parameter representing a number with a minimumm and maximum value
+  A parameter representing a number with a minimum and maximum value
   """
   def __init__(self, name, min_value, max_value, **kwargs):
     """min/max are inclusive"""
@@ -585,9 +593,6 @@ class NumericParameter(PrimitiveParameter):
       return 2 ** 32
     else:
       return self.max_value - self.min_value + 1  # inclusive range
-
-  def sv_mutate(self, cfg, mchoice='op1_normal_mutation', *args, **kwargs):
-    getattr(self, mchoice)(cfg, *args, **kwargs)
 
 
 class IntegerParameter(NumericParameter):
@@ -855,9 +860,6 @@ class ComplexParameter(Parameter):
     if not self.same_value(cfg_b, cfg_c):
       self.op1_randomize(cfg_dst)
 
-  def sv_mutate(self, cfg, mchoice='op1_randomize', *args, **kwargs):
-    getattr(self, mchoice)(cfg, *args, **kwargs)
-
   @abc.abstractmethod
   def op1_randomize(self, config):
     """
@@ -989,9 +991,6 @@ class EnumParameter(ComplexParameter):
   def search_space_size(self):
     return max(1, len(self.options))
 
-  def sv_mutate(self, cfg, *args, **kwargs):
-    self.op1_randomize(cfg)
-
 
 class PermutationParameter(ComplexParameter):
   """
@@ -1040,10 +1039,6 @@ class PermutationParameter(ComplexParameter):
 
   def search_space_size(self):
     return math.factorial(max(1, len(self._items)))
-
-  # Stochastic Variator
-  def sv_mutate(self, cfg, mchoice='op2_random_swap', *args, **kwargs):
-    getattr(self, mchoice)(cfg, cfg, *args, **kwargs)
 
   def op3_cross(self, cfg, cfg1, cfg2, xchoice='op3_cross_OX1', strength=0.3,
                 *args, **kwargs):
@@ -1128,7 +1123,7 @@ class PermutationParameter(ComplexParameter):
     self.set_value(cfg, p)
 
   # Crossover operators
-  def op3_cross_PX(self, cfg, cfg1, cfg2, d):
+  def op3_cross_PX(self, cfg, cfg1, cfg2, d=0):
     """
     Partition crossover (Whitley 2009?)
 
@@ -1142,13 +1137,12 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: unused
     """
-
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = random.randint(2, len(p1))
     self.set_value(cfg, sorted(p1[:c1], key=lambda x: p2.index(x)) + p1[c1:])
 
-  def op3_cross_PMX(self, cfg, cfg1, cfg2, d):
+  def op3_cross_PMX(self, cfg, cfg1, cfg2, d=0):
     """
     Partially-mapped crossover Goldberg & Lingle (1985)
 
@@ -1161,6 +1155,8 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: the size of the crossover
     """
+    if d == 0:
+      d = max(1, int(round(self.size * 0.3))) # default to 1/3 of permutation size
     p1 = self.get_value(cfg1)[:]
     p2 = self.get_value(cfg2)[:]
 
@@ -1195,7 +1191,7 @@ class PermutationParameter(ComplexParameter):
 
     self.set_value(cfg, p1)
 
-  def op3_cross_CX(self, cfg, cfg1, cfg2, d):
+  def op3_cross_CX(self, cfg, cfg1, cfg2, d=0):
     """
     Implementation of a cyclic crossover.
 
@@ -1228,7 +1224,7 @@ class PermutationParameter(ComplexParameter):
 
     self.set_value(cfg, p)
 
-  def op3_cross_OX1(self, cfg, cfg1, cfg2, d):
+  def op3_cross_OX1(self, cfg, cfg1, cfg2, d=0):
     """
     Ordered Crossover (Davis 1985)
 
@@ -1242,6 +1238,8 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: size of the exchanged subpath
     """
+    if d == 0:
+      d = max(1, int(round(self.size * 0.3))) # default to 1/3 of permutation size
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -1252,7 +1250,7 @@ class PermutationParameter(ComplexParameter):
     [c1.remove(i) for i in p2[r:int(r + d)]]
     self.set_value(cfg, c1[:r] + p2[r:r + d] + c1[r:])
 
-  def op3_cross_OX3(self, cfg, cfg1, cfg2, d):
+  def op3_cross_OX3(self, cfg, cfg1, cfg2, d=0):
     """
     Ordered crossover variation 3 (Deep 2010)
 
@@ -1264,6 +1262,8 @@ class PermutationParameter(ComplexParameter):
     :param cfg2: the second parent configuration. Is "crossed into" cfg1
     :param d: size of the exchanged subpath
     """
+    if d == 0:
+      d = max(1, int(round(self.size * 0.3))) # default to 1/3 of permutation size
     p1 = self.get_value(cfg1)
     p2 = self.get_value(cfg2)
     c1 = p1[:]
@@ -1650,10 +1650,6 @@ class FloatArray(Array):
     self.set_value(cfg, p)
     return vs
 
-  def sv_mutate(self, dest, *args, **kwargs):
-    # TODO
-    pass
-
 
 ##################
 
@@ -1704,9 +1700,9 @@ def operators(param, num_parents):
   Return a list of operators for the given parameter that take the specified
   number of input configurations
 
+  :param param: a Parameter class
   :param num_parents: a String specifying number of inputs required by the operator.
     should be one of '1', '2', '3', '4', or 'n'
-  :param param: a Parameter class
   """
   ops = []
   methods = inspect.getmembers(param, inspect.ismethod)
@@ -1714,6 +1710,42 @@ def operators(param, num_parents):
     name, obj = m
     if is_operator(name, num_parents):
       ops.append(name)
+  return ops
+
+def composable_operators(param, min_num_parents):
+  """
+  Return a list of operators for the given parameter that can be programatically composed
+  with a composable technique generating min_num_parents.
+
+  Programatically composable operators have no non-cfg arguments
+
+  :param param: a Parameter class
+  :param min_num_parents: the minimum number of parents passed to the operator
+  """
+  if min_num_parents < 1:
+    return []
+
+  allowed_num_parents = ['n']
+  for i in range(1,5):
+    if i > min_num_parents:
+      break
+    allowed_num_parents.append(str(i))
+
+  ops = []
+  methods = inspect.getmembers(param, inspect.ismethod)
+  for m in methods:
+    name, obj = m
+    argspec = inspect.getargspec(obj)
+    numargs = len(argspec.args) - (len(argspec.defaults) if argspec.defaults else 0)
+    for num_parents in allowed_num_parents:
+      if is_operator(name, num_parents):
+        if num_parents == 'n':
+          if numargs == 3: # self, cfg, cfgs
+            ops.append(name)
+        else:
+          if numargs == (1 + int(num_parents)):
+            ops.append(name)
+        break
   return ops
 
 
@@ -1727,7 +1759,6 @@ def is_operator(name, num_parents):
     should be one of '1', '2', '3', '4', or 'n'
   """
   return ('op' + num_parents + '_') == name[:4]
-
 
 def all_operators():
   """
