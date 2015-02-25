@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <cstdlib>
 
-#define N 800
+#define N 100
 
 int main(int argc, const char** argv)
 {
