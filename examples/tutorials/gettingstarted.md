@@ -32,13 +32,15 @@ Save the sample code below to examples/tutorials/mmm_block.cpp
     #include <stdio.h>
     #include <cstdlib>
 
+    #define N 100
+    
     int main(int argc, const char** argv)
     {
-
-      int n = BLOCK_SIZE * (n/BLOCK_SIZE);
-      int a[100][100];
-      int b[100][100];
-      int c[100][100];
+    
+      int n = BLOCK_SIZE * (N/BLOCK_SIZE);
+      int a[N][N];
+      int b[N][N];
+      int c[N][N];
       int sum=0;
       for(int k1=0;k1<n;k1+=BLOCK_SIZE)
       {
