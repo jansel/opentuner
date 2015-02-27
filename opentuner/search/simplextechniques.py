@@ -97,7 +97,7 @@ class RandomInitialMixin(object):
   """
 
   def initial_simplex(self):
-    # we implicitly assume number of parameters is fixed here, however 
+    # we implicitly assume number of parameters is fixed here, however
     # it will work if it isn't (simplex size is undefined)
     cfg0 = self.initial_simplex_seed()
     params = self.manipulator.parameters(cfg0)
@@ -198,6 +198,11 @@ class NelderMead(SimplexTechnique):
     self.beta = beta
     self.sigma = sigma
     super(NelderMead, self).__init__(*args, **kwargs)
+
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['alpha', 'gamma', 'beta', 'sigma']
+
 
   def main_generator(self):
     objective = self.objective
@@ -324,6 +329,11 @@ class Torczon(SimplexTechnique):
     self.beta = beta
     super(Torczon, self).__init__(*args, **kwargs)
 
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['alpha', 'gamma', 'beta']
+
+
   def main_generator(self):
     objective = self.objective
     driver = self.driver
@@ -439,6 +449,7 @@ register(RandomTorczon())
 register(RegularTorczon())
 register(RightTorczon())
 register(MultiTorczon())
+
 
 
 

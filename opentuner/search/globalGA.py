@@ -9,13 +9,17 @@ class GlobalEvolutionaryTechnique(SearchTechnique):
                mutation_rate = 0.1,
                crossover_rate = 0.0,
                must_mutate_count = 1,
-	       crossover_strength = 0.1,
+	             crossover_strength = 0.1,
                *pargs, **kwargs):
     super(GlobalEvolutionaryTechnique, self).__init__(*pargs, **kwargs)
     self.mutation_rate = mutation_rate
     self.crossover_rate = crossover_rate
     self.must_mutate_count = must_mutate_count
     self.crossover_strength = crossover_strength
+
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['mutation_rate', 'crossover_rate', 'must_mutate_count', 'crossover_strength']
 
   def desired_configuration(self):
     """
