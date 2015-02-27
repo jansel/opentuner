@@ -42,6 +42,10 @@ class DifferentialEvolution(SearchTechnique):
     self.limit = None
     super(DifferentialEvolution, self).__init__(*pargs, **kwargs)
 
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['population_size', 'cr', 'n_cross', 'information_sharing']
+
   def initial_population(self):
     self.population = [PopulationMember(
         self.driver.get_configuration(

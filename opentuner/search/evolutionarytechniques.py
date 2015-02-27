@@ -15,6 +15,11 @@ class EvolutionaryTechnique(SearchTechnique):
     self.crossover_rate = crossover_rate
     self.must_mutate_count = must_mutate_count
 
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['mutation_rate', 'crossover_rate', 'must_mutate_count']
+
+
   def desired_configuration(self):
     """
     return a (cfg, priority) that we should test,

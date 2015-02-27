@@ -118,10 +118,55 @@ class SearchTechnique(SearchPlugin, SearchTechniqueBase):
     """called for each new Result(), regardless of who requested it"""
     pass
 
+  def default_generated_name(self):
+    """ The default generated name for this technique """
+    return self.base_name()
+
+  def use_default_generated_name(self):
+    """ set the name of this technique to the default generated name """
+    self.name = self.default_generated_name()
+
+  def base_name(self):
+    """
+    Return the base name of this technique with form
+    classname;hyperparam1,v1;hyperparam2,v2 ...
+    where hyperparams are taken in order from get_hyper_parameters()
+
+    Should only be called after this technique has finished initializing.
+    """
+    out = [self.__class__.__name__]
+    for hyper_parameter in self.get_hyper_parameters():
+      # get hyperparam,v as a string and append
+      try:
+        out.append(hyper_parameter + ',' + str(getattr(self, hyper_parameter)))
+      except AttributeError:
+        log.error("Uninitialized hyper-parameter %s for technique %s.",
+                   hyper_parameter, self.__class__.__name__)
+
+    return ';'.join(out)
+
+  @classmethod
+  def get_hyper_parameters(cls):
+    """
+    return a list of hyper-parameters names for this technique
+
+    Name strings must match the corresponding attribute with the hyper-parameter
+    value on technique instances. Names should also match the key word argument
+    used when initializing an instance. Hyperparameters should only take literal
+    values.
+
+    For example, given hyper parameter "mutation_rate", then the __init__ method
+    should have 'mutation_rate' as a key word argument and later have the line
+    self.mutation_rate = mutation_rate
+    """
+    return []
+
   @classmethod
   def generate_technique(cls, manipulator=None, *args, **kwargs):
     """ return a new technique based off this instance """
-    return cls(*args, **kwargs)
+    t = cls(*args, **kwargs)
+    t.use_default_generated_name()
+    return t
 
 class PureRandom(SearchTechnique):
   """

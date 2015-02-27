@@ -56,16 +56,15 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
     self.initial_configurations = initial_configs
     self.population_size = population_size
     self.operator_map = operator_map # map from parameter type to an operator function
-    if not 'name' in kwargs:
-      self.name = self.get_default_name()
 
   def set_operator_map(self, operator_map):
     self.operator_map = operator_map
 
-  def use_default_name(self):
-    self.name = self.get_default_name()
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['population_size']
 
-  def get_default_name(self):
+  def default_generated_name(self):
     """
     Gets the default name for this technique based on its operator map
 
@@ -73,7 +72,7 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
     classname paramname;opname;[arg1,arg2,[[kwarg1,v1][kwarg2,v2]]] paramname2;opname2;...
     """
     # TODO - include technique hyperparameters
-    parts = [self.__class__.__name__]
+    parts = [self.base_name()]
     for param in sorted(self.operator_map, cmp=lambda x,y: cmp(x.__name__, y.__name__)):
       subparts = [param.__name__]
       operator_info = self.operator_map[param]
@@ -374,7 +373,7 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
       ComposableEvolutionaryTechnique.add_to_map(operator_map, param, random.choice(operators))
 
     t.set_operator_map(operator_map)
-    t.use_default_name()
+    t.use_default_generated_name()
     return t
 
 
@@ -388,6 +387,10 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
     self.cr = cr
     self.must_mutate_count = must_mutate_count
     self.information_sharing = information_sharing
+
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['population_size', 'cr', 'must_mutate_count', 'information_sharing']
 
   def minimum_number_of_parents(self):
     return 4
@@ -446,6 +449,11 @@ class GreedyComposableTechnique(ComposableEvolutionaryTechnique):
     self.mutation_rate = mutation_rate
     self.must_mutate_count = must_mutate_count
     self.population_size = population_size
+
+
+  @classmethod
+  def get_hyper_parameters(cls):
+    return ['mutation_rate', 'must_mutate_count']
 
   def minimum_number_of_parents(self):
     # specify that we will return at least 4 cfgs from get_parents
