@@ -8,7 +8,7 @@ redirect_from: /tutorial/cgo2015/index.html
 Tutorial at PLDI 2015
 =================
 
-We will be giving another [OpenTuner tutorial](/tutorial/pldi2015/) at
+We will be giving another OpenTuner tutorial at
 [PLDI 2015](http://conf.researchr.org/home/pldi2015).  PLDI will take place
 in Portland, Oregon on June 13-17 2015.  The OpenTuner tutorial will be in
 the afternoon on Sunday, June 14th.
