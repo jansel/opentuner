@@ -79,6 +79,7 @@ CGO and may change for the PLDI version.
     - [JVM optimization](/slides/opentuner-cgo2015-rusira-jvm-opt.pdf) (Tharindu Rusira)
 
 - [Hands on session](/slides/opentuner-cgo2015-hands-on.pdf) (Shoaib Kamil)
+  - _Requires a thumb drive with a virtual machine distributed at the tutorial_
 
 - Discussion
 
