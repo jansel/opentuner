@@ -1,3 +1,5 @@
 name: OpenTuner
 markdown: redcarpet
 pygments: true
+gems:
+  - jekyll-redirect-from
