@@ -140,6 +140,8 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     p.set_parent(self)
     self.params.append(p)
 
+    #TODO sub parameters should be recursed on
+    # not currently an issue since no doubly-nested sub-parameters
     sub_params = p.sub_parameters()
     for sp in sub_params:
       sp.set_parent(p)
@@ -174,6 +176,52 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
                 str(type(config)))
       raise TypeError()
     return self.params
+
+  def parameters_to_json(self):
+    """
+    output information about the parameters in this manipulator in json format:
+    [ConfigurationManipulator,{pinfo:count,pinfo:count ...}]
+    where pinfo has a similar form to describe the parameter's sub-parameters:
+    [param_name,{pinfo:count,pinfo:count ...}]
+    """
+    def param_info_to_json(param, sub_parameters):
+      """
+      recursively output information about a parameter and its subparameters in a json format:
+
+      [parameter_name, {subparam_info:count,subparam_info:count,...}]
+      or if no subparams
+      [parameter_name,{}]
+
+      where subparam_info are sorted alphabetically. Note we can't directly use json since
+      sets/dictionaries aren't always ordered by key
+      """
+      sub_parameter_counts = {}
+      # build the string
+      if isinstance(param, str):
+        param_name = param
+      else:
+        param_name = param.__class__.__name__
+      out = ['[', param_name, ',{']
+
+      if len(sub_parameters) > 0:
+        # count sub params
+        for sp in sub_parameters:
+          spout = param_info_to_json(sp, sp.sub_parameters())
+          sub_parameter_counts[spout] = sub_parameter_counts.get(spout, 0) + 1
+        # add the count map in sorted order
+        for sp in sorted(sub_parameter_counts):
+          out.append(sp)
+          out.append(':')
+          out.append(str(sub_parameter_counts[sp]))
+          out.append(',')
+        out.pop() # remove trailing comma
+
+      out.append('}]')
+      return ''.join(out)
+
+    # filter out subparameters to avoid double counting
+    params = [p for p in self.params if p.parent is self]
+    return param_info_to_json(self, params)
 
   def hash_config(self, config):
     """produce unique hash value for the given config"""

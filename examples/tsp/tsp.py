@@ -28,7 +28,7 @@ class TSP(MeasurementInterface):
         data = args.data
         m = open(data).readlines()
         self.distance = [[int(i) for i in l.split()] for l in m]
-            
+
     def run(self, desired_result, input, limit):
         cfg = desired_result.configuration.data
         p = cfg[0]      # cheating: should use manipulator function
@@ -50,7 +50,7 @@ class TSP(MeasurementInterface):
     def solution(self):
         p = [1,13,2,15,9,5,7,3,12,14,10,8,6,4,11]
         return self.eval_path(p)
-        
+
 
 
 if __name__ == '__main__':
