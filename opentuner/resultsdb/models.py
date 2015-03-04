@@ -39,6 +39,33 @@ class Base(object):
 
 Base = declarative_base(cls=Base)
 
+class _Meta(Base):
+  """ meta table to track current version """
+  db_version = Column(String(128))
+
+  @classmethod
+  def has_version(cls, session, version):
+    try:
+      session.flush()
+      session.query(_Meta).filter_by(db_version=version).one()
+      return True
+    except sqlalchemy.orm.exc.NoResultFound:
+      return False
+
+  @classmethod
+  def get_version(cls, session):
+    try:
+      session.flush()
+      x = session.query(_Meta).one()
+      return x.db_version
+    except sqlalchemy.orm.exc.NoResultFound:
+      return None
+
+  @classmethod
+  def add_version(cls, session, version):
+    if not cls.has_version(session, version):
+      session.add(_Meta(db_version=version))
+
 
 class Program(Base):
   project = Column(String(128))
@@ -266,5 +293,5 @@ Index('ix_desired_result_custom2', DesiredResult.tuning_run_id,
 if __name__ == '__main__':
   #test:
   engine = create_engine('sqlite:///:memory:', echo=True)
-  Base.metadata.create_all(engine) 
+  Base.metadata.create_all(engine)
 
