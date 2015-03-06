@@ -10,6 +10,8 @@ from opentuner.driverbase import DriverBase
 from opentuner.resultsdb.models import Configuration
 from opentuner.resultsdb.models import DesiredResult
 from opentuner.resultsdb.models import Result
+from opentuner.resultsdb.models import BanditInfo
+from opentuner.resultsdb.models import BanditSubTechnique
 from opentuner.search import plugin
 from opentuner.search import technique
 from opentuner.search.bandittechniques import AUCBanditMetaTechnique
@@ -67,6 +69,19 @@ class SearchDriver(DriverBase):
       self.root_technique = AUCBanditMetaTechnique.generate_technique(manipulator)
     else:
       self.root_technique = copy.deepcopy(technique.get_root(self.args))
+
+    if isinstance(self.root_technique, AUCBanditMetaTechnique):
+      self.session.flush()
+      info = BanditInfo(tuning_run=self.tuning_run,
+                        c=self.root_technique.bandit.C,
+                        window=self.root_technique.bandit.window,)
+      self.session.add(info)
+      for t in self.root_technique.techniques:
+        subtechnique = BanditSubTechnique(bandit_info=info,
+                                          name=t.name)
+        self.session.add(subtechnique)
+
+
     self.objective.set_driver(self)
     self.pending_config_ids = set()
     self.best_result = None

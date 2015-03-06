@@ -112,6 +112,7 @@ class MeasurementInterface(object):
         project=self.project_name(),
         name=self.program_name(),
         version=self.program_version(),
+        parameter_info=self.manipulator().parameters_to_json(),
     )
 
   def set_driver(self, measurement_driver):

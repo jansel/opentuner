@@ -39,6 +39,33 @@ class Base(object):
 
 Base = declarative_base(cls=Base)
 
+class _Meta(Base):
+  """ meta table to track current version """
+  db_version = Column(String(128))
+
+  @classmethod
+  def has_version(cls, session, version):
+    try:
+      session.flush()
+      session.query(_Meta).filter_by(db_version=version).one()
+      return True
+    except sqlalchemy.orm.exc.NoResultFound:
+      return False
+
+  @classmethod
+  def get_version(cls, session):
+    try:
+      session.flush()
+      x = session.query(_Meta).one()
+      return x.db_version
+    except sqlalchemy.orm.exc.NoResultFound:
+      return None
+
+  @classmethod
+  def add_version(cls, session, version):
+    if not cls.has_version(session, version):
+      session.add(_Meta(db_version=version))
+
 
 class Program(Base):
   project = Column(String(128))
@@ -59,6 +86,7 @@ class ProgramVersion(Base):
   program_id = Column(ForeignKey(Program.id))
   program = relationship(Program, backref='versions')
   version = Column(String(128))
+  parameter_info = Column(Text)
 
   @property
   def name(self):
@@ -69,14 +97,19 @@ class ProgramVersion(Base):
     return self.program.project
 
   @classmethod
-  def get(cls, session, project, name, version):
+  def get(cls, session, project, name, version, parameter_info=None):
     program = Program.get(session, project, name)
     try:
       session.flush()
-      return session.query(ProgramVersion).filter_by(program=program,
+      if parameter_info is None:
+        return session.query(ProgramVersion).filter_by(program=program,
                                                      version=version).one()
+      else:
+        return session.query(ProgramVersion).filter_by(program=program,
+                                                      version=version,
+                                                      parameter_info=parameter_info).one()
     except sqlalchemy.orm.exc.NoResultFound:
-      t = ProgramVersion(program=program, version=version)
+      t = ProgramVersion(program=program, version=version, parameter_info=parameter_info)
       session.add(t)
       return t
 
@@ -263,8 +296,24 @@ Index('ix_desired_result_custom1', DesiredResult.tuning_run_id,
 Index('ix_desired_result_custom2', DesiredResult.tuning_run_id,
       DesiredResult.configuration_id)
 
+
+# track bandit meta-technique information if a bandit meta-technique is used for a tuning run.
+class BanditInfo(Base):
+  tuning_run_id = Column(ForeignKey(TuningRun.id))
+  tuning_run = relationship(TuningRun, backref='bandit_info')
+  # the bandit exploration/exploitation tradeoff
+  c = Column(Float)
+  # the bandit window
+  window = Column(Integer)
+
+class BanditSubTechnique(Base):
+  bandit_info_id = Column(ForeignKey(BanditInfo.id))
+  bandit_info = relationship(BanditInfo, backref='subtechniques')
+  name = Column(String(128))
+
+
 if __name__ == '__main__':
   #test:
   engine = create_engine('sqlite:///:memory:', echo=True)
-  Base.metadata.create_all(engine) 
+  Base.metadata.create_all(engine)
 
