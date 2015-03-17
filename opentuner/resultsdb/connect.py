@@ -51,7 +51,7 @@ def connect(dbstr):
                                           bind=engine))
     version = _Meta.get_version(Session)
     if not DB_VERSION == version:
-      raise Exception("Your opentuner database version "+ version +" is out of date with the current version " + DB_VERSION)
+      raise Exception('Your opentuner database version {} is out of date with the current version {}'.format(version, DB_VERSION))
 
   Base.metadata.create_all(engine)
 
@@ -60,6 +60,7 @@ def connect(dbstr):
                                         bind=engine))
   # mark database with current version
   _Meta.add_version(Session, DB_VERSION)
+  Session.commit()
 
   return engine, Session
 
