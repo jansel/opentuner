@@ -1209,35 +1209,52 @@ class PermutationParameter(ComplexParameter):
     p2 = self.get_value(cfg2)[:]
 
     r = random.randint(0, len(p1) - d)
+
     c1 = p1[r:r + d]
     c2 = p2[r:r + d]
-    # Construct partial map
-    pm = dict([(c1[i], c2[i]) for i in range(d)])
-    agenda = c1[:]
-    while agenda != []:
-      n = agenda.pop()
-      while pm[n] in pm:
-        if n == pm[n]:
-          pm.pop(n)
-          break
-        try:
-          agenda.remove(pm[n])
-        except:
-          pass
-        link = pm.pop(pm[n])
-        pm[n] = link
-    # Reversed partial map
-    pm2 = dict([(v, k) for k, v in pm.items()])
-    # Fix conflicts
-    for k in pm:
-      p2[p2.index(k)] = pm[k]
-    for k in pm2:
-      p1[p1.index(k)] = pm2[k]
-      # Cross over
-    p1[r:r + d] = c2
-    p2[r:r + d] = c1
 
-    self.set_value(cfg, p1)
+    # get new permutation by crossing over a section of p2 onto p1
+    pnew = self.get_value(cfg1)[:]
+    pnew[r:r + d] = c2
+    # fix conflicts by taking displaced elements in crossed over section
+    # displaced = (elements x in c1 where x does not have corresponding value in c2)
+    # and putting them where the value that displaced them was
+
+    #candidates for displacement
+    candidate_indices = set(range(r) + range(r+d, len(p1)))
+    # Check through displaced elements to find values to swap conflicts to
+    while c1 != []:
+      n = c1[0]
+      #try to match up a value in c1 to the equivalent value in c2
+      while c2[0] in c1:
+        if n == c2[0]:
+          # already match up
+          break
+        # find position idx of c2[0] in c1
+        link_idx = c1.index(c2[0])
+        # get value of c2 at idx
+        link = c2[link_idx]
+        # remove c2[idx] and c1[idx] since they match up when we swap c2[0] with c2[idx] (this avoids an infinite loop)
+        del c2[link_idx]
+        del c1[link_idx]
+        # swap new value into c2[0]
+        c2[0] = link
+
+      if n != c2[0]:
+        # first check if we can swap in the crossed over section still
+        if n in c2:
+          c2[c2.index(n)] = c2[0]
+        else:
+          # assign first instance of c2[0] outside of the crossed over section in pnew to c1[0]
+          for idx in candidate_indices:
+            if pnew[idx] == c2[0]:
+              pnew[idx] = c1[0]
+              candidate_indices.remove(idx) # make sure we don't override this value now
+              break
+      # remove first elements
+      del c1[0]
+      del c2[0]
+    self.set_value(cfg, pnew)
 
   def op3_cross_CX(self, cfg, cfg1, cfg2, d=0):
     """
