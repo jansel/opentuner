@@ -1277,10 +1277,17 @@ class PermutationParameter(ComplexParameter):
 
     s = random.randint(0, len(p1) - 1)
     i = s
-    indices = []
-    while True:
-      indices.append(i)
-      i = p2.index(p1[i])
+    indices = set()
+
+    while len(indices) < len(p1): # should never exceed this
+      indices.add(i)
+      val = p1[i]
+      i = p2.index(val)
+      # deal with duplicate values
+      while i in indices:
+        if i == s:
+          break
+        i = p2[i+1:].index(val) + i + 1
       if i == s:
         break
 
