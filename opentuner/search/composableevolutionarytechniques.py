@@ -430,7 +430,7 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
     ret_list = params[:self.must_mutate_count]
     for param in params[self.must_mutate_count:]:
       if random.random() < self.cr:
-        ret_list.append(k)
+        ret_list.append(param)
     return ret_list
 
   def get_default_operator(self, param_type):
