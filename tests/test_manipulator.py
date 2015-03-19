@@ -142,6 +142,19 @@ class PermutationOperatorTests(unittest.TestCase):
         self.param1.op3_cross_CX(self.cfg, self.config1, self.config3, "unused")
         self.assertEqual(self.param1.get_value(self.cfg),[0,1,2,3,4,9,5,7,6,8])
 
+    @mock.patch('random.randint', side_effect=faked_random([0]))
+    def test_op3_cross_CX_dups(self, randint_func):
+        # initial replacement at index 4
+        self.param1.op3_cross_CX(self.cfg, self.config5, self.config4, "unused")
+
+        # [4,2,4,3,3,1,3,4,2,4]
+        # [1,2,3,4,2,3,4,3,4,4]
+        # expected:
+        # [1,2,3,4,3,3,4,4,2,4]
+
+        self.assertEqual(self.param1.get_value(self.cfg), [1,2,3,4,3,3,4,4,2,4])
+
+
     @mock.patch('random.randint', side_effect=faked_random([3]))
     def test_op3_cross_OX1_3_d4(self, randint_func):
         # cut at 3
