@@ -100,7 +100,7 @@ def run_label(tr, short = False):
 def run_dir(base, tr):
   return os.path.join(base,
                       tr.program.project,
-                      tr.program.name,
+                      tr.program.name.split('/')[-1],
                       tr.program_version.version[:16])
 
 class StatsMain(object):
@@ -147,6 +147,8 @@ class StatsMain(object):
            .filter(Result.time < float('inf'))
            .filter_by(was_new_best=True, state='OK'))
       total = q.count()
+      if total == 0: 
+          continue
       q = objective.filter_acceptable(q)
       acceptable = q.count()
       q = q.order_by(*objective.result_order_by_terms())
@@ -201,7 +203,7 @@ class StatsMain(object):
               )
 
 
-    with open("stats/summary.dat", 'w') as o:
+    with open(self.args.stats_dir+ "/summary.dat", 'w') as o:
       # make summary report
       keys = sorted(reduce(set.union,
                            [set(x.keys()) for x in summary_report.values()],
@@ -228,7 +230,7 @@ class StatsMain(object):
                         4*n + 8,
                         4*n + 9,
                         k))
-      self.gnuplot_summary_file('stats', 'summary', plotcmd)
+      self.gnuplot_summary_file(self.args.stats_dir, 'summary', plotcmd)
 
 
 
