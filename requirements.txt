@@ -1,8 +1,5 @@
 argparse>=1.2.1
-django==1.6.1
 fn>=0.2.12
-matplotlib>=1.1.1
 numpy>=1.8.0
 pysqlite>=2.6.3
 SQLAlchemy>=0.8.2
-virtualenv==1.9.1

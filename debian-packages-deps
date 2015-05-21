@@ -1,7 +1,9 @@
 build-essential
 git
 gnuplot
+libfreetype6-dev
 libpng-dev
 libsqlite3-dev
 python-dev
+python-pip
 sqlite3
