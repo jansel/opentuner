@@ -99,7 +99,11 @@ class SearchObjective(object):
     """
     a time limit to kill a result after such that it can be compared to config
     """
-    return max(map(_.time, self.driver.results_query(config=config)))
+    results = self.driver.results_query(config=config)
+    if results.count() == 0:
+      return None
+    else:
+      return max(map(_.time, self.driver.results_query(config=config)))
 
 
   def project_compare(self, a1, a2, b1, b2, factor=1.0):
