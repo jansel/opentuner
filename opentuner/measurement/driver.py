@@ -178,6 +178,8 @@ class MeasurementDriver(DriverBase):
         if self.claim_desired_result(dr):
           desired_results.append(dr)
           thread_args.append((self.interface, dr.configuration.data, dr.id))
+      if len(desired_results) == 0:
+        return
       thread_pool = ThreadPool(len(desired_results))
       # print 'Compiling %d results' % len(thread_args)
       try:
