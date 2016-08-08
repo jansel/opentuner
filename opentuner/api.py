@@ -28,6 +28,22 @@ class TuningRunManager(tuningrunmain.TuningRunMain):
     dr.limit = self.measurement_driver.run_time_limit(dr)
     return dr
 
+  def get_desired_results(self):
+    """
+    Returns a list of all opentuner.resultsdb.DesiredResult that should be tested next.
+    """
+    drs = self.measurement_driver.query_pending_desired_results().all()
+    if len(drs) == 0:
+      self.search_driver.external_main_generation()
+      drs = self.measurement_driver.query_pending_desired_results().all()
+      if len(drs) == 0:
+        return []
+    for dr in drs:
+      self.measurement_driver.claim_desired_result(dr)
+      dr.limit = self.measurement_driver.run_time_limit(dr)
+
+    return drs
+
   def report_result(self, desired_result, result, result_input=None):
     """
     Report a measured result.  desired_result should have been returned by
@@ -41,6 +57,15 @@ class TuningRunManager(tuningrunmain.TuningRunMain):
     """
     try:
       return self.search_driver.best_result.configuration.data
+    except AttributeError:
+      return None
+
+  def get_best_result(self):
+    """
+    The best result found so far.  From the current tuning run only.
+    """
+    try:
+      return self.search_driver.best_result
     except AttributeError:
       return None
 
