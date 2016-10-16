@@ -201,6 +201,7 @@ class MeasurementDriver(DriverBase):
         except RuntimeError, e:
           print e
           # print 'Done!'
+      thread_pool.close()
     else:
       for dr in q.all():
         if self.claim_desired_result(dr):
