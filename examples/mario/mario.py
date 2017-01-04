@@ -34,7 +34,7 @@ class InstantiateAction(argparse.Action):
     setattr(namespace, self.dest, getattr(sys.modules[__name__], values)())
 
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
-argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
+argparser.add_argument('--tuning-run', type=int, help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
