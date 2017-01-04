@@ -26,20 +26,16 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
-class InstantiateAction(argparse.Action):
-  def __init__(self, *pargs, **kwargs):
-    super(InstantiateAction, self).__init__(*pargs, **kwargs)
-
-  def __call__(self, parser, namespace, values, option_string=None):
-    setattr(namespace, self.dest, getattr(sys.modules[__name__], values)())
+def instantiate(class_name):
+  return getattr(sys.modules[__name__], class_name)()
 
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', type=int, help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
-argparser.add_argument('--representation', default='DurationRepresentation', action=InstantiateAction, help='name of representation class')
-argparser.add_argument('--fitness-function', default='Progress', action=InstantiateAction, help='name of fitness function class')
+argparser.add_argument('--representation', default='DurationRepresentation', type=instantiate, help='name of representation class')
+argparser.add_argument('--fitness-function', default='Progress', type=instantiate, help='name of fitness function class')
 
 # Functions for building FCEUX movie files (.fm2 files)
 
