@@ -37,7 +37,7 @@ argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between 
 argparser.add_argument('--representation', default='DurationRepresentation', type=instantiate, help='name of representation class')
 argparser.add_argument('--fitness-function', default='Progress', type=instantiate, help='name of fitness function class')
 
-def call_or_die(command):
+def call_or_die(command, failmsg=None):
   try:
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = p.communicate()
@@ -47,6 +47,8 @@ def call_or_die(command):
     traceback.print_exc()
     print "Child traceback:"
     print sys.exc_info()[1].child_traceback
+    if failmsg:
+      print failmsg
     sys.exit(1)
 
 # Functions for building FCEUX movie files (.fm2 files)
@@ -299,7 +301,11 @@ def new_bests_movie(args):
 
 if __name__ == '__main__':
   args = argparser.parse_args()
+  call_or_die(["fceux", "--help"], failmsg="Is fceux on your PATH?")
+  if not args.headful:
+    call_or_die(["xvfb-run", "--help"], failmsg="Is xvfb-run on your PATH? (or, pass --headful)")
   if args.tuning_run:
+    call_or_die(["sqlite3", "-version"], failmsg="Is sqlite3 on your PATH?")
     if args.database is not None:
       new_bests_movie(args)
     else:
