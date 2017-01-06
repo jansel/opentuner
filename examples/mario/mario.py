@@ -18,6 +18,7 @@ import zlib
 import abc
 import sys
 import os
+import traceback
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -35,6 +36,18 @@ argparser.add_argument('--headful', action='store_true', help='run headful (not 
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
 argparser.add_argument('--representation', default='DurationRepresentation', type=instantiate, help='name of representation class')
 argparser.add_argument('--fitness-function', default='Progress', type=instantiate, help='name of fitness function class')
+
+def call_or_die(command):
+  try:
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+    return stdout, stderr, p.returncode
+  except:
+    print "Failed to execute", command
+    traceback.print_exc()
+    print "Child traceback:"
+    print sys.exc_info()[1].child_traceback
+    sys.exit(1)
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -106,8 +119,7 @@ def run_movie(fm2, args):
     cmd += ["fceux", "--playmov", f.name, "--loadlua",
         "fceux-hook.lua", "--nogui", "--volume", "0", "--no-config", "1",
         "smb.nes"]
-    stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE).communicate()
+    stdout, stderr, returncode = call_or_die(cmd)
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
   if not match:
     print stderr
@@ -274,11 +286,11 @@ class SMBMI(MeasurementInterface):
     pass
 
 def new_bests_movie(args):
-  (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+  stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run])
   cids = stdout.split()
   print '\n'.join(fm2_smb_header())
   for cid in cids:
-    (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)])
     cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
     left, right, down, running, jumping = args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
