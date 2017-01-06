@@ -33,7 +33,6 @@ argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
 argparser.add_argument('--tuning-run', type=int, help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
-argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
 argparser.add_argument('--representation', default='DurationRepresentation', type=instantiate, help='name of representation class')
 argparser.add_argument('--fitness-function', default='Progress', type=instantiate, help='name of fitness function class')
 
@@ -104,7 +103,7 @@ def run_movie(fm2, args):
     cmd = []
     if not args.headful:
       cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay)]
-    cmd += [args.fceux_path, "--playmov", f.name, "--loadlua",
+    cmd += ["fceux", "--playmov", f.name, "--loadlua",
         "fceux-hook.lua", "--nogui", "--volume", "0", "--no-config", "1",
         "smb.nes"]
     stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
