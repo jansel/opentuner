@@ -289,10 +289,16 @@ class SMBMI(MeasurementInterface):
 
 def new_bests_movie(args):
   stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run])
+  if returncode:
+    print "Error retrieving new-best configurations:", stderr
+    sys.exit(1)
   cids = stdout.split()
   print '\n'.join(fm2_smb_header())
   for cid in cids:
     stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)])
+    if returncode:
+      print "Error retriving configuration data:", cid, stderr
+      sys.exit(1)
     cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
     left, right, down, running, jumping = args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
