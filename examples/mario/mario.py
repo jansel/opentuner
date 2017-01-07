@@ -117,7 +117,7 @@ def run_movie(fm2, args):
     f.flush()
     cmd = []
     if not args.headful:
-      cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay)]
+      cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay), "-e", "/dev/stderr"]
     cmd += ["fceux", "--playmov", f.name, "--loadlua",
         "fceux-hook.lua", "--nogui", "--volume", "0", "--no-config", "1",
         "smb.nes"]
