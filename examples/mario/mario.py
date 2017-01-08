@@ -19,6 +19,7 @@ import abc
 import sys
 import os
 import traceback
+import collections
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -111,17 +112,22 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True, minFrame=None, m
   else:
     return "\n".join(lines)
 
+display_numbers = collections.deque()
+
 def run_movie(fm2, args):
   with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
     f.write(fm2)
     f.flush()
     cmd = []
     if not args.headful:
-      cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay), "-e", "/dev/stderr"]
+      display = display_numbers.pop()
+      cmd += ["xvfb-run", "-n", display, "-w", str(args.xvfb_delay), "-e", "/dev/stderr"]
     cmd += ["fceux", "--playmov", f.name, "--loadlua",
         "fceux-hook.lua", "--nogui", "--volume", "0", "--no-config", "1",
         "smb.nes"]
     stdout, stderr, returncode = call_or_die(cmd)
+    if not args.headful:
+      display_numbers.append(display)
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
   if not match:
     print stderr
@@ -310,6 +316,8 @@ if __name__ == '__main__':
   call_or_die(["fceux", "--help"], failmsg="Is fceux on your PATH?")
   if not args.headful:
     call_or_die(["xvfb-run", "--help"], failmsg="Is xvfb-run on your PATH? (or, pass --headful)")
+    for n in xrange(99, 99 + args.parallelism):
+      display_numbers.append(str(n))
   if args.tuning_run:
     call_or_die(["sqlite3", "-version"], failmsg="Is sqlite3 on your PATH?")
     if args.database is not None:
