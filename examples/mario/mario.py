@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 """OpenTuner plays Super Mario Bros. for NES
 
@@ -18,6 +18,9 @@ import zlib
 import abc
 import sys
 import os
+import traceback
+import collections
+import socket
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -26,20 +29,29 @@ from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
 
-class InstantiateAction(argparse.Action):
-  def __init__(self, *pargs, **kwargs):
-    super(InstantiateAction, self).__init__(*pargs, **kwargs)
-
-  def __call__(self, parser, namespace, values, option_string=None):
-    setattr(namespace, self.dest, getattr(sys.modules[__name__], values)())
+def instantiate(class_name):
+  return getattr(sys.modules[__name__], class_name)()
 
 argparser = argparse.ArgumentParser(parents=opentuner.argparsers())
-argparser.add_argument('--tuning-run', help='concatenate new bests from given tuning run into single movie')
+argparser.add_argument('--tuning-run', type=int, help='concatenate new bests from given tuning run into single movie')
 argparser.add_argument('--headful', action='store_true', help='run headful (not headless) for debugging or live demo')
 argparser.add_argument('--xvfb-delay', type=int, default=0, help='delay between launching xvfb and fceux')
-argparser.add_argument('--fceux-path', default='fceux', help='path to fceux executable')
-argparser.add_argument('--representation', default='DurationRepresentation', action=InstantiateAction, help='name of representation class')
-argparser.add_argument('--fitness-function', default='Progress', action=InstantiateAction, help='name of fitness function class')
+argparser.add_argument('--representation', default='DurationRepresentation', type=instantiate, help='name of representation class')
+argparser.add_argument('--fitness-function', default='Progress', type=instantiate, help='name of fitness function class')
+
+def call_or_die(command, failmsg=None):
+  try:
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()
+    return stdout, stderr, p.returncode
+  except:
+    print "Failed to execute", command
+    traceback.print_exc()
+    print "Child traceback:"
+    print sys.exc_info()[1].child_traceback
+    if failmsg:
+      print failmsg
+    sys.exit(1)
 
 # Functions for building FCEUX movie files (.fm2 files)
 
@@ -101,18 +113,22 @@ def fm2_smb(left, right, down, b, a, header=True, padding=True, minFrame=None, m
   else:
     return "\n".join(lines)
 
+display_numbers = collections.deque()
+
 def run_movie(fm2, args):
   with tempfile.NamedTemporaryFile(suffix=".fm2", delete=True) as f:
     f.write(fm2)
     f.flush()
     cmd = []
     if not args.headful:
-      cmd += ["xvfb-run", "-a", "-w", str(args.xvfb_delay)]
-    cmd += [args.fceux_path, "--playmov", f.name, "--loadlua",
+      display = display_numbers.pop()
+      cmd += ["xvfb-run", "-n", display, "-w", str(args.xvfb_delay), "-e", "/dev/stderr"]
+    cmd += ["fceux", "--playmov", f.name, "--loadlua",
         "fceux-hook.lua", "--nogui", "--volume", "0", "--no-config", "1",
         "smb.nes"]
-    stdout, stderr = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE).communicate()
+    stdout, stderr, returncode = call_or_die(cmd)
+    if not args.headful:
+      display_numbers.append(display)
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
   if not match:
     print stderr
@@ -278,12 +294,26 @@ class SMBMI(MeasurementInterface):
   def run(self, desired_result, input, limit):
     pass
 
+  def save_final_config(self, cfg):
+    left, right, down, running, jumping = args.representation.interpret(cfg.data)
+    fm2 = fm2_smb(left, right, down, running, jumping)
+    _, _, framecount = run_movie(fm2, self.args)
+    filename = '{}-{}.fm2'.format(socket.gethostname(), self.driver.tuning_run.id)
+    with open(filename, 'w') as f:
+      f.write(fm2_smb(left, right, down, running, jumping, maxFrame=framecount))
+
 def new_bests_movie(args):
-  (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+  stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run])
+  if returncode:
+    print "Error retrieving new-best configurations:", stderr
+    sys.exit(1)
   cids = stdout.split()
   print '\n'.join(fm2_smb_header())
   for cid in cids:
-    (stdout, stderr) = subprocess.Popen(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)])
+    if returncode:
+      print "Error retriving configuration data:", cid, stderr
+      sys.exit(1)
     cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
     left, right, down, running, jumping = args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
@@ -292,7 +322,13 @@ def new_bests_movie(args):
 
 if __name__ == '__main__':
   args = argparser.parse_args()
+  call_or_die(["fceux", "--help"], failmsg="Is fceux on your PATH?")
+  if not args.headful:
+    call_or_die(["xvfb-run", "--help"], failmsg="Is xvfb-run on your PATH? (or, pass --headful)")
+    for n in xrange(99, 99 + args.parallelism):
+      display_numbers.append(str(n))
   if args.tuning_run:
+    call_or_die(["sqlite3", "-version"], failmsg="Is sqlite3 on your PATH?")
     if args.database is not None:
       new_bests_movie(args)
     else:
