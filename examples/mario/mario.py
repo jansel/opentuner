@@ -20,6 +20,7 @@ import sys
 import os
 import traceback
 import collections
+import socket
 
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
@@ -292,6 +293,14 @@ class SMBMI(MeasurementInterface):
 
   def run(self, desired_result, input, limit):
     pass
+
+  def save_final_config(self, cfg):
+    left, right, down, running, jumping = args.representation.interpret(cfg.data)
+    fm2 = fm2_smb(left, right, down, running, jumping)
+    _, _, framecount = run_movie(fm2, self.args)
+    filename = '{}-{}.fm2'.format(socket.gethostname(), self.driver.tuning_run.id)
+    with open(filename, 'w') as f:
+      f.write(fm2_smb(left, right, down, running, jumping, maxFrame=framecount))
 
 def new_bests_movie(args):
   stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run])
