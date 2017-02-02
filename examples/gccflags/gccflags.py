@@ -76,7 +76,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       self.cc_bugs = (['-ftoplevel-reorder', '-fno-unit-at-a-time'], )
 
     self.result_list = {}
-    self.parallel_compile = True
+    self.parallel_compile = args.parallel_compile
     try:
       os.stat('./tmp')
     except OSError:
@@ -249,8 +249,10 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     tmp_dir = self.get_tmpdir(result_id)
     shutil.rmtree(tmp_dir)
 
-  def run(self, desired_result, input, limit):
-    pass
+  def compile_and_run(self, desired_result, input, limit):
+    cfg = desired_result.configuration.data
+    compile_result = self.compile(cfg, 0)
+    return self.run_precompiled(desired_result, input, limit, compile_result, 0)
 
   compile_results = {'ok': 0, 'timeout': 1, 'error': 2}
 
