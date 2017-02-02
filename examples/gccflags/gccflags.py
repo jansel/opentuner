@@ -76,7 +76,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       self.cc_bugs = (['-ftoplevel-reorder', '-fno-unit-at-a-time'], )
 
     self.result_list = {}
-    self.parallel_compile = args.parallel_compile
+    self.parallel_compile = True
     try:
       os.stat('./tmp')
     except OSError:
