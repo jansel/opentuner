@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--parallel-compile', action='store_true',
-                       default='False',
+                       default=False,
                        help="present if compiling can be done in parallel")
 
 the_io_thread_pool = None
