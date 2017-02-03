@@ -71,7 +71,7 @@ class MeasurementInterface(object):
     to run_precompiled as compile_result, useful for storing error/timeout 
     information
     """
-    if self.parallel_compile == True:
+    if self.parallel_compile:
         raise RuntimeError('MeasurementInterface.compile() not implemented for',
                 'parallel compilation')
     pass
@@ -84,7 +84,7 @@ class MeasurementInterface(object):
     identifier id by compile() The compile_result is the return result of compile(), 
     and it will be None if compile() was not called
     """
-    if self.parallel_compile == True:
+    if self.parallel_compile:
         raise RuntimeError('MeasurementInterface.run_precompiled() not implemented', 
                 'for parallel compilation')
     pass

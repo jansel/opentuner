@@ -52,7 +52,7 @@ class GccFlagsTuner(MeasurementInterface):
     """
     Compile a given configuration in parallel
     """
-    gcc_cmd = 'g++ apps/raytracer.cpp -o ./tmp' + str(id) + '.bin'
+    gcc_cmd = 'g++ apps/raytracer.cpp -o ./tmp{0}.bin'.format(id)
     gcc_cmd += ' -O{0}'.format(cfg['opt_level'])
     for flag in GCC_FLAGS:
       if cfg[flag] == 'on':
@@ -70,9 +70,13 @@ class GccFlagsTuner(MeasurementInterface):
     """
     assert compile_result['returncode'] == 0
 
-    run_result = self.call_program('./tmp' + str(id) + '.bin')
+    run_result = self.call_program('./tmp{0}.bin'.format(id))
     assert run_result['returncode'] == 0
-    self.call_program('rm ./tmp' + str(id) + '.bin')
+
+    try:    
+        self.call_program('rm ./tmp{0}.bin'.format(id))
+    finally:
+        pass
     return Result(time=run_result['time'])
 
   def compile_and_run(self, desired_result, input, limit):
