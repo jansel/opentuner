@@ -70,13 +70,12 @@ class GccFlagsTuner(MeasurementInterface):
     """
     assert compile_result['returncode'] == 0
 
-    run_result = self.call_program('./tmp{0}.bin'.format(id))
-    assert run_result['returncode'] == 0
-
     try:    
-        self.call_program('rm ./tmp{0}.bin'.format(id))
+        run_result = self.call_program('./tmp{0}.bin'.format(id))
+        assert run_result['returncode'] == 0
     finally:
-        pass
+        self.call_program('rm ./tmp{0}.bin'.format(id))
+
     return Result(time=run_result['time'])
 
   def compile_and_run(self, desired_result, input, limit):
