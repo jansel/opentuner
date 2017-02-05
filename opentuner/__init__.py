@@ -26,6 +26,7 @@ def argparsers():
   """
   return [
       measurement.driver.argparser,
+      measurement.interface.argparser,
       search.driver.argparser,
       search.plugin.argparser,
       search.technique.argparser,

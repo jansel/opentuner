@@ -121,9 +121,13 @@ class MeasurementDriver(DriverBase):
 
     self.input_manager.before_run(desired_result, input)
 
-    result = self.interface.run_precompiled(desired_result, input,
-                                            desired_result.limit,
-                                            compile_result, exec_id)
+    if self.interface.parallel_compile:
+        result = self.interface.run_precompiled(desired_result, input,
+                                                desired_result.limit,
+                                                compile_result, exec_id)
+    else:
+        result = self.interface.compile_and_run(desired_result, input,
+                                                desired_result.limit)
 
     self.report_result(desired_result, result, input)
 

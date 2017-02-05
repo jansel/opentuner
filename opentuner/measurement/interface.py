@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--parallel-compile', action='store_true',
+                       default=False,
                        help="present if compiling can be done in parallel")
 
 the_io_thread_pool = None
@@ -57,26 +58,36 @@ class MeasurementInterface(object):
 
     self.pids = []
     self.pid_lock = threading.Lock()
-    self.parallel_compile = False
+    self.parallel_compile = args.parallel_compile
+    # If parallel_compile is False then compile_and_run() will be invoked
+    # sequentially otherwise the driver first invokes compile() in parallel
+    # followed by run_precompiled() sequentially
 
   def compile(self, config_data, id):
     """
-    Compiles according to the configuration in config_data (obtained from
-    desired_result.configuration) Should use id paramater to determine output
-    location of executable Return value will be passed to run_precompiled
-    as compile_result, useful for storing error/timeout information
+    Compile in PARALLEL according to the configuration in config_data 
+    (obtained from desired_result.configuration) Should use id parameter 
+    to determine output location of executable Return value will be passed 
+    to run_precompiled as compile_result, useful for storing error/timeout 
+    information
     """
+    if self.parallel_compile:
+        raise RuntimeError('MeasurementInterface.compile() not implemented for',
+                'parallel compilation')
     pass
 
   def run_precompiled(self, desired_result, input, limit, compile_result, id):
     """
-    Runs the given desired result on input and produce a Result() Abort
-    early if limit (in seconds) is reached Assumes that the executable
-    to be measured is already compiled in an executable corresponding to
-    identifier id compile_result is the return result of compile(), will be
-    None if compile was not called If id = None, must call run()
+    Run the given desired_result SEQUENTIALLY on input and produce a Result() 
+    Abort early if limit (in seconds) is reached Assume that the executable
+    to be measured has already been compiled to an executable corresponding to
+    identifier id by compile() The compile_result is the return result of compile(), 
+    and it will be None if compile() was not called
     """
-    return self.run(desired_result, input, limit)
+    if self.parallel_compile:
+        raise RuntimeError('MeasurementInterface.run_precompiled() not implemented', 
+                'for parallel compilation')
+    pass
 
   def cleanup(self, id):
     """
@@ -84,7 +95,18 @@ class MeasurementInterface(object):
     """
     pass
 
-  @abc.abstractmethod
+  #@abc.abstractmethod
+  def compile_and_run(self, desired_result, input, limit):
+    """
+    Compile and run the given desired_result on input and produce a 
+    Result(), abort early if limit (in seconds) is reached This function 
+    is only used for sequential execution flow
+
+    FIXME: Shoud uncomment @abc.abstractmethod Now comment out for
+    compatiability
+    """
+    return self.run(desired_result, input, limit)
+
   def run(self, desired_result, input, limit):
     """
     run the given desired_result on input and produce a Result(),

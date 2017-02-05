@@ -48,14 +48,11 @@ class GccFlagsTuner(MeasurementInterface):
         IntegerParameter(param, min, max))
     return manipulator
 
-  def run(self, desired_result, input, limit):
+  def compile(self, cfg, id):
     """
-    Compile and run a given configuration then
-    return performance
+    Compile a given configuration in parallel
     """
-    cfg = desired_result.configuration.data
-
-    gcc_cmd = 'g++ apps/raytracer.cpp -o ./tmp.bin'
+    gcc_cmd = 'g++ apps/raytracer.cpp -o ./tmp{0}.bin'.format(id)
     gcc_cmd += ' -O{0}'.format(cfg['opt_level'])
     for flag in GCC_FLAGS:
       if cfg[flag] == 'on':
@@ -65,13 +62,30 @@ class GccFlagsTuner(MeasurementInterface):
     for param, min, max in GCC_PARAMS:
       gcc_cmd += ' --param {0}={1}'.format(
         param, cfg[param])
-
-    compile_result = self.call_program(gcc_cmd)
+    return self.call_program(gcc_cmd)
+  
+  def run_precompiled(self, desired_result, input, limit, compile_result, id):
+    """
+    Run a compile_result from compile() sequentially and return performance
+    """
     assert compile_result['returncode'] == 0
 
-    run_result = self.call_program('./tmp.bin')
-    assert run_result['returncode'] == 0
+    try:    
+        run_result = self.call_program('./tmp{0}.bin'.format(id))
+        assert run_result['returncode'] == 0
+    finally:
+        self.call_program('rm ./tmp{0}.bin'.format(id))
+
     return Result(time=run_result['time'])
+
+  def compile_and_run(self, desired_result, input, limit):
+    """
+    Compile and run a given configuration then
+    return performance
+    """
+    cfg = desired_result.configuration.data
+    compile_result = self.compile(cfg, 0)
+    return self.run_precompiled(desired_result, input, limit, compile_result, 0)
 
 if __name__ == '__main__':
   argparser = opentuner.default_argparser()
