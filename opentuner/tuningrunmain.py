@@ -212,8 +212,9 @@ class TuningRunMain(object):
   def results_wait(self, generation):
     """called by search_driver to wait for results"""
     #single process version:
+    self.measurement_interface.pre_process()  
     self.measurement_driver.process_all()
-
+    self.measurement_interface.post_process()
 
 def main(interface, args, *pargs, **kwargs):
   if inspect.isclass(interface):
