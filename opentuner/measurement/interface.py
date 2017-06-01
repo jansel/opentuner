@@ -95,6 +95,20 @@ class MeasurementInterface(object):
     """
     pass
 
+  def pre_process(self):
+    """
+    The process before each iteration This method will be called
+    once per iteration before all threads are launched
+    """
+    pass
+
+  def post_process(self):
+    """
+    The process after each iteration This method will be called 
+    once per iteration after all threads are committed
+    """
+    pass
+
   #@abc.abstractmethod
   def compile_and_run(self, desired_result, input, limit):
     """
