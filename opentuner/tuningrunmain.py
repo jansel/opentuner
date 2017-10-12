@@ -171,6 +171,7 @@ class TuningRunMain(object):
         'tuning_run_main': self,
         'tuning_run': self.tuning_run,
         'extra_seeds': self.measurement_interface.seed_configurations(),
+        'extra_criteria': self.measurement_interface.extra_convergence_criteria
       }
 
       self.search_driver = self.search_driver_cls(**driver_kwargs)

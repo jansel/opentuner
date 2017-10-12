@@ -23,6 +23,7 @@ except ImportError:
 
 import opentuner
 from opentuner import resultsdb
+from opentuner.resultsdb.models import *
 
 log = logging.getLogger(__name__)
 
@@ -108,6 +109,13 @@ class MeasurementInterface(object):
     once per iteration after all threads are committed
     """
     pass
+
+  def extra_convergence_criteria(self, result):
+    """
+    The extra convergence criteria which returns True if the
+    current result is acceptable by the user
+    """
+    return False
 
   #@abc.abstractmethod
   def compile_and_run(self, desired_result, input, limit):
