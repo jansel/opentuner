@@ -45,13 +45,14 @@ class SearchDriver(DriverBase):
   DesiredResults
   """
 
-  def __init__(self, manipulator, extra_seeds=None, **kwargs):
+  def __init__(self, manipulator, extra_seeds=None, extra_criteria=None, **kwargs):
     super(SearchDriver, self).__init__(**kwargs)
     if extra_seeds is None:
       extra_seeds = []
     self.manipulator = manipulator
     self.wait_for_results = self.tuning_run_main.results_wait
     self.commit = self.tuning_run_main.commit
+    self.extra_criteria = extra_criteria
 
     self.generation = 0
     self.test_count = 0
@@ -85,6 +86,7 @@ class SearchDriver(DriverBase):
     self.objective.set_driver(self)
     self.pending_config_ids = set()
     self.best_result = None
+    self.new_results = []
 
     for t in self.plugins:
       t.set_driver(self)
@@ -113,8 +115,14 @@ class SearchDriver(DriverBase):
         elapsed = elapsed.total_seconds()
       except:  # python 2.6
         elapsed = elapsed.days * 86400 + elapsed.seconds
-      return elapsed > self.args.stop_after
-    return self.test_count > self.args.test_limit
+      if elapsed > self.args.stop_after:
+          return True
+    if self.test_count > self.args.test_limit:
+        return True    
+    if self.extra_criteria:
+        if self.extra_criteria(self.new_results):
+            return True
+    return False
 
   def register_result_callback(self, desired_result, callback):
     if desired_result.result is not None:
@@ -196,10 +204,12 @@ class SearchDriver(DriverBase):
     return tests_this_generation
 
   def process_new_results(self):
+    self.new_results = []
     for result in (self.results_query()
                        .filter_by(was_new_best=None)
                        .order_by(Result.collection_date)):
       self.plugin_proxy.on_result(result)
+      self.new_results.append(result)
       if self.best_result is None:
         self.best_result = result
         result.was_new_best = True
