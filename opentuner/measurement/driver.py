@@ -1,3 +1,7 @@
+from __future__ import division
+from __future__ import print_function
+from builtins import zip
+from past.utils import old_div
 import argparse
 import logging
 import time
@@ -54,8 +58,8 @@ class MeasurementDriver(DriverBase):
       m = Machine(name=hostname,
                   cpu=_cputype(),
                   cores=_cpucount(),
-                  memory_gb=_memorysize() / (
-                  1024.0 ** 3) if _memorysize() else 0,
+                  memory_gb=old_div(_memorysize(), (
+                  1024.0 ** 3)) if _memorysize() else 0,
                   machine_class=self.get_machine_class())
       self.session.add(m)
       return m
@@ -202,8 +206,8 @@ class MeasurementDriver(DriverBase):
         self.run_desired_result(dr, compile_result, dr.id)
         try:
           self.interface.cleanup(dr.id)
-        except RuntimeError, e:
-          print e
+        except RuntimeError as e:
+          print(e)
           # print 'Done!'
       thread_pool.close()
     else:

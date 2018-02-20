@@ -1,3 +1,4 @@
+from builtins import object
 from opentuner.resultsdb.models import *
 
 

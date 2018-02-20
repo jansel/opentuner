@@ -1,3 +1,9 @@
+from __future__ import division
+from __future__ import absolute_import
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import abc
 import copy
 import logging
@@ -37,8 +43,7 @@ class BanditQueue(object):
     value represent how unsure we are (optimal bandit solution)
     """
     if self.use_counts[key] > 0:
-      return math.sqrt((2.0 * math.log(len(self.history), 2.0))
-                       / self.use_counts[key])
+      return math.sqrt(old_div((2.0 * math.log(len(self.history), 2.0)), self.use_counts[key]))
     else:
       return float('inf')
 
@@ -183,7 +188,7 @@ class AUCBanditMetaTechnique(MetaSearchTechnique):
     for i in range(num_techniques):
       for j in range(retry_count):
         # pick a technique or generate a composable
-        if random.random() < float(len(basetechniques)) / (len(basetechniques) + generator_weight*len(generators)):
+        if random.random() < old_div(float(len(basetechniques)), (len(basetechniques) + generator_weight*len(generators))):
           candidate = copy.deepcopy(random.choice(basetechniques))
         else:
           # pick a random generator
@@ -204,7 +209,7 @@ class AUCBanditMutationTechnique(SearchTechnique):
     self.pending_results = []
 
   def handle_requested_result(self, result):
-    for i in xrange(len(self.pending_results)):
+    for i in range(len(self.pending_results)):
       cfg, name, index = self.pending_results[i]
       if result.configuration == cfg:
         self.bandit.on_result((name, index), result.was_new_best)
@@ -242,7 +247,7 @@ class AUCBanditMutationTechnique(SearchTechnique):
   def init_bandit(self, cfg):
     options = []
     for param in self.manipulator.parameters(cfg):
-      for i in xrange(len(param.manipulators(cfg))):
+      for i in range(len(param.manipulators(cfg))):
         options.append((param.name, i))
     # TODO(jansel): remove assumption that set of parameters are fixed
     self.bandit = AUCBanditQueue(options, **self.bandit_kwargs)
@@ -256,13 +261,13 @@ class AUCBanditMutationTechnique(SearchTechnique):
       return self.manipulator.random()
 
 
-import evolutionarytechniques
-import differentialevolution
-import simplextechniques
-import patternsearch
-import simulatedannealing
-from pso import PSO, HybridParticle
-import globalGA
+from . import evolutionarytechniques
+from . import differentialevolution
+from . import simplextechniques
+from . import patternsearch
+from . import simulatedannealing
+from .pso import PSO, HybridParticle
+from . import globalGA
 register(AUCBanditMutationTechnique())
 
 register(AUCBanditMetaTechnique([

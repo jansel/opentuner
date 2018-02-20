@@ -1,8 +1,14 @@
+from __future__ import division
+from __future__ import print_function
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import numpy as np
 import math
 
 
-class Op:
+class Op(object):
   def __init__(self):
     self.M = []
     self.name = [];
@@ -35,41 +41,41 @@ class Op:
     #self.anti_operator.append('+w');
 
     # Operators
-    alpha = math.pi / 3.0;
-    da = math.pi / 10.0;
+    alpha = old_div(math.pi, 3.0);
+    da = old_div(math.pi, 10.0);
 
     # operator 1 +z
     self.M.append(np.matrix(
-      [[math.cos(da / 2.0) - 1j * math.sin(da / 2.0), 0.0],
-       [0.0, math.cos(da / 2.0) + 1j * math.sin(da / 2.0)]]))
+      [[math.cos(old_div(da, 2.0)) - 1j * math.sin(old_div(da, 2.0)), 0.0],
+       [0.0, math.cos(old_div(da, 2.0)) + 1j * math.sin(old_div(da, 2.0))]]))
     self.name.append('+z');
     self.mutation_partners.append(['-z', '+w', '-w']);
     self.anti_operator.append('-z');
 
     # operator 2 -z
     self.M.append(np.matrix(
-      [[math.cos(-da / 2.0) - 1j * math.sin(-da / 2.0), 0.0],
-       [0.0, math.cos(-da / 2.0) + 1j * math.sin(-da / 2.0)]]))
+      [[math.cos(old_div(-da, 2.0)) - 1j * math.sin(old_div(-da, 2.0)), 0.0],
+       [0.0, math.cos(old_div(-da, 2.0)) + 1j * math.sin(old_div(-da, 2.0))]]))
     self.name.append('-z');
     self.mutation_partners.append(['+z', '+w', '-w']);
     self.anti_operator.append('+z');
 
     # operator 3 +w
     self.M.append(np.matrix([
-      [math.cos(da / 2.0) - 1j * math.cos(alpha) * math.sin(da / 2.0),
-       -math.sin(alpha) * math.sin(da / 2.0)],
-      [math.sin(alpha) * math.sin(da / 2.0),
-       math.cos(da / 2.0) + 1j * math.cos(alpha) * math.sin(da / 2.0)]]))
+      [math.cos(old_div(da, 2.0)) - 1j * math.cos(alpha) * math.sin(old_div(da, 2.0)),
+       -math.sin(alpha) * math.sin(old_div(da, 2.0))],
+      [math.sin(alpha) * math.sin(old_div(da, 2.0)),
+       math.cos(old_div(da, 2.0)) + 1j * math.cos(alpha) * math.sin(old_div(da, 2.0))]]))
     self.name.append('+w');
     self.mutation_partners.append(['+z', '-z', '-w']);
     self.anti_operator.append('-w');
 
     # operator 4 -w
     self.M.append(np.matrix([
-      [math.cos(-da / 2.0) - 1j * math.cos(alpha) * math.sin(-da / 2.0),
-       -math.sin(alpha) * math.sin(-da / 2.0)],
-      [math.sin(alpha) * math.sin(-da / 2.0),
-       math.cos(-da / 2.0) + 1j * math.cos(alpha) * math.sin(-da / 2.0)]]))
+      [math.cos(old_div(-da, 2.0)) - 1j * math.cos(alpha) * math.sin(old_div(-da, 2.0)),
+       -math.sin(alpha) * math.sin(old_div(-da, 2.0))],
+      [math.sin(alpha) * math.sin(old_div(-da, 2.0)),
+       math.cos(old_div(-da, 2.0)) + 1j * math.cos(alpha) * math.sin(old_div(-da, 2.0))]]))
     self.name.append('-w');
     self.mutation_partners.append(['+z', '-z', '+w']);
     self.anti_operator.append('+w');
@@ -80,8 +86,8 @@ class Op:
     # in case one isn't unitary the program stops
     for k in range(len(self.M)):
       if (np.trace(self.M[k] * self.M[k].getH()) - 2 != 0):
-        print "Operator " + self.name[k] + " (no. " + str(
-          k) + ") isn't unitary!"
+        print("Operator " + self.name[k] + " (no. " + str(
+          k) + ") isn't unitary!")
         exit()
 
   def determine_index_of_mutation_partners(self):
@@ -106,8 +112,8 @@ class Op:
           found_operator = True
 
       if found_operator == False:
-        print "Couldn't find the anti-operator for operator " + self.name[
-          k] + " (no " + str(k) + ")"
+        print("Couldn't find the anti-operator for operator " + self.name[
+          k] + " (no " + str(k) + ")")
 
   def __str__(self):
     # just a test to play around
@@ -136,7 +142,7 @@ def calc_fidelity(sequence, Op, Ugoal):
     Uapprox = Op.M[sequence[k]] * Uapprox
 
   # M.getH() returns the complex conjugate of self
-  result = (1.0 / len(Ugoal)) * abs(np.trace(Ugoal * Uapprox.getH()))
+  result = (old_div(1.0, len(Ugoal))) * abs(np.trace(Ugoal * Uapprox.getH()))
 
   return result
 

@@ -1,3 +1,6 @@
+from __future__ import division
+from builtins import range
+from past.utils import old_div
 import numpy as np
 import math
 import random
@@ -78,23 +81,23 @@ def my_cexp(x):
 
 
 def X_Mat(a):
-  return np.matrix([[math.cos(a / 2.0), -1j * math.sin(a / 2.0)],
-                    [-1j * math.sin(a / 2.0), math.cos(a / 2.0)]])
+  return np.matrix([[math.cos(old_div(a, 2.0)), -1j * math.sin(old_div(a, 2.0))],
+                    [-1j * math.sin(old_div(a, 2.0)), math.cos(old_div(a, 2.0))]])
 
 
 def Y_Mat(a):
-  return np.matrix([[math.cos(a / 2.0), -math.sin(a / 2.0)],
-                    [math.sin(a / 2.0), math.cos(a / 2.0)]])
+  return np.matrix([[math.cos(old_div(a, 2.0)), -math.sin(old_div(a, 2.0))],
+                    [math.sin(old_div(a, 2.0)), math.cos(old_div(a, 2.0))]])
 
 
 def Z_Mat(a):
-  return np.matrix([[math.cos(-a / 2.0) + 1j * math.sin(-a / 2.0), 0],
-                    [0, math.cos(a / 2.0) + 1j * math.sin(a / 2.0)]])
+  return np.matrix([[math.cos(old_div(-a, 2.0)) + 1j * math.sin(old_div(-a, 2.0)), 0],
+                    [0, math.cos(old_div(a, 2.0)) + 1j * math.sin(old_div(a, 2.0))]])
 
 
 def W_Mat(a, alpha):
-  return np.matrix([[math.cos(a / 2) - 1j * math.cos(alpha) * math.sin(a / 2.0),
-                     -math.sin(a / 2.0) * math.sin(alpha)],
-                    [math.sin(a / 2.0) * math.sin(alpha),
-                     math.cos(a / 2.0) + 1j * math.cos(alpha) * math.sin(
-                       a / 2.0)]])
+  return np.matrix([[math.cos(old_div(a, 2)) - 1j * math.cos(alpha) * math.sin(old_div(a, 2.0)),
+                     -math.sin(old_div(a, 2.0)) * math.sin(alpha)],
+                    [math.sin(old_div(a, 2.0)) * math.sin(alpha),
+                     math.cos(old_div(a, 2.0)) + 1j * math.cos(alpha) * math.sin(
+                       old_div(a, 2.0))]])

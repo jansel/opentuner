@@ -1,3 +1,6 @@
+from __future__ import division
+from builtins import range
+from past.utils import old_div
 from opentuner.search import technique
 import math
 import random
@@ -19,7 +22,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
     #create temperature schedule (list of temps)
     cool_schedule = [temps[0]]
     for i in range(len(temps)-1):
-      step = (float(temps[i+1]) - temps[i])/ext_intervals[i]
+      step = old_div((float(temps[i+1]) - temps[i]),ext_intervals[i])
       for j in range(ext_intervals[i]):
         cool_schedule.append(max(cool_schedule[-1] + step,0))
       
@@ -49,7 +52,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
       #Determine temperature
       temp = self.cool_schedule[min(counter,max_time)]
       #scale stepsize with temp and time (arbitrary)
-      step_size = math.exp(-(20 + counter/100)/(temp+ 1)) 
+      step_size = math.exp(old_div(-(20 + old_div(counter,100)),(temp+ 1))) 
           
       #get candidate neighbors using manipulator
       points = list()

@@ -5,7 +5,9 @@ Examples usage of a Python API interface to opentuner.
 Unlike the other examples, this code lets the user control the main() of
 the program and calls into opentuner to get new configurations to test.
 """
+from __future__ import print_function
 
+from builtins import range
 import adddeps  # add opentuner to path in dev mode
 
 import opentuner
@@ -38,7 +40,7 @@ def main():
                                             program_name='api_test',
                                             program_version='0.1')
     api = TuningRunManager(interface, args)
-    for x in xrange(500):
+    for x in range(500):
         desired_result = api.get_next_desired_result()
         if desired_result is None:
           # The search space for this example is very small, so sometimes
@@ -51,7 +53,7 @@ def main():
 
     best_cfg = api.get_best_configuration()
     api.finish()
-    print 'best x found was', best_cfg['x']
+    print('best x found was', best_cfg['x'])
 
 if __name__ == '__main__':
   main()

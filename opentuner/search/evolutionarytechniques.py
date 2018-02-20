@@ -1,7 +1,13 @@
+from __future__ import division
+from __future__ import absolute_import
+from builtins import map
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import abc
 import copy
 import random
-from technique import SearchTechnique
+from .technique import SearchTechnique
 from opentuner.search import technique
 
 class EvolutionaryTechnique(SearchTechnique):
@@ -28,15 +34,15 @@ class EvolutionaryTechnique(SearchTechnique):
     #TODO: set limit value
 
     parents = self.selection()
-    parents = map(copy.deepcopy, parents)
-    parent_hashes = map(self.manipulator.hash_config, parents)
+    parents = list(map(copy.deepcopy, parents))
+    parent_hashes = list(map(self.manipulator.hash_config, parents))
 
     if len(parents) > 1:
       cfg = self.crossover(parents)
     else:
       cfg = parents[0]
 
-    for z in xrange(10): #retries
+    for z in range(10): #retries
       self.mutation(cfg)
       if self.manipulator.hash_config(cfg) in parent_hashes:
         continue # try again
@@ -124,7 +130,7 @@ class CrossoverMixin(object):
     params = self.manipulator.parameters(cfg1)
     for param in params:
       if param.is_permutation() and param.size>6:
-        getattr(param, self.crossover_op)(new, cfg1, cfg2, d=param.size/3)
+        getattr(param, self.crossover_op)(new, cfg1, cfg2, d=old_div(param.size,3))
     return new
 
 

@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 from django.conf.urls import patterns, include, url
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
-import views.charts
+from . import views.charts
 admin.autodiscover()
 
 urlpatterns = patterns('',

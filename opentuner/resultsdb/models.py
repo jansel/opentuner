@@ -1,3 +1,6 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy import create_engine
@@ -8,7 +11,7 @@ from sqlalchemy import (
 import sqlalchemy
 import re
 
-from cPickle import dumps, loads
+from pickle import dumps, loads
 from gzip import zlib
 class CompressedPickler(object):
   @classmethod

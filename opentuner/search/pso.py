@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab autoindent smarttab
-from manipulator import *
+from __future__ import absolute_import
+from builtins import range
+from builtins import object
+from .manipulator import *
 from opentuner.search import technique
 import random
 import math

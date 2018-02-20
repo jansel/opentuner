@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+from __future__ import division
+from __future__ import print_function
+from builtins import map
+from builtins import filter
+from builtins import range
+from past.utils import old_div
 import adddeps  # fix sys.path
 
 import math
@@ -114,7 +120,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
                                   re.MULTILINE)
       log.info('Determining which of %s possible gcc flags work',
                len(found_cc_flags))
-      found_cc_flags = filter(self.check_if_flag_works, found_cc_flags)
+      found_cc_flags = list(filter(self.check_if_flag_works, found_cc_flags))
       json.dump(found_cc_flags, open(FLAGS_WORKING_CACHE_FILE, 'w'))
     return found_cc_flags
 
@@ -206,7 +212,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       defaults['max'] = min(defaults['max'],
                             max(1, defaults['default']) * args.scaler)
       defaults['min'] = max(defaults['min'],
-                            max(1, defaults['default']) / args.scaler)
+                            old_div(max(1, defaults['default']), args.scaler))
 
       if param == 'l1-cache-line-size':
         # gcc requires this to be a power of two or it internal errors
@@ -294,13 +300,13 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     if self.args.debug:
       while len(flags) > 8:
         log.error("compile error with %d flags, diagnosing...", len(flags))
-        tmpflags = filter(lambda x: random.choice((True, False)), flags)
+        tmpflags = [x for x in flags if random.choice((True, False))]
         if fails(tmpflags):
           flags = tmpflags
 
       # linear scan
       minimal_flags = []
-      for i in xrange(len(flags)):
+      for i in range(len(flags)):
         tmpflags = minimal_flags + flags[i + 1:]
         if not fails(tmpflags):
           minimal_flags.append(flags[i])
@@ -339,7 +345,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
 
   def save_final_config(self, configuration):
     """called at the end of tuning"""
-    print "Best flags written to gccflags_final_config.{json,cmd}"
+    print("Best flags written to gccflags_final_config.{json,cmd}")
     self.manipulator().save_to_file(configuration.data,
                                     'gccflags_final_config.json')
     with open('gccflags_final_config.cmd', 'w') as fd:
@@ -350,10 +356,10 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
     q = session.query(TuningRun).filter_by(state='COMPLETE')
     total = q.count()
     for tr in q:
-      print tr.program.name
+      print(tr.program.name)
       for flag in self.cfg_to_flags(tr.final_config.data):
-        counter[flag] += 1.0 / total
-    print counter.most_common(20)
+        counter[flag] += old_div(1.0, total)
+    print(counter.most_common(20))
 
   def flag_importance(self):
     """
@@ -372,22 +378,22 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
       if math.isinf(impact):
         impact = 0.0
       counter[flag] = impact
-      print flag, '{:.4f}'.format(impact)
+      print(flag, '{:.4f}'.format(impact))
     total_impact = sum(counter.values())
     remaining_impact = total_impact
-    print r'\bf Flag & \bf Importance \\\hline'
+    print(r'\bf Flag & \bf Importance \\\hline')
     for flag, impact in counter.most_common(20):
-      print r'{} & {:.1f}\% \\\hline'.format(flag, 100.0 * impact / total_impact)
+      print(r'{} & {:.1f}\% \\\hline'.format(flag, 100.0 * impact / total_impact))
       remaining_impact -= impact
-    print r'{} other flags & {:.1f}% \\\hline'.format(
-      len(flags) - 20, 100.0 * remaining_impact / total_impact)
+    print(r'{} other flags & {:.1f}% \\\hline'.format(
+      len(flags) - 20, 100.0 * remaining_impact / total_impact))
 
   def flags_mean_time(self, flags, trials=10):
     precompiled = self.compile_with_flags(flags, 0)
     total = 0.0
-    for _ in xrange(trials):
+    for _ in range(trials):
       total += self.run_precompiled(None, None, None, precompiled, 0).time
-    return total / trials
+    return old_div(total, trials)
 
   def prefix_hook(self, session):
     if self.args.flags_histogram:

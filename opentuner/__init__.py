@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 
-import measurement
-import resultsdb
-import search
-import tuningrunmain
+from . import measurement
+from . import resultsdb
+from . import search
+from . import tuningrunmain
 from opentuner.measurement import MeasurementInterface
 from opentuner.resultsdb.models import Configuration
 from opentuner.resultsdb.models import DesiredResult

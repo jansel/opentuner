@@ -1,14 +1,21 @@
+from __future__ import absolute_import
+from past.builtins import cmp
+from builtins import map
+from builtins import range
+from builtins import object
 import random
 import time
 import sys
 import json
 from fn import _
-from technique import all_techniques
-from technique import register
-from technique import register_generator
-from technique import SequentialSearchTechnique
-from manipulator import *
+from .technique import all_techniques
+from .technique import register
+from .technique import register_generator
+from .technique import SequentialSearchTechnique
+from .manipulator import *
 from opentuner.search.manipulator import Parameter
+from future.utils import with_metaclass
+from functools import reduce
 
 
 class PopulationMember(object):
@@ -27,11 +34,10 @@ class PopulationMember(object):
     self.timestamp = time.time()
 
 
-class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
+class ComposableEvolutionaryTechnique(with_metaclass(abc.ABCMeta, SequentialSearchTechnique)):
   """
   An abstract base class for a technique that is composable with operators
   """
-  __metaclass__ = abc.ABCMeta
 
   # operator_map - from param-type to dict with operator name + list of arguments TODO
   # min_parent - minimum number of parents returned. Limits which operators can be used
@@ -354,7 +360,7 @@ class ComposableEvolutionaryTechnique(SequentialSearchTechnique):
     """
     generate a composable technique with random operators
     """
-    from manipulator import composable_operators
+    from .manipulator import composable_operators
     # randomly select a composable technique to generate
     t = cls(*args, **kwargs)
     if manipulator is None:
@@ -402,7 +408,7 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
     # copy oldest
     cfg = self.manipulator.copy(population[0].config)
 
-    shuffled_population = map(_.config, population[1:])
+    shuffled_population = list(map(_.config, population[1:]))
     # mix in the global best configuration
     shuffled_population += ([self.get_global_best_configuration()]
                             * self.information_sharing)

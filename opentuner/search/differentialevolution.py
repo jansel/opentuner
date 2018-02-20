@@ -1,9 +1,15 @@
+from __future__ import division
+from __future__ import absolute_import
+from builtins import map
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import random
 import time
 import logging
 from fn import _
-from technique import register
-from technique import SearchTechnique
+from .technique import register
+from .technique import SearchTechnique
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARNING)
@@ -50,12 +56,11 @@ class DifferentialEvolution(SearchTechnique):
     self.population = [PopulationMember(
         self.driver.get_configuration(
             self.manipulator.random()), submitted=False)
-        for z in xrange(self.population_size)]
+        for z in range(self.population_size)]
 
   def oldest_pop_member(self):
     # since tests are run in parallel, exclude things with a replacement pending
-    pop_without_replacements = filter(lambda x: x.candidate_replacement is None,
-                                      self.population)
+    pop_without_replacements = [x for x in self.population if x.candidate_replacement is None]
     if not pop_without_replacements:
       # everything has a pending replacement
       return None
@@ -84,7 +89,7 @@ class DifferentialEvolution(SearchTechnique):
       return None
 
     config = None
-    for retry in xrange(self.duplicate_retries):
+    for retry in range(self.duplicate_retries):
       config = self.driver.get_configuration(
           self.create_new_configuration(oldest_pop_member))
       if not self.driver.has_results(config):
@@ -110,9 +115,9 @@ class DifferentialEvolution(SearchTechnique):
                        * self.information_sharing)
 
     random.shuffle(shuffled_pop)
-    x1, x2, x3 = map(_.config.data, shuffled_pop[0:3])
+    x1, x2, x3 = list(map(_.config.data, shuffled_pop[0:3]))
 
-    use_f = random.random() / 2.0 + 0.5
+    use_f = old_div(random.random(), 2.0) + 0.5
 
     params = self.manipulator.param_names(cfg, x1, x2, x3)
     random.shuffle(params)
