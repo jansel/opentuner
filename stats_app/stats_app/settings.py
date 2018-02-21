@@ -1,4 +1,5 @@
 # Django settings for stats_app project.
+from __future__ import absolute_import
 import os
 
 DEBUG = True

@@ -1,9 +1,12 @@
+from __future__ import absolute_import
 import abc
 import logging
 from collections import deque, defaultdict
 from fn import _
 
 from .technique import SearchTechniqueBase
+import sys
+from six.moves import zip
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +27,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
     for t in self.techniques:
       while t.name in names:
         t.name += '~'
-      t.name = intern(t.name)
+      t.name = sys.intern(t.name)
       names.add(t.name)
 
   def set_driver(self, driver):
@@ -68,7 +71,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
   def debug_log(self):
     if self.log_freq and sum(self.logging_use_counters.values())>self.log_freq:
       log.info("%s: %s", self.name,
-          str(sorted(self.logging_use_counters.items(), key = _[1]*-1)))
+          str(sorted(list(self.logging_use_counters.items()), key = _[1]*-1)))
       self.logging_use_counters = defaultdict(int)
 
 class RoundRobinMetaSearchTechnique(MetaSearchTechnique):

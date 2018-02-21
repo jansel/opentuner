@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import absolute_import
 import adddeps  # fix sys.path
 
 import argparse
@@ -106,7 +108,7 @@ def main(args):
         state='COMPLETE')
       session.add(desired_result)
       tuningrun.end_date = date
-      print gen, date, result.time
+      print(gen, date, result.time)
 
   session.commit()
 

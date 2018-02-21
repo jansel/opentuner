@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import abc
 import logging
 import math
@@ -7,6 +8,9 @@ from fn.iters import map, filter
 from .manipulator import Parameter
 from .metatechniques import RecyclingMetaTechnique
 from .technique import SequentialSearchTechnique, register
+from six.moves import filter
+from six.moves import map
+from six.moves import range
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +55,7 @@ class SimplexTechnique(SequentialSearchTechnique):
     params = list(filter(Parameter.is_primitive,
                          self.manipulator.parameters(cfg)))
     params.sort(key=_.name)
-    return str(tuple(map(lambda x: x.get_unit_value(cfg), params)))
+    return str(tuple([x.get_unit_value(cfg) for x in params]))
 
   def debug_log(self):
     for i, config in enumerate(self.simplex_points):
@@ -120,7 +124,7 @@ class RightInitialMixin(object):
     cfg0 = self.initial_simplex_seed()
     simplex = [cfg0]
     params = self.manipulator.parameters(cfg0)
-    params = filter(lambda x: x.is_primitive(), params)
+    params = [x for x in params if x.is_primitive()]
     for p in params:
       simplex.append(self.manipulator.copy(cfg0))
       v = p.get_unit_value(simplex[-1])
@@ -146,7 +150,7 @@ class RegularInitialMixin(object):
     cfg0 = self.initial_simplex_seed()
     simplex = [cfg0]
     params = self.manipulator.parameters(cfg0)
-    params = list(filter(lambda x: x.is_primitive(), params))
+    params = list([x for x in params if x.is_primitive()])
     if len(params) == 0:
       return simplex
 
@@ -155,15 +159,15 @@ class RegularInitialMixin(object):
     p = q + ((1.0 / math.sqrt(2.0)) * self.initial_unit_edge_length)
 
     base = [x.get_unit_value(cfg0) for x in params]
-    for j in xrange(len(base)):
+    for j in range(len(base)):
       if max(p, q) + base[j] > 1.0:
         #flip this dimension as we would overflow our [0,1] bounds
         base[j] *= -1.0
 
-    for i in xrange(len(params)):
+    for i in range(len(params)):
       simplex.append(self.manipulator.copy(cfg0))
       params[i].set_unit_value(simplex[-1], abs(base[i] + p))
-      for j in xrange(i + 1, len(params)):
+      for j in range(i + 1, len(params)):
         params[j].set_unit_value(simplex[-1], abs(base[i] + q))
 
     return simplex
@@ -304,7 +308,7 @@ class NelderMead(SimplexTechnique):
     shrink the simplex in size by sigma=1/2 (default), moving it closer to the
     best point
     """
-    for i in xrange(1, len(self.simplex_points)):
+    for i in range(1, len(self.simplex_points)):
       self.simplex_points[i] = self.driver.get_configuration(
           self.linear_point(self.simplex_points[0].data,
                             self.simplex_points[i].data,
@@ -389,7 +393,7 @@ class Torczon(SimplexTechnique):
     reflected across self.simplex_points[0] by scale
     """
     simplex = list(self.simplex_points)  # shallow copy
-    for i in xrange(1, len(simplex)):
+    for i in range(1, len(simplex)):
       simplex[i] = self.driver.get_configuration(
           self.linear_point(simplex[0].data, simplex[i].data, scale))
       self.yield_nonblocking(simplex[i])

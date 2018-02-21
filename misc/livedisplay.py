@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+from __future__ import absolute_import
 import os
 import argparse
 import subprocess
@@ -33,18 +35,18 @@ while '\n' not in open(args.details).read():
 
 p1 = subprocess.Popen(["gnuplot"], stdin=subprocess.PIPE)
 p1.stdin.write(open(args.gnuplot_filename).read())
-print >> p1.stdin, 'set title "Zoomed out"'
-print >> p1.stdin, "set xrange [0:%f]" % args.xrange
-print >> p1.stdin, "set yrange [0:%f]" % args.yrange2
+print('set title "Zoomed out"', file=p1.stdin)
+print("set xrange [0:%f]" % args.xrange, file=p1.stdin)
+print("set yrange [0:%f]" % args.yrange2, file=p1.stdin)
 p1.stdin.flush()
 
 time.sleep(1)
 
 p2 = subprocess.Popen(["gnuplot"], stdin=subprocess.PIPE)
 p2.stdin.write(open(args.gnuplot_filename).read())
-print >> p2.stdin, 'set title "Zoomed in"'
-print >> p2.stdin, "set xrange [0:%f]" % args.xrange
-print >> p2.stdin, "set yrange [0:%f]" % args.yrange
+print('set title "Zoomed in"', file=p2.stdin)
+print("set xrange [0:%f]" % args.xrange, file=p2.stdin)
+print("set yrange [0:%f]" % args.yrange, file=p2.stdin)
 p2.stdin.flush()
 
 procs = [p1, p2]
@@ -52,6 +54,6 @@ procs = [p1, p2]
 while True:
   time.sleep(1)
   for p in procs:
-    print >> p.stdin, "replot"
+    print("replot", file=p.stdin)
     p.stdin.flush()
 

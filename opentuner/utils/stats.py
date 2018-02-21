@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import absolute_import
+from functools import reduce
+import six
+from six.moves import map
+from six.moves import range
+from six.moves import zip
 if __name__ == '__main__':
-  import adddeps
+  from . import adddeps
 
 import argparse
 import csv
@@ -40,7 +47,7 @@ argparser.add_argument('--stats-input', default="opentuner.db")
 argparser.add_argument('--min-runs',  type=int, default=1,
                        help="ignore series with less then N runs")
 
-PCTSTEPS = map(_/20.0, xrange(21))
+PCTSTEPS = list(map(_/20.0, range(21)))
 
 def mean(vals):
   n = 0.0
@@ -67,13 +74,13 @@ def percentile(vals, pct):
   return (1.0-(pos-a))*vals[a] + (pos-a)*vals[b]
 
 def variance(vals):
-  vals = filter(lambda x: x is not None, vals)
+  vals = [x for x in vals if x is not None]
   avg = mean(vals)
   if avg is None:
     return None
   if avg in (float('inf'), float('-inf')):
     return avg
-  return mean(map((_ - avg) ** 2, vals))
+  return mean(list(map((_ - avg) ** 2, vals)))
 
 def stddev(vals):
   var = variance(vals)
@@ -128,7 +135,7 @@ class StatsMain(object):
 
       if self.args.label:
         q = q.filter(TuningRun.name.in_(
-          map(str.strip,self.args.label.split(','))))
+          list(map(str.strip,self.args.label.split(',')))))
 
       for tr in q:
         d = run_dir(self.args.stats_dir, tr)
@@ -136,12 +143,12 @@ class StatsMain(object):
         dir_label_runs[d][run_label(tr)].append((tr, session))
 
     summary_report = defaultdict(lambda: defaultdict(list))
-    for d, label_runs in dir_label_runs.iteritems():
+    for d, label_runs in six.iteritems(dir_label_runs):
       if not os.path.isdir(d):
         os.makedirs(d)
-      session = label_runs.values()[0][0][1]
-      objective = label_runs.values()[0][0][0].objective
-      all_run_ids = map(_[0].id, itertools.chain(*label_runs.values()))
+      session = list(label_runs.values())[0][0][1]
+      objective = list(label_runs.values())[0][0][0].objective
+      all_run_ids = list(map(_[0].id, itertools.chain(*list(label_runs.values()))))
       q = (session.query(Result)
            .filter(Result.tuning_run_id.in_(all_run_ids))
            .filter(Result.time < float('inf'))
@@ -155,7 +162,7 @@ class StatsMain(object):
       best = q.limit(1).one()
       worst = q.offset(acceptable-1).limit(1).one()
 
-      map(len, label_runs.values())
+      list(map(len, list(label_runs.values())))
 
       log.info("%s -- best %.4f / worst %.f4 "
                "-- %d of %d acceptable -- %d techniques with %d to %d runs",
@@ -164,13 +171,13 @@ class StatsMain(object):
                worst.time,
                acceptable,
                total,
-               len(label_runs.values()),
-               min(map(len, label_runs.values())),
-               max(map(len, label_runs.values())))
+               len(list(label_runs.values())),
+               min(list(map(len, list(label_runs.values())))),
+               max(list(map(len, list(label_runs.values())))))
 
       for label, runs in sorted(label_runs.items()):
         if len(runs) < self.args.min_runs:
-          print len(runs) ,self.args.min_runs
+          print(len(runs) ,self.args.min_runs)
           continue
         log.debug('%s/%s has %d runs %s',d, label, len(runs), runs[0][0].args.technique)
         self.combined_stats_over_time(d, label, runs, objective, worst, best)
@@ -208,18 +215,18 @@ class StatsMain(object):
       keys = sorted(reduce(set.union,
                            [set(x.keys()) for x in summary_report.values()],
                            set()))
-      print >>o, '#####',
+      print('#####', end=' ', file=o)
       for k in keys:
-        print >>o, k,
-      print >>o
+        print(k, end=' ', file=o)
+      print(file=o)
       for d, label_vals in sorted(summary_report.items()):
-        print >>o, d.split('/')[-2],
+        print(d.split('/')[-2], end=' ', file=o)
         for k in keys:
           if k in label_vals:
-            print >>o, '-', label_vals[k][0], label_vals[k][1], label_vals[k][2],
+            print('-', label_vals[k][0], label_vals[k][1], label_vals[k][2], end=' ', file=o)
           else:
-            print >>o, '-', '-', '-', '-',
-        print >>o
+            print('-', '-', '-', '-', end=' ', file=o)
+        print(file=o)
 
     if keys:
       plotcmd = ["""1 w lines lt 1 lc rgb "black" notitle""",
@@ -234,8 +241,8 @@ class StatsMain(object):
 
 
 
-    for d, label_runs in dir_label_runs.iteritems():
-      labels = [k for k,v in label_runs.iteritems()
+    for d, label_runs in six.iteritems(dir_label_runs):
+      labels = [k for k,v in six.iteritems(label_runs)
                 if len(v)>=self.args.min_runs]
       self.gnuplot_file(d,
                         "medianperfe",
@@ -259,8 +266,8 @@ class StatsMain(object):
     # print
     # print "Mean Scores", d
     # pprint(self.technique_scores(d, labels, 'mean'))
-      print
-      print "Median Scores", d
+      print()
+      print("Median Scores", d)
       pprint(self.technique_scores(d, labels, '0.5'))
 
 
@@ -317,11 +324,11 @@ class StatsMain(object):
     log.debug("writing stats for %s to %s", label, output_dir)
     by_run = [self.stats_over_time(session, run, extract_fn, combine_fn, no_data)
               for run, session in runs]
-    max_len = max(map(len, by_run))
+    max_len = max(list(map(len, by_run)))
 
     by_run_streams = [Stream() << x << repeat(x[-1], max_len-len(x))
                       for x in by_run]
-    by_quanta = zip(*by_run_streams[:])
+    by_quanta = list(zip(*by_run_streams[:]))
 
     def data_file(suffix, headers, value_function):
       with open(os.path.join(output_dir, label+suffix), 'w') as fd:
@@ -380,11 +387,11 @@ class StatsMain(object):
 
   def gnuplot_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
-      print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.eps')
-      print >>fd, 'set ylabel "Execution Time (seconds)"'
-      print >>fd, 'set xlabel "Autotuning Time (seconds)"'
-      print >>fd, 'plot', ',\\\n'.join(plotcmd)
+      print('set terminal postscript eps enhanced color', file=fd)
+      print('set output "%s"' % (prefix+'.eps'), file=fd)
+      print('set ylabel "Execution Time (seconds)"', file=fd)
+      print('set xlabel "Autotuning Time (seconds)"', file=fd)
+      print('plot', ',\\\n'.join(plotcmd), file=fd)
 
     try:
       subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
@@ -393,9 +400,9 @@ class StatsMain(object):
 
   def gnuplot_summary_file(self, output_dir, prefix, plotcmd):
     with open(os.path.join(output_dir, prefix+'.gnuplot'), 'w') as fd:
-      print >>fd, 'set terminal postscript eps enhanced color'
-      print >>fd, 'set output "%s"' % (prefix+'.eps')
-      print >>fd, '''
+      print('set terminal postscript eps enhanced color', file=fd)
+      print('set output "%s"' % (prefix+'.eps'), file=fd)
+      print('''
 set boxwidth 0.9
 set style fill solid 1.00 border 0
 set style histogram errorbars gap 2 lw 1
@@ -409,8 +416,8 @@ set key out vert top left
 set size 1.5,1
 set ytics 1
 
-'''
-      print >>fd, 'plot', ',\\\n'.join(plotcmd)
+''', file=fd)
+      print('plot', ',\\\n'.join(plotcmd), file=fd)
     subprocess.call(['gnuplot', prefix+'.gnuplot'], cwd=output_dir, stdin=None)
 
 

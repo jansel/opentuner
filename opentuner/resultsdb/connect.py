@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from models import Base, _Meta
+from .models import Base, _Meta
 import logging
 import time
 from pprint import pprint

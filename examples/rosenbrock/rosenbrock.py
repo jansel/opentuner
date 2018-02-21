@@ -8,6 +8,8 @@
 # http://en.wikipedia.org/wiki/Test_functions_for_optimization
 #
 
+from __future__ import print_function
+from __future__ import absolute_import
 import adddeps  # fix sys.path
 
 import argparse
@@ -17,6 +19,7 @@ import opentuner
 from opentuner.measurement import MeasurementInterface
 from opentuner.search.manipulator import ConfigurationManipulator
 from opentuner.search.manipulator import FloatParameter
+from six.moves import range
 
 log = logging.getLogger(__name__)
 
@@ -36,12 +39,12 @@ class Rosenbrock(MeasurementInterface):
     val = 0.0
     if self.args.function == 'rosenbrock':
       # the actual rosenbrock function:
-      for d in xrange(self.args.dimensions - 1):
+      for d in range(self.args.dimensions - 1):
         x0 = cfg[d]
         x1 = cfg[d + 1]
         val += 100.0 * (x1 - x0 ** 2) ** 2 + (x0 - 1) ** 2
     elif self.args.function == 'sphere':
-      for d in xrange(self.args.dimensions):
+      for d in range(self.args.dimensions):
         xi = cfg[d]
         val += xi ** 2
     elif self.args.function == 'beale':
@@ -56,7 +59,7 @@ class Rosenbrock(MeasurementInterface):
 
   def manipulator(self):
     manipulator = ConfigurationManipulator()
-    for d in xrange(self.args.dimensions):
+    for d in range(self.args.dimensions):
       manipulator.add_parameter(FloatParameter(d,
                                                -self.args.domain,
                                                self.args.domain))
@@ -72,7 +75,7 @@ class Rosenbrock(MeasurementInterface):
     """
     called at the end of autotuning with the best resultsdb.models.Configuration
     """
-    print "Final configuration", configuration.data
+    print("Final configuration", configuration.data)
 
 
 if __name__ == '__main__':

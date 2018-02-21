@@ -4,6 +4,7 @@
 #
 # This is an extremely simplified version meant only for tutorials
 #
+from __future__ import absolute_import
 import adddeps  # fix sys.path
 
 import opentuner

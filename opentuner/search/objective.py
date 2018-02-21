@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import abc
 import logging
 
@@ -5,15 +6,16 @@ from fn import _
 
 import opentuner
 from opentuner.resultsdb.models import *
+from six.moves import map
+import six
 
 log = logging.getLogger(__name__)
 
 
-class SearchObjective(object):
+class SearchObjective(six.with_metaclass(abc.ABCMeta, object)):
   """
   delegates the comparison of results and configurations
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def result_order_by_terms(self):
@@ -103,7 +105,7 @@ class SearchObjective(object):
     if results.count() == 0:
       return None
     else:
-      return max(map(_.time, self.driver.results_query(config=config)))
+      return max(list(map(_.time, self.driver.results_query(config=config))))
 
 
   def project_compare(self, a1, a2, b1, b2, factor=1.0):
@@ -167,8 +169,8 @@ class MinimizeTime(SearchObjective):
 
   def config_compare(self, config1, config2):
     """cmp() compatible comparison of resultsdb.models.Configuration"""
-    return cmp(min(map(_.time, self.driver.results_query(config=config1))),
-               min(map(_.time, self.driver.results_query(config=config2))))
+    return cmp(min(list(map(_.time, self.driver.results_query(config=config1)))),
+               min(list(map(_.time, self.driver.results_query(config=config2)))))
 
   def result_relative(self, result1, result2):
     """return None, or a relative goodness of resultsdb.models.Result"""
@@ -275,11 +277,11 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     results = self.driver.results_query(config=config)
     if results.count() == 0:
       return None
-    if self.accuracy_target > min(map(_.accuracy, results)):
+    if self.accuracy_target > min(list(map(_.accuracy, results))):
       m = self.low_accuracy_limit_multiplier
     else:
       m = 1.0
-    return m * max(map(_.time, results))
+    return m * max(list(map(_.time, results)))
 
 
   def filter_acceptable(self, query):

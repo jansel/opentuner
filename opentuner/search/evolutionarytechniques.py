@@ -1,8 +1,11 @@
+from __future__ import absolute_import
 import abc
 import copy
 import random
-from technique import SearchTechnique
+from .technique import SearchTechnique
 from opentuner.search import technique
+from six.moves import map
+from six.moves import range
 
 class EvolutionaryTechnique(SearchTechnique):
   def __init__(self,
@@ -28,15 +31,15 @@ class EvolutionaryTechnique(SearchTechnique):
     #TODO: set limit value
 
     parents = self.selection()
-    parents = map(copy.deepcopy, parents)
-    parent_hashes = map(self.manipulator.hash_config, parents)
+    parents = list(map(copy.deepcopy, parents))
+    parent_hashes = list(map(self.manipulator.hash_config, parents))
 
     if len(parents) > 1:
       cfg = self.crossover(parents)
     else:
       cfg = parents[0]
 
-    for z in xrange(10): #retries
+    for z in range(10): #retries
       self.mutation(cfg)
       if self.manipulator.hash_config(cfg) in parent_hashes:
         continue # try again

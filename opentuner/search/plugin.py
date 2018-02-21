@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 import abc
 import argparse
 import logging
@@ -5,6 +7,8 @@ import time
 
 from datetime import datetime
 from fn import _
+from six.moves import map
+import six
 
 log = logging.getLogger(__name__)
 display_log = logging.getLogger(__name__ + ".DisplayPlugin")
@@ -57,8 +61,7 @@ class SearchPlugin(object):
     """
     pass
 
-class DisplayPlugin(SearchPlugin):
-  __metaclass__ = abc.ABCMeta
+class DisplayPlugin(six.with_metaclass(abc.ABCMeta, SearchPlugin)):
   def __init__(self, display_period=5):
     super(DisplayPlugin, self).__init__()
     self.last  = time.time()
@@ -117,14 +120,12 @@ class FileDisplayPlugin(SearchPlugin):
   def on_result(self, result):
     if self.out and result.time < self.last_best:
       self.last_best = result.time
-      print >>self.out, \
-          (result.collection_date - self.start_date).total_seconds(), \
-          result.time
+      print((result.collection_date - self.start_date).total_seconds(), \
+          result.time, file=self.out)
       self.out.flush()
     if self.details:
-      print >>self.details, \
-          (result.collection_date - self.start_date).total_seconds(), \
-          result.time
+      print((result.collection_date - self.start_date).total_seconds(), \
+          result.time, file=self.details)
       self.details.flush()
 
 def get_enabled(args):

@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
 import math
 import random
+from six.moves import range
 
 
 def generate_random_Ugoal_HARD(N, **kwargs):

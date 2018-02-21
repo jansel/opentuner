@@ -1,14 +1,16 @@
+from __future__ import absolute_import
 import unittest
 import opentuner
 import mock
 import random
 import numpy
 from opentuner.search import manipulator
+from six.moves import range
 
 def faked_random(nums):
     f = fake_random(nums)
     def inner(*args, **kwargs):
-        return f.next()
+        return next(f)
     return inner
 
 def fake_random(nums):
