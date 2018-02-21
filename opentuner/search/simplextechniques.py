@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import abc
 import logging
 import math
+from functools import cmp_to_key
 from collections import defaultdict
 from fn import _
 from fn.iters import map, filter
@@ -227,7 +228,7 @@ class NelderMead(SimplexTechnique):
 
     while not self.convergence_criterea():
       # next steps assume this ordering
-      self.simplex_points.sort(cmp=objective.compare)
+      self.simplex_points.sort(key=cmp_to_key(objective.compare))
       # set limit from worst point
       self.limit = objective.limit_from_config(self.simplex_points[-1])
       self.centroid = self.calculate_centroid()
@@ -353,7 +354,7 @@ class Torczon(SimplexTechnique):
     for p in self.simplex_points:
       self.yield_nonblocking(p)
     yield None  # wait until results are ready
-    self.simplex_points.sort(cmp=objective.compare)
+    self.simplex_points.sort(key=cmp_to_key(objective.compare))
 
     while not self.convergence_criterea():
       # set limit from worst point
@@ -364,14 +365,14 @@ class Torczon(SimplexTechnique):
 
       reflected = self.reflected_simplex()
       yield None  # wait until results are ready
-      reflected.sort(cmp=objective.compare)
+      reflected.sort(key=cmp_to_key(objective.compare))
 
       # this next condition implies reflected[0] < simplex_points[0] since
       # reflected is sorted and contains simplex_points[0] (saves a db query)
       if reflected[0] is not self.simplex_points[0]:
         expanded = self.expanded_simplex()
         yield None  # wait until results are ready
-        expanded.sort(cmp=objective.compare)
+        expanded.sort(key=cmp_to_key(objective.compare))
 
         if objective.lt(expanded[0], reflected[0]):
           log.debug("expansion performed")

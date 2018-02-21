@@ -233,10 +233,10 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     params = list(self.parameters(config))
     params.sort(key=_.name)
     for i, p in enumerate(params):
-      m.update(str(p.name))
+      m.update(str(p.name).encode('utf-8'))
       m.update(p.hash_value(config))
-      m.update(str(i))
-      m.update("|")
+      m.update(str(i).encode('utf-8'))
+      m.update(b"|")
     return m.hexdigest()
 
   def search_space_size(self):
@@ -453,7 +453,7 @@ class PrimitiveParameter(six.with_metaclass(abc.ABCMeta, Parameter)):
   def hash_value(self, config):
     """produce unique hash for this value in the config"""
     self.normalize(config)
-    return hashlib.sha256(repr(self.get_value(config))).hexdigest()
+    return hashlib.sha256(repr(self.get_value(config)).encode('utf-8')).hexdigest().encode('utf-8')
 
   def copy_value(self, src, dst):
     """copy the value of this parameter from src to dst config"""
@@ -852,7 +852,7 @@ class ComplexParameter(Parameter):
   def hash_value(self, config):
     """produce unique hash for this value in the config"""
     self.normalize(config)
-    return hashlib.sha256(repr(self._get(config))).hexdigest()
+    return hashlib.sha256(repr(self._get(config)).encode('utf-8')).hexdigest().encode('utf-8')
 
   def get_value(self, config):
     return self._get(config)

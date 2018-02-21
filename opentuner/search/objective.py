@@ -11,6 +11,9 @@ import six
 
 log = logging.getLogger(__name__)
 
+# somewhat like cmp in python2
+def cmp3(a,b):
+  return (a > b) - (a < b)
 
 class SearchObjective(six.with_metaclass(abc.ABCMeta, object)):
   """
@@ -165,11 +168,11 @@ class MinimizeTime(SearchObjective):
 
   def result_compare(self, result1, result2):
     """cmp() compatible comparison of resultsdb.models.Result"""
-    return cmp(result1.time, result2.time)
+    return cmp3(result1.time, result2.time)
 
   def config_compare(self, config1, config2):
     """cmp() compatible comparison of resultsdb.models.Configuration"""
-    return cmp(min(list(map(_.time, self.driver.results_query(config=config1)))),
+    return cmp3(min(list(map(_.time, self.driver.results_query(config=config1)))),
                min(list(map(_.time, self.driver.results_query(config=config2)))))
 
   def result_relative(self, result1, result2):
@@ -191,7 +194,7 @@ class MaximizeAccuracy(SearchObjective):
   def result_compare(self, result1, result2):
     """cmp() compatible comparison of resultsdb.models.Result"""
     # note opposite order
-    return cmp(result2.accuracy, result1.accuracy)
+    return cmp3(result2.accuracy, result1.accuracy)
 
   def result_relative(self, result1, result2):
     """return None, or a relative goodness of resultsdb.models.Result"""

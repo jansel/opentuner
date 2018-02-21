@@ -5,7 +5,10 @@ from collections import deque, defaultdict
 from fn import _
 
 from .technique import SearchTechniqueBase
-import sys
+try:
+    from sys import intern
+except ImportError:
+    pass
 from six.moves import zip
 
 log = logging.getLogger(__name__)
@@ -27,7 +30,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
     for t in self.techniques:
       while t.name in names:
         t.name += '~'
-      t.name = sys.intern(t.name)
+      t.name = intern(t.name)
       names.add(t.name)
 
   def set_driver(self, driver):
