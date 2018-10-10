@@ -6,7 +6,9 @@ We write a movie file and ask the emulator to play it back while running
 fceux-hook.lua, which checks for death/flagpole and prints the fitness to
 stdout where OpenTuner, as the parent process, can read it.
 """
+from __future__ import print_function
 
+from __future__ import absolute_import
 import adddeps #fix sys.path
 import argparse
 import base64
@@ -28,6 +30,8 @@ from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 from opentuner.search.objective import MinimizeTime
+import six
+from six.moves import range
 
 def instantiate(class_name):
   return getattr(sys.modules[__name__], class_name)()
@@ -45,12 +49,12 @@ def call_or_die(command, failmsg=None):
     stdout, stderr = p.communicate()
     return stdout, stderr, p.returncode
   except:
-    print "Failed to execute", command
+    print("Failed to execute", command)
     traceback.print_exc()
-    print "Child traceback:"
-    print sys.exc_info()[1].child_traceback
+    print("Child traceback:")
+    print(sys.exc_info()[1].child_traceback)
     if failmsg:
-      print failmsg
+      print(failmsg)
     sys.exit(1)
 
 # Functions for building FCEUX movie files (.fm2 files)
@@ -81,7 +85,7 @@ def fm2_lines(up, down, left, right, a, b, start, select, reset=set(), minFrame=
   if maxFrame is None:
     maxFrame = max(maxd(up, 0), maxd(down, 0), maxd(left, 0), maxd(right, 0), maxd(a, 0), maxd(b, 0), maxd(start, 0), maxd(select, 0), maxd(reset, 0)) + 1
   lines = list()
-  for i in xrange(minFrame, maxFrame):
+  for i in range(minFrame, maxFrame):
     lines.append(fm2_line(i in up, i in down, i in left, i in right, i in a, i in b, i in start, i in select, i in reset))
   return lines
 
@@ -131,17 +135,16 @@ def run_movie(fm2, args):
       display_numbers.append(display)
   match = re.search(r"^(won|died) (\d+) (\d+)$", stdout, re.MULTILINE)
   if not match:
-    print stderr
-    print stdout
+    print(stderr)
+    print(stdout)
     raise ValueError
   wl = match.group(1)
   x_pos = int(match.group(2))
   framecount = int(match.group(3))
   return (wl, x_pos, framecount)
 
-class Representation(object):
+class Representation(six.with_metaclass(abc.ABCMeta, object)):
   """Interface for pluggable tuning representations."""
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def manipulator():
@@ -157,7 +160,7 @@ class NaiveRepresentation(Representation):
   """Uses a parameter per (button, frame) pair."""
   def manipulator(self):
     m = ConfigurationManipulator()
-    for i in xrange(0, 12000):
+    for i in range(0, 12000):
       m.add_parameter(BooleanParameter('L{}'.format(i)))
       m.add_parameter(BooleanParameter('R{}'.format(i)))
       m.add_parameter(BooleanParameter('D{}'.format(i)))
@@ -171,7 +174,7 @@ class NaiveRepresentation(Representation):
     down = set()
     running = set()
     jumping = set()
-    for i in xrange(0, 12000):
+    for i in range(0, 12000):
       if cfg['L{}'.format(i)]:
         left.add(i)
       if cfg['R{}'.format(i)]:
@@ -187,12 +190,12 @@ class NaiveRepresentation(Representation):
 class DurationRepresentation(Representation):
   def manipulator(self):
     m = ConfigurationManipulator()
-    for i in xrange(0, 1000):
+    for i in range(0, 1000):
       #bias 3:1 in favor of moving right
       m.add_parameter(EnumParameter('move{}'.format(i), ["R", "L", "RB", "LB", "N", "LR", "LRB", "R2", "RB2", "R3", "RB3"]))
       m.add_parameter(IntegerParameter('move_duration{}'.format(i), 1, 60))
       #m.add_parameter(BooleanParameter("D"+str(i)))
-    for i in xrange(0, 1000):
+    for i in range(0, 1000):
       m.add_parameter(IntegerParameter('jump_frame{}'.format(i), 0, 24000))
       m.add_parameter(IntegerParameter('jump_duration{}'.format(i), 1, 32))
     return m
@@ -203,28 +206,28 @@ class DurationRepresentation(Representation):
     down = set()
     running = set()
     start = 0
-    for i in xrange(0, 1000):
+    for i in range(0, 1000):
       move = cfg['move{}'.format(i)]
       move_duration = cfg['move_duration{}'.format(i)]
       if "R" in move:
-        right.update(xrange(start, start + move_duration))
+        right.update(range(start, start + move_duration))
       if "L" in move:
-        left.update(xrange(start, start + move_duration))
+        left.update(range(start, start + move_duration))
       if "B" in move:
-        running.update(xrange(start, start + move_duration))
+        running.update(range(start, start + move_duration))
       start += move_duration
     jumping = set()
-    for i in xrange(0, 1000):
+    for i in range(0, 1000):
       jump_frame = cfg['jump_frame{}'.format(i)]
       jump_duration = cfg['jump_duration{}'.format(i)]
-      jumping.update(xrange(jump_frame, jump_frame + jump_duration))
+      jumping.update(range(jump_frame, jump_frame + jump_duration))
     return left, right, down, running, jumping
 
 class AlphabetRepresentation(Representation):
   def manipulator(self):
     m = ConfigurationManipulator()
-    for i in xrange(0, 400*60):
-      m.add_parameter(EnumParameter('{}'.format(i), xrange(0, 16)))
+    for i in range(0, 400*60):
+      m.add_parameter(EnumParameter('{}'.format(i), range(0, 16)))
     return m
 
   def interpret(self, cfg):
@@ -233,7 +236,7 @@ class AlphabetRepresentation(Representation):
     down = set()
     running = set()
     jumping = set()
-    for i in xrange(0, 400*60):
+    for i in range(0, 400*60):
       bits = cfg[str(i)]
       if bits & 1:
         left.add(i)
@@ -247,9 +250,8 @@ class AlphabetRepresentation(Representation):
       #  down.add(i)
     return left, right, down, running, jumping
 
-class FitnessFunction(object):
+class FitnessFunction(six.with_metaclass(abc.ABCMeta, object)):
   """Interface for pluggable fitness functions."""
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def __call__(won, x_pos, elapsed_frames):
@@ -285,7 +287,7 @@ class SMBMI(MeasurementInterface):
       wl, x_pos, framecount = run_movie(fm2, self.args)
     except ValueError:
       return opentuner.resultsdb.models.Result(state='ERROR', time=float('inf'))
-    print wl, x_pos, framecount
+    print(wl, x_pos, framecount)
     return opentuner.resultsdb.models.Result(state='OK', time=self.args.fitness_function("won" in wl, x_pos, framecount))
 
   def run_precompiled(self, desired_result, input, limit, compile_result, id):
@@ -305,37 +307,37 @@ class SMBMI(MeasurementInterface):
 def new_bests_movie(args):
   stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select configuration_id from result where tuning_run_id = %d and was_new_best = 1 order by collection_date;" % args.tuning_run])
   if returncode:
-    print "Error retrieving new-best configurations:", stderr
+    print("Error retrieving new-best configurations:", stderr)
     sys.exit(1)
   cids = stdout.split()
-  print '\n'.join(fm2_smb_header())
+  print('\n'.join(fm2_smb_header()))
   for cid in cids:
     stdout, stderr, returncode = call_or_die(["sqlite3", args.database, "select quote(data) from configuration where id = %d;" % int(cid)])
     if returncode:
-      print "Error retriving configuration data:", cid, stderr
+      print("Error retriving configuration data:", cid, stderr)
       sys.exit(1)
     cfg = pickle.loads(zlib.decompress(base64.b16decode(stdout.strip()[2:-1])))
     left, right, down, running, jumping = args.representation.interpret(cfg)
     fm2 = fm2_smb(left, right, down, running, jumping)
     _, _, framecount = run_movie(fm2, args)
-    print fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount)
+    print(fm2_smb(left, right, down, running, jumping, header=False, maxFrame=framecount))
 
 if __name__ == '__main__':
   args = argparser.parse_args()
   call_or_die(["fceux", "--help"], failmsg="Is fceux on your PATH?")
   if not args.headful:
     call_or_die(["xvfb-run", "--help"], failmsg="Is xvfb-run on your PATH? (or, pass --headful)")
-    for n in xrange(99, 99 + args.parallelism):
+    for n in range(99, 99 + args.parallelism):
       display_numbers.append(str(n))
   if args.tuning_run:
     call_or_die(["sqlite3", "-version"], failmsg="Is sqlite3 on your PATH?")
     if args.database is not None:
       new_bests_movie(args)
     else:
-      print "must specify --database"
+      print("must specify --database")
   else:
     if os.path.isfile('smb.nes'):
       SMBMI.main(args)
     else:
-      print "smb.nes not found"
+      print("smb.nes not found")
 

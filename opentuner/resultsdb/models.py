@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy import create_engine
@@ -8,7 +9,7 @@ from sqlalchemy import (
 import sqlalchemy
 import re
 
-from cPickle import dumps, loads
+from six.moves.cPickle import dumps, loads
 from gzip import zlib
 class CompressedPickler(object):
   @classmethod

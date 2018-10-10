@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 import argparse
 import logging
 import time
@@ -11,6 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from opentuner.driverbase import DriverBase
 from opentuner.resultsdb.models import *
+from six.moves import zip
 
 log = logging.getLogger(__name__)
 
@@ -202,8 +205,8 @@ class MeasurementDriver(DriverBase):
         self.run_desired_result(dr, compile_result, dr.id)
         try:
           self.interface.cleanup(dr.id)
-        except RuntimeError, e:
-          print e
+        except RuntimeError as e:
+          print(e)
           # print 'Done!'
       thread_pool.close()
     else:

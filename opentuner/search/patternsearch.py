@@ -1,5 +1,6 @@
 
 
+from __future__ import absolute_import
 from opentuner.search import technique
 
 class PatternSearch(technique.SequentialSearchTechnique):

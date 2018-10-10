@@ -1,4 +1,5 @@
 # vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab autoindent smarttab
+from __future__ import absolute_import
 import abc
 import collections
 import copy
@@ -15,6 +16,10 @@ from datetime import datetime
 import numpy
 import inspect
 import sys
+from functools import reduce
+from six.moves import map
+import six
+from six.moves import range
 
 log = logging.getLogger(__name__)
 argparser = argparse.ArgumentParser(add_help=False)
@@ -22,12 +27,11 @@ argparser.add_argument('--list-params', '-lp',
                        help='list available parameter classes')
 
 
-class ConfigurationManipulatorBase(object):
+class ConfigurationManipulatorBase(six.with_metaclass(abc.ABCMeta, object)):
   """
   abstract interface for objects used by search techniques to mutate
   configurations
   """
-  __metaclass__ = abc.ABCMeta
 
   # List of file formats, which can be extended by subclasses. Used in
   # write_to_file() and load_from_file().  Objects in list must define
@@ -229,10 +233,10 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     params = list(self.parameters(config))
     params.sort(key=_.name)
     for i, p in enumerate(params):
-      m.update(str(p.name))
+      m.update(str(p.name).encode('utf-8'))
       m.update(p.hash_value(config))
-      m.update(str(i))
-      m.update("|")
+      m.update(str(i).encode('utf-8'))
+      m.update(b"|")
     return m.hexdigest()
 
   def search_space_size(self):
@@ -265,11 +269,10 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
       getattr(param, sv_map[pname])(cfg, *args[pname], **kwargs[pname])
 
 
-class Parameter(object):
+class Parameter(six.with_metaclass(abc.ABCMeta, object)):
   """
   abstract base class for parameters in a ConfigurationManipulator
   """
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self, name):
     self.name = name
@@ -437,12 +440,11 @@ class Parameter(object):
         break
 
 
-class PrimitiveParameter(Parameter):
+class PrimitiveParameter(six.with_metaclass(abc.ABCMeta, Parameter)):
   """
   An abstract interface implemented by parameters that represent a single
   dimension in a cartesian space in a legal range
   """
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self, name, value_type=float, **kwargs):
     self.value_type = value_type
@@ -451,7 +453,7 @@ class PrimitiveParameter(Parameter):
   def hash_value(self, config):
     """produce unique hash for this value in the config"""
     self.normalize(config)
-    return hashlib.sha256(repr(self.get_value(config))).hexdigest()
+    return hashlib.sha256(repr(self.get_value(config)).encode('utf-8')).hexdigest().encode('utf-8')
 
   def copy_value(self, src, dst):
     """copy the value of this parameter from src to dst config"""
@@ -770,7 +772,7 @@ class ScaledNumericParameter(NumericParameter):
     return self._scale(NumericParameter.get_value(self, config))
 
   def legal_range(self, config):
-    return map(self._scale, NumericParameter.legal_range(self, config))
+    return list(map(self._scale, NumericParameter.legal_range(self, config)))
 
 
 class LogIntegerParameter(ScaledNumericParameter, FloatParameter):
@@ -850,7 +852,7 @@ class ComplexParameter(Parameter):
   def hash_value(self, config):
     """produce unique hash for this value in the config"""
     self.normalize(config)
-    return hashlib.sha256(repr(self._get(config))).hexdigest()
+    return hashlib.sha256(repr(self._get(config)).encode('utf-8')).hexdigest().encode('utf-8')
 
   def get_value(self, config):
     return self._get(config)
@@ -1067,7 +1069,7 @@ class PermutationParameter(ComplexParameter):
     :param config: the configuration to be changed
     """
     cfg_item = self._get(config)
-    for i in xrange(1, len(cfg_item)):
+    for i in range(1, len(cfg_item)):
       if random.random() < p:
         # swap
         cfg_item[i - 1], cfg_item[i] = cfg_item[i], cfg_item[i - 1]
@@ -1221,7 +1223,7 @@ class PermutationParameter(ComplexParameter):
     # and putting them where the value that displaced them was
 
     #candidates for displacement
-    candidate_indices = set(range(r) + range(r+d, len(p1)))
+    candidate_indices = set(list(range(r)) + list(range(r+d, len(p1))))
     # Check through displaced elements to find values to swap conflicts to
     while c1 != []:
       n = c1[0]
@@ -1450,7 +1452,7 @@ class SelectorParameter(ComplexParameter):
     self.order_param = order_class('{0}/order'.format(name), choices)
     self.offset_params = [
         offset_class('{0}/offsets/{1}'.format(name, i), 0, max_cutoff)
-        for i in xrange(len(choices) - 1)]
+        for i in range(len(choices) - 1)]
 
   def sub_parameters(self):
     return [self.order_param] + self.offset_params
@@ -1486,7 +1488,7 @@ class ParameterArray(ComplexParameter):
 
     self.sub_params = [
         element_type('{0}/{1}'.format(name, i), *args[i], **kwargs[i])
-        for i in xrange(count)]
+        for i in range(count)]
 
   def sub_parameters(self):
     return self.sub_params
@@ -1736,7 +1738,7 @@ class ManipulatorProxy(object):
     self.params = manipulator.parameters_dict(self.cfg)
 
   def keys(self):
-    return self.params.keys()
+    return list(self.params.keys())
 
   def __getitem__(self, k):
     return ParameterProxy(self.params[k], self.cfg)

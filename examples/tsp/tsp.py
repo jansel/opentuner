@@ -5,6 +5,7 @@
 # http://en.wikipedia.org/wiki/Travelling_salesman_problem
 #
 
+from __future__ import absolute_import
 import adddeps #fix sys.path
 
 import argparse
@@ -17,6 +18,7 @@ from opentuner.search.objective import MinimizeTime
 from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
+from six.moves import range
 
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
@@ -44,7 +46,7 @@ class TSP(MeasurementInterface):
 
     def manipulator(self):
         manipulator = ConfigurationManipulator()
-        manipulator.add_parameter(PermutationParameter(0, range(len(self.distance))))
+        manipulator.add_parameter(PermutationParameter(0, list(range(len(self.distance)))))
         return manipulator
 
     def solution(self):

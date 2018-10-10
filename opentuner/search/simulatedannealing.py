@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 from opentuner.search import technique
 import math
 import random
+from six.moves import range
 #Default interval steps for cooling schedules
 DEFAULT_INTERVAL = 100
 

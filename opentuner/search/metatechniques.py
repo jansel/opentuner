@@ -1,9 +1,15 @@
+from __future__ import absolute_import
 import abc
 import logging
 from collections import deque, defaultdict
 from fn import _
 
 from .technique import SearchTechniqueBase
+try:
+    from sys import intern
+except ImportError:
+    pass
+from six.moves import zip
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +74,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
   def debug_log(self):
     if self.log_freq and sum(self.logging_use_counters.values())>self.log_freq:
       log.info("%s: %s", self.name,
-          str(sorted(self.logging_use_counters.items(), key = _[1]*-1)))
+          str(sorted(list(self.logging_use_counters.items()), key = _[1]*-1)))
       self.logging_use_counters = defaultdict(int)
 
 class RoundRobinMetaSearchTechnique(MetaSearchTechnique):

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import abc
 import argparse
 import errno
@@ -10,6 +11,8 @@ import subprocess
 import threading
 import time
 from multiprocessing.pool import ThreadPool
+import six
+from six.moves import range
 
 try:
   import resource
@@ -35,11 +38,10 @@ argparser.add_argument('--parallel-compile', action='store_true',
 the_io_thread_pool = None
 
 
-class MeasurementInterface(object):
+class MeasurementInterface(six.with_metaclass(abc.ABCMeta, object)):
   """
   abstract base class for compile and measurement
   """
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self,
                args=None,
@@ -238,7 +240,7 @@ class MeasurementInterface(object):
     the_io_thread_pool_init(self.args.parallelism)
     if limit is float('inf'):
       limit = None
-    if type(cmd) in (str, unicode):
+    if type(cmd) in (str, six.text_type):
       kwargs['shell'] = True
     killed = False
     t0 = time.time()
@@ -327,7 +329,7 @@ def the_io_thread_pool_init(parallelism=1):
   if the_io_thread_pool is None:
     the_io_thread_pool = ThreadPool(2 * parallelism)
     # make sure the threads are started up
-    the_io_thread_pool.map(int, range(2 * parallelism))
+    the_io_thread_pool.map(int, list(range(2 * parallelism)))
 
 
 def goodkillpg(pid):
@@ -352,7 +354,7 @@ def goodwait(p):
     try:
       rv = p.wait()
       return rv
-    except OSError, e:
+    except OSError as e:
       if e.errno != errno.EINTR:
         raise
 

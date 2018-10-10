@@ -10,6 +10,8 @@
 # Contributed by Clarice D. Aiello <clarice@mit.edu>
 #
 
+from __future__ import print_function
+from __future__ import absolute_import
 import adddeps  # fix sys.path
 
 import argparse
@@ -17,11 +19,12 @@ import logging
 import math
 import random
 import sys
+from six.moves import range
 
 try:
   import numpy as np
 except:
-  print >> sys.stderr, '''
+  print('''
 
 ERROR: import numpy failed, please install numpy
 
@@ -30,7 +33,7 @@ Possible things to try:
   ../../venv/bin/easy_install numpy
   sudo apt-get install python-numpy
 
-'''
+''', file=sys.stderr)
   raise
 
 import opentuner
@@ -68,7 +71,7 @@ generators = {
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('--seq-len', type=int, default=10,
                     help='maximum length for generated sequence')
-parser.add_argument('--goal-type', choices=generators.keys(), default='hard',
+parser.add_argument('--goal-type', choices=list(generators.keys()), default='hard',
                     help='method used to generate goal')
 parser.add_argument('--goal-n', type=int, default=100,
                     help='argument to ugoal generator')
@@ -90,7 +93,7 @@ class Unitary(opentuner.measurement.MeasurementInterface):
   def run(self, desired_result, input, limit):
     cfg = desired_result.configuration.data
 
-    sequence = [cfg[i] for i in xrange(self.args.seq_len)
+    sequence = [cfg[i] for i in range(self.args.seq_len)
                 if cfg[i] < self.num_operators]
     # sequence can be shorter than self.args.seq_len with null operator
 
@@ -106,7 +109,7 @@ class Unitary(opentuner.measurement.MeasurementInterface):
 
   def manipulator(self):
     manipulator = ConfigurationManipulator()
-    for d in xrange(self.args.seq_len):
+    for d in range(self.args.seq_len):
       # we add 1 to num_operators allow a ignored 'null' operator
       manipulator.add_parameter(SwitchParameter(d, self.num_operators + 1))
     return manipulator
@@ -116,9 +119,9 @@ class Unitary(opentuner.measurement.MeasurementInterface):
     called at the end of autotuning with the best resultsdb.models.Configuration
     '''
     cfg = configuration.data
-    sequence = [cfg[i] for i in xrange(self.args.seq_len)
+    sequence = [cfg[i] for i in range(self.args.seq_len)
                 if cfg[i] < self.num_operators]
-    print "Final sequence", sequence
+    print("Final sequence", sequence)
 
   def objective(self):
     # we could have also chosen to store 1.0 - accuracy in the time field

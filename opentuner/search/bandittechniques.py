@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import abc
 import copy
 import logging
@@ -7,6 +8,7 @@ from collections import deque
 
 from .metatechniques import MetaSearchTechnique
 from .technique import register, SearchTechnique, all_techniques, get_random_generator_technique
+from six.moves import range
 
 log = logging.getLogger(__name__)
 
@@ -204,7 +206,7 @@ class AUCBanditMutationTechnique(SearchTechnique):
     self.pending_results = []
 
   def handle_requested_result(self, result):
-    for i in xrange(len(self.pending_results)):
+    for i in range(len(self.pending_results)):
       cfg, name, index = self.pending_results[i]
       if result.configuration == cfg:
         self.bandit.on_result((name, index), result.was_new_best)
@@ -242,7 +244,7 @@ class AUCBanditMutationTechnique(SearchTechnique):
   def init_bandit(self, cfg):
     options = []
     for param in self.manipulator.parameters(cfg):
-      for i in xrange(len(param.manipulators(cfg))):
+      for i in range(len(param.manipulators(cfg))):
         options.append((param.name, i))
     # TODO(jansel): remove assumption that set of parameters are fixed
     self.bandit = AUCBanditQueue(options, **self.bandit_kwargs)
@@ -256,13 +258,13 @@ class AUCBanditMutationTechnique(SearchTechnique):
       return self.manipulator.random()
 
 
-import evolutionarytechniques
-import differentialevolution
-import simplextechniques
-import patternsearch
-import simulatedannealing
-from pso import PSO, HybridParticle
-import globalGA
+from . import evolutionarytechniques
+from . import differentialevolution
+from . import simplextechniques
+from . import patternsearch
+from . import simulatedannealing
+from .pso import PSO, HybridParticle
+from . import globalGA
 register(AUCBanditMutationTechnique())
 
 register(AUCBanditMetaTechnique([

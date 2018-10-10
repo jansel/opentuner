@@ -1,13 +1,14 @@
+from __future__ import absolute_import
 import abc
 import opentuner
 from opentuner.resultsdb.models import *
+import six
 
 
-class InputManager(object):
+class InputManager(six.with_metaclass(abc.ABCMeta, object)):
   """
   abstract base class for compile and measurement
   """
-  __metaclass__ = abc.ABCMeta
 
   def set_driver(self, measurement_driver):
     self.driver = measurement_driver

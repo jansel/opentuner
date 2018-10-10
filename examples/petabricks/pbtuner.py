@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import absolute_import
 import adddeps  # fix sys.path
 
 import re
@@ -19,6 +21,8 @@ from opentuner.search.manipulator import (ConfigurationManipulator,
                                           SelectorParameter,
                                           SwitchParameter,
                                           PermutationParameter, )
+import six
+from six.moves import range
 
 try:
   from lxml import etree
@@ -63,7 +67,7 @@ class PetaBricksInterface(MeasurementInterface):
     r = dict()
 
     # direct copy
-    for k, v in cfg.iteritems():
+    for k, v in six.iteritems(cfg):
       if k[0] != '.':
         r[k] = v
 
@@ -82,7 +86,7 @@ class PetaBricksInterface(MeasurementInterface):
     limit = min(limit, self.args.upper_limit)
     with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
       for k, v in self.build_config(desired_result.configuration.data).items():
-        print >> cfgtmp, k, '=', v
+        print(k, '=', v, file=cfgtmp)
       cfgtmp.flush()
       if args.program_input:
         input_opts = ['--iogen-run=' + args.program_input,
@@ -124,7 +128,7 @@ class PetaBricksInterface(MeasurementInterface):
     with open(args.program_cfg_output, 'w') as fd:
       cfg = self.build_config(configuration.data)
       for k, v in sorted(cfg.items()):
-        print >> fd, k, '=', v
+        print(k, '=', v, file=fd)
     log.info("final configuration written to %s", args.program_cfg_output)
 
   def manipulator(self):
@@ -162,7 +166,7 @@ class PetaBricksInterface(MeasurementInterface):
 
     for name, choices in self.choice_sites.items():
       manipulator.add_parameter(
-        SelectorParameter('.' + name, range(choices + 1),
+        SelectorParameter('.' + name, list(range(choices + 1)),
                           upper_limit / choices))
 
     self.manipulator = manipulator
