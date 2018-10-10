@@ -4,6 +4,7 @@
 #
 # This is an extremely simplified version meant only for tutorials
 #
+from __future__ import print_function
 import adddeps  # fix sys.path
 
 import opentuner
@@ -48,7 +49,7 @@ class GccFlagsTuner(MeasurementInterface):
 
   def save_final_config(self, configuration):
     """called at the end of tuning"""
-    print "Optimal block size written to mmm_final_config.json:", configuration.data
+    print("Optimal block size written to mmm_final_config.json:", configuration.data)
     self.manipulator().save_to_file(configuration.data,
                                     'mmm_final_config.json')
 

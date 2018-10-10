@@ -1,3 +1,9 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import next
+from builtins import map
+from builtins import str
+from builtins import object
 import abc
 import argparse
 import logging
@@ -10,7 +16,8 @@ from datetime import datetime
 from fn import _
 
 from opentuner.resultsdb.models import *
-from plugin import SearchPlugin
+from .plugin import SearchPlugin
+from future.utils import with_metaclass
 
 log = logging.getLogger(__name__)
 #log.setLevel(logging.DEBUG)
@@ -23,11 +30,10 @@ argparser.add_argument('--list-techniques','-lt', action='store_true',
 argparser.add_argument('--generate-bandit-technique','-gbt', action='store_true',
                        help="randomly generate a bandit to use")
 
-class SearchTechniqueBase(object):
+class SearchTechniqueBase(with_metaclass(abc.ABCMeta, object)):
   """
   abstract base class for search techniques, with minimal interface
   """
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self, name = None):
     super(SearchTechniqueBase, self).__init__()
@@ -192,7 +198,7 @@ class AsyncProceduralSearchTechnique(SearchTechnique):
       self.gen = self.call_main_generator()
     if not self.done:
       try:
-        return self.gen.next()
+        return next(self.gen)
       except StopIteration:
         log.debug("%s: generator finished", self.name)
         self.done = True
@@ -246,7 +252,7 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
           self.rounds_since_novel_request = 0
         yield None # give other techniques a shot
       try:
-        p = subgen.next()
+        p = next(subgen)
         if p:
           self.pending_tests.append(p)
       except StopIteration:
@@ -267,8 +273,7 @@ class SequentialSearchTechnique(AsyncProceduralSearchTechnique):
           log.error("%s: still waiting for %d pending tests (c=%d)",
                      self.name, len(self.pending_tests), c)
 
-        self.pending_tests = filter(lambda x: not self.driver.has_results(x),
-                                    self.pending_tests)
+        self.pending_tests = [x for x in self.pending_tests if not self.driver.has_results(x)]
         if self.pending_tests:
           self.rounds_since_novel_request = 0
           yield False # wait
@@ -336,7 +341,7 @@ def get_enabled(args):
   techniques, generators = all_techniques()
   if args.list_techniques:
     for t in techniques:
-      print t.name
+      print(t.name)
     sys.exit(0)
 
   if not args.technique:
@@ -350,7 +355,7 @@ def get_enabled(args):
   return [t for t in techniques if t.name in args.technique]
 
 def get_root(args):
-  from metatechniques import RoundRobinMetaSearchTechnique
+  from .metatechniques import RoundRobinMetaSearchTechnique
   enabled = get_enabled(args)
   if len(enabled) == 1:
     return enabled[0]

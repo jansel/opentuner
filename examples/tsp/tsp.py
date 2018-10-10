@@ -5,6 +5,7 @@
 # http://en.wikipedia.org/wiki/Travelling_salesman_problem
 #
 
+from builtins import range
 import adddeps #fix sys.path
 
 import argparse
@@ -44,7 +45,7 @@ class TSP(MeasurementInterface):
 
     def manipulator(self):
         manipulator = ConfigurationManipulator()
-        manipulator.add_parameter(PermutationParameter(0, range(len(self.distance))))
+        manipulator.add_parameter(PermutationParameter(0, list(range(len(self.distance)))))
         return manipulator
 
     def solution(self):

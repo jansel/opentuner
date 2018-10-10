@@ -7,7 +7,10 @@ the program and calls into opentuner to get new configurations to test.
 
 This version runs multiple tuning runs at once in a single process.
 """
+from __future__ import print_function
 
+from builtins import zip
+from builtins import range
 import adddeps  # add opentuner to path in dev mode
 
 import opentuner
@@ -63,7 +66,7 @@ def main():
             create_test_tuning_run('sqlite:////tmp/b.db'),
             create_test_tuning_run('sqlite:////tmp/c.db')]
     test_funcs = [test_func1, test_func2, test_func3]
-    for x in xrange(100):
+    for x in range(100):
       for api, test_func in zip(apis, test_funcs):
         desired_result = api.get_next_desired_result()
         if desired_result is None:

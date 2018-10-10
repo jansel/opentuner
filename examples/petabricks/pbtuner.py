@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import division
+from __future__ import print_function
+from builtins import range
+from past.utils import old_div
 import adddeps  # fix sys.path
 
 import re
@@ -63,11 +67,11 @@ class PetaBricksInterface(MeasurementInterface):
     r = dict()
 
     # direct copy
-    for k, v in cfg.iteritems():
+    for k, v in list(cfg.items()):
       if k[0] != '.':
         r[k] = v
 
-    for name, choices in self.choice_sites.items():
+    for name, choices in list(self.choice_sites.items()):
       param = self.manipulator.parameters_dict(cfg)['.' + name]
       lvl = 0
       for cutoff, choice in param.selector_iter(cfg):
@@ -81,8 +85,8 @@ class PetaBricksInterface(MeasurementInterface):
   def run(self, desired_result, input, limit):
     limit = min(limit, self.args.upper_limit)
     with tempfile.NamedTemporaryFile(suffix='.petabricks.cfg') as cfgtmp:
-      for k, v in self.build_config(desired_result.configuration.data).items():
-        print >> cfgtmp, k, '=', v
+      for k, v in list(self.build_config(desired_result.configuration.data).items()):
+        print(k, '=', v, file=cfgtmp)
       cfgtmp.flush()
       if args.program_input:
         input_opts = ['--iogen-run=' + args.program_input,
@@ -124,7 +128,7 @@ class PetaBricksInterface(MeasurementInterface):
     with open(args.program_cfg_output, 'w') as fd:
       cfg = self.build_config(configuration.data)
       for k, v in sorted(cfg.items()):
-        print >> fd, k, '=', v
+        print(k, '=', v, file=fd)
     log.info("final configuration written to %s", args.program_cfg_output)
 
   def manipulator(self):
@@ -160,10 +164,10 @@ class PetaBricksInterface(MeasurementInterface):
       else:
         manipulator.add_parameter(LogIntegerParameter(k, minval, maxval))
 
-    for name, choices in self.choice_sites.items():
+    for name, choices in list(self.choice_sites.items()):
       manipulator.add_parameter(
-        SelectorParameter('.' + name, range(choices + 1),
-                          upper_limit / choices))
+        SelectorParameter('.' + name, list(range(choices + 1)),
+                          old_div(upper_limit, choices)))
 
     self.manipulator = manipulator
     return manipulator

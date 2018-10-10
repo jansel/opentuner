@@ -1,4 +1,10 @@
+from __future__ import division
 # vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab autoindent smarttab
+from builtins import str
+from builtins import map
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import abc
 import collections
 import copy
@@ -15,6 +21,8 @@ from datetime import datetime
 import numpy
 import inspect
 import sys
+from future.utils import with_metaclass
+from functools import reduce
 
 log = logging.getLogger(__name__)
 argparser = argparse.ArgumentParser(add_help=False)
@@ -22,12 +30,11 @@ argparser.add_argument('--list-params', '-lp',
                        help='list available parameter classes')
 
 
-class ConfigurationManipulatorBase(object):
+class ConfigurationManipulatorBase(with_metaclass(abc.ABCMeta, object)):
   """
   abstract interface for objects used by search techniques to mutate
   configurations
   """
-  __metaclass__ = abc.ABCMeta
 
   # List of file formats, which can be extended by subclasses. Used in
   # write_to_file() and load_from_file().  Objects in list must define
@@ -229,10 +236,10 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
     params = list(self.parameters(config))
     params.sort(key=_.name)
     for i, p in enumerate(params):
-      m.update(str(p.name))
+      m.update(str(p.name).encode())
       m.update(p.hash_value(config))
-      m.update(str(i))
-      m.update("|")
+      m.update(str(i).encode())
+      m.update(b"|")
     return m.hexdigest()
 
   def search_space_size(self):
@@ -265,11 +272,10 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
       getattr(param, sv_map[pname])(cfg, *args[pname], **kwargs[pname])
 
 
-class Parameter(object):
+class Parameter(with_metaclass(abc.ABCMeta, object)):
   """
   abstract base class for parameters in a ConfigurationManipulator
   """
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self, name):
     self.name = name
@@ -430,19 +436,18 @@ class Parameter(object):
     """
     assert len(cfgs) == len(ratio)
     r = random.random()
-    c = numpy.array(ratio, dtype=float) / sum(ratio)
+    c = old_div(numpy.array(ratio, dtype=float), sum(ratio))
     for i in range(len(c)):
       if r < sum(c[:i + 1]):
         self.copy_value(cfg, cfgs[i])
         break
 
 
-class PrimitiveParameter(Parameter):
+class PrimitiveParameter(with_metaclass(abc.ABCMeta, Parameter)):
   """
   An abstract interface implemented by parameters that represent a single
   dimension in a cartesian space in a legal range
   """
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self, name, value_type=float, **kwargs):
     self.value_type = value_type
@@ -451,7 +456,7 @@ class PrimitiveParameter(Parameter):
   def hash_value(self, config):
     """produce unique hash for this value in the config"""
     self.normalize(config)
-    return hashlib.sha256(repr(self.get_value(config))).hexdigest()
+    return hashlib.sha256(repr(self.get_value(config)).encode('utf-8')).hexdigest().encode('utf-8')
 
   def copy_value(self, src, dst):
     """copy the value of this parameter from src to dst config"""
@@ -474,7 +479,7 @@ class PrimitiveParameter(Parameter):
       high += 0.4999
     val = self.get_value(config)
     if low < high:
-      return float(val - low) / float(high - low)
+      return old_div(float(val - low), float(high - low))
     else:
       if low > high:
         log.warning('invalid range for parameter %s, %s to %s',
@@ -686,7 +691,7 @@ class IntegerParameter(NumericParameter):
         cfg)) * c1 * random.random() + (self.get_value(
         cfg2) - self.get_value(cfg)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
-    s = k / (1 + numpy.exp(-v)) + vmin
+    s = old_div(k, (1 + numpy.exp(-v))) + vmin
     # Add Gaussian noise
     p = random.gauss(s, sigma * k)
     # Discretize and bound
@@ -770,7 +775,7 @@ class ScaledNumericParameter(NumericParameter):
     return self._scale(NumericParameter.get_value(self, config))
 
   def legal_range(self, config):
-    return map(self._scale, NumericParameter.legal_range(self, config))
+    return list(map(self._scale, NumericParameter.legal_range(self, config)))
 
 
 class LogIntegerParameter(ScaledNumericParameter, FloatParameter):
@@ -984,7 +989,7 @@ class BooleanParameter(ComplexParameter):
         cfg)) * c1 * random.random() + (self.get_value(
         cfg2) - self.get_value(cfg)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
-    s = 1 / (1 + numpy.exp(-v))
+    s = old_div(1, (1 + numpy.exp(-v)))
     # Decide position randomly
     p = (s - random.random()) > 0
     self.set_value(cfg, p)
@@ -1067,7 +1072,7 @@ class PermutationParameter(ComplexParameter):
     :param config: the configuration to be changed
     """
     cfg_item = self._get(config)
-    for i in xrange(1, len(cfg_item)):
+    for i in range(1, len(cfg_item)):
       if random.random() < p:
         # swap
         cfg_item[i - 1], cfg_item[i] = cfg_item[i], cfg_item[i - 1]
@@ -1221,7 +1226,7 @@ class PermutationParameter(ComplexParameter):
     # and putting them where the value that displaced them was
 
     #candidates for displacement
-    candidate_indices = set(range(r) + range(r+d, len(p1)))
+    candidate_indices = set(list(range(r)) + list(range(r+d, len(p1))))
     # Check through displaced elements to find values to swap conflicts to
     while c1 != []:
       n = c1[0]
@@ -1354,7 +1359,7 @@ class PermutationParameter(ComplexParameter):
 class ScheduleParameter(PermutationParameter):
   def __init__(self, name, items, deps):
     super(ScheduleParameter, self).__init__(name, items)
-    self.deps = dict((k, set(v)) for k, v in deps.items())
+    self.deps = dict((k, set(v)) for k, v in list(deps.items()))
     log.debug("ScheduleParameter(%s, %s, %s)", repr(name), repr(items),
               repr(deps))
     self._expand_deps()
@@ -1364,7 +1369,7 @@ class ScheduleParameter(PermutationParameter):
     fixed_point = False
     while not fixed_point:
       fixed_point = True
-      for k in self.deps.keys():
+      for k in list(self.deps.keys()):
         oldlen = len(self.deps[k])
         for dep in list(self.deps[k]):
           if dep in self.deps:
@@ -1374,7 +1379,7 @@ class ScheduleParameter(PermutationParameter):
 
     # verify schedule is valid
     items = set(self._items)
-    for k, v in self.deps.items():
+    for k, v in list(self.deps.items()):
       if k in v:
         raise Exception("ScheduleParameter('%s') cycle: %s depends on itself" %
                         (self.name, k))
@@ -1402,7 +1407,7 @@ class ScheduleParameter(PermutationParameter):
     sorted_values = []
     used = set()
     deps = dict((k, sorted(v, key=values.index, reverse=True))
-                for k, v in self.deps.items())
+                for k, v in list(self.deps.items()))
 
     def visit(v):
       if v in used:
@@ -1428,7 +1433,7 @@ class ScheduleParameter(PermutationParameter):
       if v in deps and deps[v]:
         queue.append(v)
       else:
-        for k, d in deps.items():
+        for k, d in list(deps.items()):
           d.discard(v)
           if not d:
             del deps[k]
@@ -1450,7 +1455,7 @@ class SelectorParameter(ComplexParameter):
     self.order_param = order_class('{0}/order'.format(name), choices)
     self.offset_params = [
         offset_class('{0}/offsets/{1}'.format(name, i), 0, max_cutoff)
-        for i in xrange(len(choices) - 1)]
+        for i in range(len(choices) - 1)]
 
   def sub_parameters(self):
     return [self.order_param] + self.offset_params
@@ -1486,7 +1491,7 @@ class ParameterArray(ComplexParameter):
 
     self.sub_params = [
         element_type('{0}/{1}'.format(name, i), *args[i], **kwargs[i])
-        for i in xrange(count)]
+        for i in range(count)]
 
   def sub_parameters(self):
     return self.sub_params
@@ -1643,7 +1648,7 @@ class BooleanArray(Array):
         cfg)) * c1 * random.random() + (self.get_value(
             cfg2) - self.get_value(cfg)) * c2 * random.random()
     # Map velocity to continuous space with sigmoid
-    ss = 1 / (1 + numpy.exp(-vs))
+    ss = old_div(1, (1 + numpy.exp(-vs)))
     # Decide position randomly
     ps = (ss - numpy.random.rand(1, self.size)) > 0
     self.set_value(cfg, ps)
@@ -1736,7 +1741,7 @@ class ManipulatorProxy(object):
     self.params = manipulator.parameters_dict(self.cfg)
 
   def keys(self):
-    return self.params.keys()
+    return list(self.params.keys())
 
   def __getitem__(self, k):
     return ParameterProxy(self.params[k], self.cfg)
