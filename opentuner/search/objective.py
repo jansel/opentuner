@@ -2,6 +2,7 @@ import abc
 import logging
 
 from fn import _
+from sqlalchemy import text
 
 import opentuner
 from opentuner.resultsdb.models import *
@@ -253,7 +254,7 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
   def result_order_by_terms(self):
     """return database columns required to order by the objective"""
 
-    return ["min(accuracy, %f) desc" % self.accuracy_target,
+    return [text("min(accuracy, %f) desc" % self.accuracy_target),
             opentuner.resultsdb.models.Result.time]
 
   def result_compare(self, result1, result2):
