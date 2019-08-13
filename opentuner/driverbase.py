@@ -25,6 +25,7 @@ class DriverBase(object):
                     generation=None,
                     objective_ordered=False,
                     config=None):
+    self.session.flush()
     q = self.session.query(Result)
     q = q.filter_by(tuning_run=self.tuning_run)
 
