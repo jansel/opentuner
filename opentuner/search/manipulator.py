@@ -855,7 +855,7 @@ class ComplexParameter(Parameter):
   def hash_value(self, config):
     """produce unique hash for this value in the config"""
     self.normalize(config)
-    return hashlib.sha256(repr(self._get(config))).hexdigest()
+    return hashlib.sha256(repr(self.get_value(config)).encode('utf-8')).hexdigest().encode('utf-8')
 
   def get_value(self, config):
     return self._get(config)
