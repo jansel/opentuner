@@ -20,7 +20,7 @@ required = [l.strip() for l in required
 
 setup(
     name='opentuner',
-    version='0.8.1',
+    version='0.8.2',
     url='http://opentuner.org/',
     license='MIT',
     author='Jason Ansel',
