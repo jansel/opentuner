@@ -1,20 +1,26 @@
-
-
 from opentuner.search import technique
 
+
 class PatternSearch(technique.SequentialSearchTechnique):
+  def __init__(self, initial_step_size=0.4):
+    super(PatternSearch, self).__init__()
+    self.initial_step_size = initial_step_size
+
   def main_generator(self):
 
     objective   = self.objective
     driver      = self.driver
     manipulator = self.manipulator
 
-    # start at a random position
-    center = driver.get_configuration(manipulator.random())
-    self.yield_nonblocking(center)
-
     # initial step size is arbitrary
-    step_size = 0.1
+    step_size = self.initial_step_size
+
+    if driver.best_result is None:
+      # start at a random position
+      center = driver.get_configuration(manipulator.random())
+    else:
+      center = driver.best_result.configuration
+      self.yield_nonblocking(center)
 
     while True:
       points = list()
@@ -50,16 +56,9 @@ class PatternSearch(technique.SequentialSearchTechnique):
 
       yield None # wait for all results
 
-      #sort points by quality, best point will be points[0], worst is points[-1]
-      points.sort(cmp=objective.compare)
-
-      if (objective.lt(driver.best_result.configuration, center)
-          and driver.best_result.configuration != points[0]):
-        # another technique found a new global best, switch to that
+      if objective.lt(driver.best_result.configuration, center):
+        # a new global best switch to that
         center = driver.best_result.configuration
-      elif objective.lt(points[0], center):
-        # we found a better point, move there
-        center = points[0]
       else:
         # no better point, shrink the pattern
         step_size /= 2.0
