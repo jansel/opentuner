@@ -22,7 +22,7 @@ from opentuner.search.bandittechniques import AUCBanditMetaTechnique
 log = logging.getLogger(__name__)
 
 argparser = argparse.ArgumentParser(add_help=False)
-argparser.add_argument('--test-limit', type=int, default=5000,
+argparser.add_argument('--test-limit', type=int,
                        help='stop tuning after given tests count')
 argparser.add_argument('--stop-after', type=float,
                        help='stop tuning after given seconds')
@@ -120,7 +120,7 @@ class SearchDriver(DriverBase):
         elapsed = elapsed.days * 86400 + elapsed.seconds
       if elapsed > self.args.stop_after:
           return True
-    if self.test_count > self.args.test_limit:
+    if self.args.test_limit and self.test_count > self.args.test_limit:
         return True    
     if self.extra_criteria:
         if self.extra_criteria(self.new_results):
