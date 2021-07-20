@@ -5,10 +5,10 @@ HPL.out      output file name (if any)
 1            # of problems sizes (N)
 ${size}        Ns
 1            # of NBs
-${blocksize}		      NBs
+${blocksize}              NBs
 ${row_or_colmajor_pmapping}            PMAP process mapping (0=Row-,1=Column-major)
 1            # of process grids (P x Q)
-2	        Ps  PxQ must equal nprocs
+2            Ps  PxQ must equal nprocs
 2           Qs
 16.0         threshold
 1            # of panel fact

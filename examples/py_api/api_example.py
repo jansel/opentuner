@@ -23,10 +23,10 @@ log = logging.getLogger(__name__)
 
 
 def test_func(cfg):
-  x = cfg['x']
-  y = (x - 10) * (x - 10)
-  log.debug("f({}) -> {}".format(x, y))
-  return y
+    x = cfg['x']
+    y = (x - 10) * (x - 10)
+    log.debug("f({}) -> {}".format(x, y))
+    return y
 
 
 def main():
@@ -43,10 +43,10 @@ def main():
     for x in range(500):
         desired_result = api.get_next_desired_result()
         if desired_result is None:
-          # The search space for this example is very small, so sometimes
-          # the techniques have trouble finding a config that hasn't already
-          # been tested.  Change this to a continue to make it try again.
-          break
+            # The search space for this example is very small, so sometimes
+            # the techniques have trouble finding a config that hasn't already
+            # been tested.  Change this to a continue to make it try again.
+            break
         cfg = desired_result.configuration.data
         result = Result(time=test_func(cfg))
         api.report_result(desired_result, result)
@@ -55,6 +55,6 @@ def main():
     api.finish()
     print('best x found was', best_cfg['x'])
 
-if __name__ == '__main__':
-  main()
 
+if __name__ == '__main__':
+    main()

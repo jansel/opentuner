@@ -6,7 +6,7 @@
 #
 
 from builtins import range
-import adddeps #fix sys.path
+import adddeps  # fix sys.path
 
 import argparse
 import logging
@@ -19,9 +19,9 @@ from opentuner.measurement import MeasurementInterface
 from opentuner.measurement.inputmanager import FixedInputManager
 from opentuner.tuningrunmain import TuningRunMain
 
-
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('data', help='distance matrix file')
+
 
 class TSP(MeasurementInterface):
     def __init__(self, args):
@@ -32,15 +32,15 @@ class TSP(MeasurementInterface):
 
     def run(self, desired_result, input, limit):
         cfg = desired_result.configuration.data
-        p = cfg[0]      # cheating: should use manipulator function
+        p = cfg[0]  # cheating: should use manipulator function
         t = self.eval_path(p)
         return opentuner.resultsdb.models.Result(time=t)
 
     def eval_path(self, p):
         """ Given permutation of cities as a list of indices,
         return total path length """
-        out = sum(self.distance[p[i]][p[i+1]] for i in range(len(p)-1))
-##        print out, p
+        out = sum(self.distance[p[i]][p[i + 1]] for i in range(len(p) - 1))
+        ##        print out, p
         return out
 
     def manipulator(self):
@@ -49,12 +49,10 @@ class TSP(MeasurementInterface):
         return manipulator
 
     def solution(self):
-        p = [1,13,2,15,9,5,7,3,12,14,10,8,6,4,11]
+        p = [1, 13, 2, 15, 9, 5, 7, 3, 12, 14, 10, 8, 6, 4, 11]
         return self.eval_path(p)
 
 
-
 if __name__ == '__main__':
-  args = parser.parse_args()
-  TSP.main(args)
-
+    args = parser.parse_args()
+    TSP.main(args)

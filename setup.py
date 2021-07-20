@@ -9,6 +9,7 @@ except ImportError:
 
 try:
     from pypandoc import convert
+
     read_md = lambda f: convert(f, 'rest')
 except ImportError:
     print("warning: pypandoc module not found, could not convert Markdown to RST")
@@ -20,7 +21,7 @@ required = [l.strip() for l in required
 
 setup(
     name='opentuner',
-    version='0.8.5',
+    version='0.8.6',
     url='http://opentuner.org/',
     license='MIT',
     author='Jason Ansel',

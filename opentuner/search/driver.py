@@ -1,20 +1,22 @@
 from __future__ import print_function
-from builtins import range
-from builtins import object
+
 import argparse
 import copy
 import logging
 import os
 import sys
-
+from builtins import object
+from builtins import range
 from datetime import datetime
+
 from fn import _
+
 from opentuner.driverbase import DriverBase
+from opentuner.resultsdb.models import BanditInfo
+from opentuner.resultsdb.models import BanditSubTechnique
 from opentuner.resultsdb.models import Configuration
 from opentuner.resultsdb.models import DesiredResult
 from opentuner.resultsdb.models import Result
-from opentuner.resultsdb.models import BanditInfo
-from opentuner.resultsdb.models import BanditSubTechnique
 from opentuner.search import plugin
 from opentuner.search import technique
 from opentuner.search.bandittechniques import AUCBanditMetaTechnique

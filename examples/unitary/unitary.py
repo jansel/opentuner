@@ -23,9 +23,9 @@ import random
 import sys
 
 try:
-  import numpy as np
+    import numpy as np
 except:
-  print('''
+    print('''
 
 ERROR: import numpy failed, please install numpy
 
@@ -35,7 +35,7 @@ Possible things to try:
   sudo apt-get install python-numpy
 
 ''', file=sys.stderr)
-  raise
+    raise
 
 import opentuner
 
@@ -52,21 +52,21 @@ from opentuner.search.manipulator import (ConfigurationManipulator,
 
 
 def generate_random_Ugoal_FIXED(**kwargs):
-  Ag = old_div(-1, sqrt(10));
-  Bg = old_div(sqrt(2), sqrt(10));
-  Cg = old_div(-sqrt(3), sqrt(10));
-  Dg = old_div(-sqrt(4), sqrt(10));
-  return cla_func.np.matrix(
-    [[Ag + Cg * 1j, Bg + Dg * 1j], [-Bg + Dg * 1j, Ag - Cg * 1j]])
+    Ag = old_div(-1, sqrt(10));
+    Bg = old_div(sqrt(2), sqrt(10));
+    Cg = old_div(-sqrt(3), sqrt(10));
+    Dg = old_div(-sqrt(4), sqrt(10));
+    return cla_func.np.matrix(
+        [[Ag + Cg * 1j, Bg + Dg * 1j], [-Bg + Dg * 1j, Ag - Cg * 1j]])
 
 
 log = logging.getLogger(__name__)
 
 generators = {
-  'hard': generate_random_Ugoal_HARD,
-  'easy': generate_random_Ugoal_EASY,
-  'random': generate_random_Ugoal_RANDOM,
-  'fixed': generate_random_Ugoal_FIXED,
+    'hard': generate_random_Ugoal_HARD,
+    'easy': generate_random_Ugoal_EASY,
+    'random': generate_random_Ugoal_RANDOM,
+    'fixed': generate_random_Ugoal_FIXED,
 }
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
@@ -82,59 +82,53 @@ parser.add_argument('--goal-alpha', type=float,
 
 
 class Unitary(opentuner.measurement.MeasurementInterface):
-  def __init__(self, *pargs, **kwargs):
-    super(Unitary, self).__init__(*pargs, **kwargs)
+    def __init__(self, *pargs, **kwargs):
+        super(Unitary, self).__init__(*pargs, **kwargs)
 
-    self.op = cla_func.Op()
-    self.num_operators = len(self.op.M)
-    self.Ugoal = generators[args.goal_type](N=args.goal_n,
-                                            alpha=args.goal_alpha)
+        self.op = cla_func.Op()
+        self.num_operators = len(self.op.M)
+        self.Ugoal = generators[args.goal_type](N=args.goal_n,
+                                                alpha=args.goal_alpha)
 
+    def run(self, desired_result, input, limit):
+        cfg = desired_result.configuration.data
 
-  def run(self, desired_result, input, limit):
-    cfg = desired_result.configuration.data
+        sequence = [cfg[i] for i in range(self.args.seq_len)
+                    if cfg[i] < self.num_operators]
+        # sequence can be shorter than self.args.seq_len with null operator
 
-    sequence = [cfg[i] for i in range(self.args.seq_len)
-                if cfg[i] < self.num_operators]
-    # sequence can be shorter than self.args.seq_len with null operator
+        if len(sequence) > 0:
+            accuracy = cla_func.calc_fidelity(sequence, self.op, self.Ugoal)
+            # ~.99 is acceptable
+        else:
+            accuracy = 0.0
 
-    if len(sequence) > 0:
-      accuracy = cla_func.calc_fidelity(sequence, self.op, self.Ugoal)
-      # ~.99 is acceptable
-    else:
-      accuracy = 0.0
+        return opentuner.resultsdb.models.Result(time=0.0,
+                                                 accuracy=accuracy,
+                                                 size=len(sequence))
 
-    return opentuner.resultsdb.models.Result(time=0.0,
-                                             accuracy=accuracy,
-                                             size=len(sequence))
+    def manipulator(self):
+        manipulator = ConfigurationManipulator()
+        for d in range(self.args.seq_len):
+            # we add 1 to num_operators allow a ignored 'null' operator
+            manipulator.add_parameter(SwitchParameter(d, self.num_operators + 1))
+        return manipulator
 
-  def manipulator(self):
-    manipulator = ConfigurationManipulator()
-    for d in range(self.args.seq_len):
-      # we add 1 to num_operators allow a ignored 'null' operator
-      manipulator.add_parameter(SwitchParameter(d, self.num_operators + 1))
-    return manipulator
+    def save_final_config(self, configuration):
+        '''
+        called at the end of autotuning with the best resultsdb.models.Configuration
+        '''
+        cfg = configuration.data
+        sequence = [cfg[i] for i in range(self.args.seq_len)
+                    if cfg[i] < self.num_operators]
+        print("Final sequence", sequence)
 
-  def save_final_config(self, configuration):
-    '''
-    called at the end of autotuning with the best resultsdb.models.Configuration
-    '''
-    cfg = configuration.data
-    sequence = [cfg[i] for i in range(self.args.seq_len)
-                if cfg[i] < self.num_operators]
-    print("Final sequence", sequence)
-
-  def objective(self):
-    # we could have also chosen to store 1.0 - accuracy in the time field
-    # and use the default MinimizeTime() objective
-    return opentuner.search.objective.MaximizeAccuracyMinimizeSize()
+    def objective(self):
+        # we could have also chosen to store 1.0 - accuracy in the time field
+        # and use the default MinimizeTime() objective
+        return opentuner.search.objective.MaximizeAccuracyMinimizeSize()
 
 
 if __name__ == '__main__':
-  args = parser.parse_args()
-  Unitary.main(args)
-
-
-
-
-
+    args = parser.parse_args()
+    Unitary.main(args)

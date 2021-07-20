@@ -1,9 +1,10 @@
 Source for PetaBricks binaries can be found at:
-  - https://github.com/petabricks/petabricks/
-  - https://code.google.com/p/petabricks/
 
+- https://github.com/petabricks/petabricks/
+- https://code.google.com/p/petabricks/
 
 Basic usage for running the raw programs is:
+
 ```
 ./Prog --config=CONFIG -n=N --time --accuracy --max-sec=TIMEOUT --trials=1
 

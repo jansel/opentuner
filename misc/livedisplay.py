@@ -16,21 +16,21 @@ parser.add_argument('--remote')
 args = parser.parse_args()
 
 if args.remote:
-  if os.path.exists(args.data):
-    os.unlink(args.data)
-  if os.path.exists(args.details):
-    os.unlink(args.details)
-  syncproc = subprocess.Popen(
-      ["ssh", args.remote, "tail -f -n10000 " + args.data],
-      stdout=open(args.data, "w"))
-  syncproc2 = subprocess.Popen(
-      ["ssh", args.remote, "tail -f -n10000 " + args.details],
-      stdout=open(args.details, "w"))
+    if os.path.exists(args.data):
+        os.unlink(args.data)
+    if os.path.exists(args.details):
+        os.unlink(args.details)
+    syncproc = subprocess.Popen(
+        ["ssh", args.remote, "tail -f -n10000 " + args.data],
+        stdout=open(args.data, "w"))
+    syncproc2 = subprocess.Popen(
+        ["ssh", args.remote, "tail -f -n10000 " + args.details],
+        stdout=open(args.details, "w"))
 
 while '\n' not in open(args.data).read():
-  time.sleep(1)
+    time.sleep(1)
 while '\n' not in open(args.details).read():
-  time.sleep(1)
+    time.sleep(1)
 
 p1 = subprocess.Popen(["gnuplot"], stdin=subprocess.PIPE)
 p1.stdin.write(open(args.gnuplot_filename).read())
@@ -51,8 +51,7 @@ p2.stdin.flush()
 procs = [p1, p2]
 
 while True:
-  time.sleep(1)
-  for p in procs:
-    print("replot", file=p.stdin)
-    p.stdin.flush()
-
+    time.sleep(1)
+    for p in procs:
+        print("replot", file=p.stdin)
+        p.stdin.flush()

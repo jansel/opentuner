@@ -1,29 +1,24 @@
 ---
-layout: default
-title: OpenTuner - Using OpenTuner
-permalink: /tutorial/gettingstarted/index.html
+layout: default title: OpenTuner - Using OpenTuner permalink: /tutorial/gettingstarted/index.html
 ---
 
 Tutorial: Optimizing Block Matrix Multiplication
 ================================================
 
-This tutorial assumes that you have checked out a copy of opentuner. For
-guidelines on how to get opentuner set up, refer [here][setup].
+This tutorial assumes that you have checked out a copy of opentuner. For guidelines on how to get opentuner set up,
+refer [here][setup].
 
 [setup]: http://opentuner.org/tutorial/setup/
 
 Identifying a Program to Autotune
 ---------------------------------
 
-In order to do autotuning, you first need something to autotune. This will
-normally be your own program that you want to make either fast or better in
-some way.  For this tutorial we will use a blocked version of matrix multiply
-as an example. We will use opentuner to find the optimal value of the block
-size parameter.
+In order to do autotuning, you first need something to autotune. This will normally be your own program that you want to
+make either fast or better in some way. For this tutorial we will use a blocked version of matrix multiply as an
+example. We will use opentuner to find the optimal value of the block size parameter.
 
-We will autotune the sample code below(based off of modification of code
-found [here][matrix-multiply-code]), making sure to take the block size as
-a compile time constant to the program.
+We will autotune the sample code below(based off of modification of code found [here][matrix-multiply-code]), making
+sure to take the block size as a compile time constant to the program.
 
 [matrix-multiply-code]: http://csapp.cs.cmu.edu/public/waside/waside-blocking.pdf
 
@@ -131,7 +126,6 @@ Save the following code to examples/tutorials/mmm_tuner.py
       argparser = opentuner.default_argparser()
       GccFlagsTuner.main(argparser.parse_args())
 
-
 This file consists of several components, each of which will be discussed in further detail below.
 
 Tuning Programs have a general structure as follows:
@@ -139,10 +133,11 @@ Tuning Programs have a general structure as follows:
     from opentuner import MeasurementInterface
     from opentuner import Result
 
-Create an instance of class GccFlagsTuner, which tunes specified parameters using opentuner.
-    class GccFlagsTuner(MeasurementInterface):
+Create an instance of class GccFlagsTuner, which tunes specified parameters using opentuner. class GccFlagsTuner(
+MeasurementInterface):
 
-The manipulator method defines the variable search space by specifying parameters that should be tuned by this instance of GccFlagsTuner
+The manipulator method defines the variable search space by specifying parameters that should be tuned by this instance
+of GccFlagsTuner
 
     def manipulator(self):
       """
@@ -154,7 +149,10 @@ The manipulator method defines the variable search space by specifying parameter
         IntegerParameter('blockSize', 1, 10))
       return manipulator
 
-The run method actually runs opentuner under the given configuration and returns the calculated performance under this configuration. In this example, the blockSize parameter to be tuned is input as a compile-time constant that takes on a value within the specified range each time it is run. However, opentuner also supports other methods of specifying these parameters that may be preferred in different use cases.
+The run method actually runs opentuner under the given configuration and returns the calculated performance under this
+configuration. In this example, the blockSize parameter to be tuned is input as a compile-time constant that takes on a
+value within the specified range each time it is run. However, opentuner also supports other methods of specifying these
+parameters that may be preferred in different use cases.
 
     def run(self, desired_result, input, limit):
       """
@@ -177,7 +175,9 @@ The run method actually runs opentuner under the given configuration and returns
 
       return Result(time=run_result['time'])
 
-We can actually display the result of running opentuner(the optimal block size for our multiplication problem) by creating a method, save_final_config() in our class. This saves a json dictionary of the optimal blockSize parameter found to the file mmm_final_config.json
+We can actually display the result of running opentuner(the optimal block size for our multiplication problem) by
+creating a method, save_final_config() in our class. This saves a json dictionary of the optimal blockSize parameter
+found to the file mmm_final_config.json
 
     def save_final_config(self, configuration):
       """called at the end of tuning"""
@@ -192,7 +192,8 @@ We can actually display the result of running opentuner(the optimal block size f
 Generating and Viewing Results
 ------------------------------
 
-Run the following command to autotune our program(The --no-dups flag hides warnings about duplicate results and the --stop-after parameter specifies that we are running opentuner for a maximum of 30 seconds):
+Run the following command to autotune our program(The --no-dups flag hides warnings about duplicate results and the
+--stop-after parameter specifies that we are running opentuner for a maximum of 30 seconds):
 
     python mmm_tuner.py --no-dups --stop-after=30
 
@@ -204,7 +205,6 @@ The results of each run configuration will be displayed as follows(output lines 
     [    30s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
     [    30s]    INFO opentuner.search.plugin.DisplayPlugin: tests=10, best {'BLOCK_SIZE': 4}, cost time=0.0081, found by DifferentialEvolutionAlt[...]
     Optimal block size written to mmm_final_config.json: {'BLOCK_SIZE': 4}
-
 
 Look up the optimal BlockSize value by inspecting the following created file:
 

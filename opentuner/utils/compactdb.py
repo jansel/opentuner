@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
+
 if __name__ == '__main__':
-  from . import adddeps
+    pass
 
 import argparse
 import logging
@@ -19,37 +20,35 @@ argparser.add_argument('--level', type=int, default=2)
 
 
 def main(args):
-  if '://' not in args.database:
-    args.database = "sqlite:///" + args.database
-  engine, Session = opentuner.resultsdb.connect(args.database)
-  session = Session()
+    if '://' not in args.database:
+        args.database = "sqlite:///" + args.database
+    engine, Session = opentuner.resultsdb.connect(args.database)
+    session = Session()
 
-  config_count = session.query(Configuration).count()
-  # result_count = session.query(Result).count()
-  # desired_result_count = session.query(DesiredResult).count()
+    config_count = session.query(Configuration).count()
+    # result_count = session.query(Result).count()
+    # desired_result_count = session.query(DesiredResult).count()
 
-  if args.level >= 1:
-    q = (session.query(Configuration)
-         .filter(~Configuration.id.in_(session.query(Result.configuration_id)
-                                       .filter_by(was_new_best=True)
-                                       .subquery()))
-         .filter(Configuration.data != None))
+    if args.level >= 1:
+        q = (session.query(Configuration)
+             .filter(~Configuration.id.in_(session.query(Result.configuration_id)
+                                           .filter_by(was_new_best=True)
+                                           .subquery()))
+             .filter(Configuration.data != None))
 
-    log.info("%s: compacted %d of %d Configurations",
-             args.database,
-             q.update({'data': None}, False),
-             config_count)
-    session.commit()
+        log.info("%s: compacted %d of %d Configurations",
+                 args.database,
+                 q.update({'data': None}, False),
+                 config_count)
+        session.commit()
 
-  if args.level >= 2:
-    session.execute('VACUUM;')
-    session.commit()
+    if args.level >= 2:
+        session.execute('VACUUM;')
+        session.commit()
 
-  log.info('done')
+    log.info('done')
 
 
 if __name__ == '__main__':
-  opentuner.tuningrunmain.init_logging()
-  sys.exit(main(argparser.parse_args()))
-
-
+    opentuner.tuningrunmain.init_logging()
+    sys.exit(main(argparser.parse_args()))
