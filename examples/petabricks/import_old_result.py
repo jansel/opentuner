@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-import adddeps  # fix sys.path
 
 import argparse
 import json

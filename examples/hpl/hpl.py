@@ -1,18 +1,13 @@
 from __future__ import print_function
-from builtins import str
-import adddeps  # fix sys.path
 
 import argparse
 import logging
+from builtins import str
 
 import opentuner
-from opentuner.search.manipulator import (ConfigurationManipulator,
-                                          IntegerParameter,
-                                          FloatParameter)
-from opentuner.search.objective import MinimizeTime
 from opentuner.measurement import MeasurementInterface
-from opentuner.measurement.inputmanager import FixedInputManager
-from opentuner.tuningrunmain import TuningRunMain
+from opentuner.search.manipulator import (ConfigurationManipulator,
+                                          IntegerParameter)
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +24,7 @@ parser.add_argument('--xhpl', type=str, default="hpl-2.1/bin/OSX/xhpl",
 class HPLinpack(MeasurementInterface):
     def run(self, desired_result, input, limit):
         self.output_hpl_datfile(desired_result.configuration.data)
-        import subprocess, os
+        import subprocess
         binary = self.args.xhpl
         subprocess.call(["mpirun", "-np", str(self.args.nprocs), binary])
 

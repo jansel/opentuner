@@ -4,7 +4,6 @@
 #
 # This is an extremely simplified version meant only for tutorials
 #
-import adddeps  # fix sys.path
 
 import opentuner
 from opentuner import ConfigurationManipulator

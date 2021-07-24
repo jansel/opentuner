@@ -1,3 +1,4 @@
 django
 matplotlib
-virtualenv
+pytest
+pypandoc

@@ -5,7 +5,6 @@
 # This is an extremely simplified version meant only for tutorials
 #
 from __future__ import print_function
-import adddeps  # fix sys.path
 
 import opentuner
 from opentuner import ConfigurationManipulator

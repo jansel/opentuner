@@ -8,7 +8,6 @@ the program and calls into opentuner to get new configurations to test.
 from __future__ import print_function
 
 from builtins import range
-import adddeps  # add opentuner to path in dev mode
 
 import opentuner
 from opentuner.api import TuningRunManager

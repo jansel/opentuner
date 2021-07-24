@@ -5,19 +5,13 @@
 # http://en.wikipedia.org/wiki/Travelling_salesman_problem
 #
 
-from builtins import range
-import adddeps  # fix sys.path
-
 import argparse
-import logging
+from builtins import range
 
 import opentuner
+from opentuner.measurement import MeasurementInterface
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           PermutationParameter)
-from opentuner.search.objective import MinimizeTime
-from opentuner.measurement import MeasurementInterface
-from opentuner.measurement.inputmanager import FixedInputManager
-from opentuner.tuningrunmain import TuningRunMain
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('data', help='distance matrix file')

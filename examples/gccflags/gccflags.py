@@ -5,7 +5,6 @@ from builtins import map
 from builtins import filter
 from builtins import range
 from past.utils import old_div
-import adddeps  # fix sys.path
 
 import math
 import argparse

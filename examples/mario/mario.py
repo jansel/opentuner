@@ -13,7 +13,6 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 from builtins import object
-import adddeps  # fix sys.path
 import argparse
 import base64
 import pickle
@@ -31,9 +30,6 @@ import socket
 import opentuner
 from opentuner.search.manipulator import ConfigurationManipulator, IntegerParameter, EnumParameter, BooleanParameter
 from opentuner.measurement import MeasurementInterface
-from opentuner.measurement.inputmanager import FixedInputManager
-from opentuner.tuningrunmain import TuningRunMain
-from opentuner.search.objective import MinimizeTime
 from future.utils import with_metaclass
 
 

@@ -10,7 +10,6 @@
 
 from __future__ import print_function
 from builtins import range
-import adddeps  # fix sys.path
 
 import argparse
 import logging

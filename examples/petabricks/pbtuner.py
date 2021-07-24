@@ -2,27 +2,24 @@
 
 from __future__ import division
 from __future__ import print_function
-from builtins import range
-from past.utils import old_div
-import adddeps  # fix sys.path
 
-import re
 import argparse
+import json
 import logging
+import re
 import subprocess
 import tempfile
-import json
+from builtins import range
 from pprint import pprint
+
+from past.utils import old_div
 
 import opentuner
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           IntegerParameter,
                                           LogIntegerParameter,
-                                          FloatParameter,
-                                          LogFloatParameter,
                                           SelectorParameter,
-                                          SwitchParameter,
-                                          PermutationParameter, )
+                                          SwitchParameter)
 
 try:
     from lxml import etree

@@ -11,7 +11,6 @@ from __future__ import print_function
 
 from builtins import zip
 from builtins import range
-import adddeps  # add opentuner to path in dev mode
 
 import opentuner
 from opentuner.api import TuningRunManager

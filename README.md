@@ -16,24 +16,13 @@ ensembles of disparate search techniques simultaneously, techniques which
 perform well will receive larger testing budgets and techniques which perform
 poorly will be disabled.
 
-System dependencies
--------------------
-
-A list of system dependencies can be found in [debian-packages-deps][]
-which are primarily python 2.6+ (not 3.x) and sqlite3 (or your
-[supported][sqlalchemy-dialects] database backend of choice).
-
-On Ubuntu/Debian there can be installed with:
-
-    sudo apt-get install `cat debian-packages-deps | tr '\n' ' '`
-
-[debian-packages-deps]: https://raw.github.com/jansel/opentuner/master/debian-packages-deps
-[sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
-
 
 Installation
 -------------------
-OpenTuner (and dependencies) can be installed with
+
+OpenTuner requires python 3.7+ and sqlite3 (or your
+[supported][sqlalchemy-dialects] database backend of choice).
+Install with:
 
     sudo pip install opentuner
 
@@ -41,33 +30,28 @@ or
 
     pip install --user opentuner
 
-This will not install any of the example programs.
-
+[sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
 
 Development installation
 -------------------
-For development (running OpenTuner out of a git checkout), a list of python
-dependencies can be found in [requirements.txt][] these can be installed
-system-wide with `pip`.
 
-    sudo apt-get install python-pip
-    sudo pip install -r requirements.txt
+For development or running examples out of a git checkout, we recommend using
+[miniconda3](https://docs.conda.io/en/latest/miniconda.html).
 
-Or you can use virtual env to create a isolated python environment by running:
-
-    python ./venv-bootstrap.py
-
-which will create a ./venv/bin/python (./venv/Scripts/python.exe on windows)
-with all the required packages installed.
-
-[requirements.txt]: https://raw.github.com/jansel/opentuner/master/requirements.txt
+    conda create --name=opentuner python=3.8
+    conda activate opentuner
+    pip install -r requirements.txt -r optional-requirements.txt
+    python setup.py develop
 
 
 Checking Installation
 ---------------------
 
-Quickly checking that a successful installation has been made, may be performed
-by running an example program such as:
+To check an installation you can run tests:
+
+    pytest tests/*
+
+Or run an example program:
 
     ./examples/rosenbrock/rosenbrock.py
 

@@ -22,7 +22,6 @@ standard_library.install_aliases()
 from builtins import input
 from builtins import range
 from builtins import object
-import adddeps  # fix sys.path
 
 import argparse
 import collections
