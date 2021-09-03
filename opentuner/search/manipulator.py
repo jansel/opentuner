@@ -93,11 +93,11 @@ class ConfigurationManipulatorBase(with_metaclass(abc.ABCMeta, object)):
             serializer = self.FILE_FORMATS[format]
         return serializer
 
-    def save_to_file(self, cfg, filename, format=None):
+    def save_to_file(self, cfg, filename, format=None, mode="w"):
         """
         Write cfg to filename.  Guess the format by extension if one is not given.
         """
-        with open(filename, 'wb') as fd:
+        with open(filename, mode) as fd:
             self._get_serializer(filename, format).dump(cfg, fd)
 
     def load_from_file(self, filename, format=None):
