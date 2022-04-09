@@ -4,7 +4,6 @@ import abc
 import logging
 from builtins import map
 
-from fn import _
 from future.utils import with_metaclass
 from past.builtins import cmp
 from past.utils import old_div
@@ -108,7 +107,7 @@ class SearchObjective(with_metaclass(abc.ABCMeta, object)):
         if results.count() == 0:
             return None
         else:
-            return max(list(map(_.time, self.driver.results_query(config=config))))
+            return max(list(map(lambda x: x.time, self.driver.results_query(config=config))))
 
     def project_compare(self, a1, a2, b1, b2, factor=1.0):
         """
@@ -171,8 +170,8 @@ class MinimizeTime(SearchObjective):
 
     def config_compare(self, config1, config2):
         """cmp() compatible comparison of resultsdb.models.Configuration"""
-        return cmp(min(list(map(_.time, self.driver.results_query(config=config1)))),
-                   min(list(map(_.time, self.driver.results_query(config=config2)))))
+        return cmp(min(list(map(lambda x: x.time, self.driver.results_query(config=config1)))),
+                   min(list(map(lambda x: x.time, self.driver.results_query(config=config2)))))
 
     def result_relative(self, result1, result2):
         """return None, or a relative goodness of resultsdb.models.Result"""
@@ -279,11 +278,11 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
         results = self.driver.results_query(config=config)
         if results.count() == 0:
             return None
-        if self.accuracy_target > min(list(map(_.accuracy, results))):
+        if self.accuracy_target > min(list(map(lambda x: x.accuracy, results))):
             m = self.low_accuracy_limit_multiplier
         else:
             m = 1.0
-        return m * max(list(map(_.time, results)))
+        return m * max(list(map(lambda x: x.time, results)))
 
     def filter_acceptable(self, query):
         """Return a Result() query that only returns acceptable results"""

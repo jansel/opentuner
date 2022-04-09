@@ -8,7 +8,6 @@ from builtins import map
 from builtins import object
 from datetime import datetime
 
-from fn import _
 from future.utils import with_metaclass
 
 log = logging.getLogger(__name__)
@@ -98,7 +97,7 @@ class LogDisplayPlugin(DisplayPlugin):
         if best is None:
             log.warning("no results yet")
             return
-        requestor = ','.join(map(_.requestor, best.desired_results))
+        requestor = ','.join(map(lambda x: x.requestor, best.desired_results))
         display_log.info("tests=%d, best %s, cost %s, found by %s",
                          count,
                          cfg_repr(best.configuration),

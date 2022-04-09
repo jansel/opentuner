@@ -5,7 +5,6 @@ from builtins import str
 from builtins import zip
 from collections import deque, defaultdict
 
-from fn import _
 from past.builtins import cmp
 
 from .technique import SearchTechniqueBase
@@ -75,7 +74,7 @@ class MetaSearchTechnique(SearchTechniqueBase):
     def debug_log(self):
         if self.log_freq and sum(self.logging_use_counters.values()) > self.log_freq:
             log.info("%s: %s", self.name,
-                     str(sorted(list(self.logging_use_counters.items()), key=_[1] * -1)))
+                     str(sorted(list(self.logging_use_counters.items()), key = lambda x: x[1] * -1)))
             self.logging_use_counters = defaultdict(int)
 
 

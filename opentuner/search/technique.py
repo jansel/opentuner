@@ -13,7 +13,6 @@ from builtins import str
 from datetime import datetime
 from importlib import import_module
 
-from fn import _
 from future.utils import with_metaclass
 
 from opentuner.resultsdb.models import *
@@ -360,7 +359,7 @@ def get_enabled(args):
         # no techniques specified, default technique
         args.technique = ['AUCBanditMetaTechniqueA']
 
-    for unknown in set(args.technique) - set(map(_.name, techniques)):
+    for unknown in set(args.technique) - set(map(lambda x: x.name, techniques)):
         log.error('unknown technique %s', unknown)
         raise Exception('Unknown technique: --technique={}'.format(unknown))
 

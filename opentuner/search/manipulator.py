@@ -20,7 +20,6 @@ from builtins import str
 from functools import reduce
 
 import numpy
-from fn import _
 from future.utils import with_metaclass
 from past.utils import old_div
 
@@ -44,7 +43,7 @@ class ConfigurationManipulatorBase(with_metaclass(abc.ABCMeta, object)):
 
     def validate(self, config):
         """is the given config valid???"""
-        return all(map(_.validate(config), self.parameters(config)))
+        return all(map(lambda x: x.validate(config), self.parameters(config)))
 
     def normalize(self, config):
         """mutate config into canonical form"""
@@ -66,7 +65,7 @@ class ConfigurationManipulatorBase(with_metaclass(abc.ABCMeta, object)):
     def param_names(self, *args):
         """return union of parameter names in args"""
         return sorted(reduce(set.union,
-                             [set(map(_.name, self.parameters(cfg)))
+                             [set(map(lambda x: x.name, self.parameters(cfg)))
                               for cfg in args]))
 
     def linear_config(self, a, cfg_a, b, cfg_b, c, cfg_c):
@@ -235,7 +234,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
         """produce unique hash value for the given config"""
         m = hashlib.sha256()
         params = list(self.parameters(config))
-        params.sort(key=_.name)
+        params.sort(key = lambda x: x.name)
         for i, p in enumerate(params):
             m.update(str(p.name).encode())
             m.update(p.hash_value(config))
@@ -245,7 +244,7 @@ class ConfigurationManipulator(ConfigurationManipulatorBase):
 
     def search_space_size(self):
         """estimate the size of the search space, not precise"""
-        return reduce(_ * _, [x.search_space_size() for x in self.params])
+        return reduce(lambda a, b: a * b, [x.search_space_size() for x in self.params])
 
     def difference(self, cfg1, cfg2):
         cfg = self.copy(cfg1)

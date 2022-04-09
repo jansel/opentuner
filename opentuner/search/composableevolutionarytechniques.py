@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import time
 from functools import reduce
 
-from fn import _
 from future.utils import with_metaclass
 from past.builtins import cmp
 
@@ -403,12 +402,12 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
 
     def get_parents(self, population):
         self.use_f = random.random()
-        population.sort(key=_.timestamp)  # sort population by timestamp
+        population.sort(key = lambda x: x.timestamp)  # sort population by timestamp
 
         # copy oldest
         cfg = self.manipulator.copy(population[0].config)
 
-        shuffled_population = list(map(_.config, population[1:]))
+        shuffled_population = list(map(lambda x : x.config, population[1:]))
         # mix in the global best configuration
         shuffled_population += ([self.get_global_best_configuration()]
                                 * self.information_sharing)
@@ -419,7 +418,7 @@ class RandomThreeParentsComposableTechnique(ComposableEvolutionaryTechnique):
 
     def update_population(self, config, population):
         # replace the oldest configuration if the new one is better.
-        population.sort(key=_.timestamp)
+        population.sort(key = lambda x: x.timestamp)
         if self.lt(config, population[0].config):
             population[0].config = config
 
@@ -468,7 +467,7 @@ class GreedyComposableTechnique(ComposableEvolutionaryTechnique):
         return 4
 
     def get_parents(self, population):
-        population.sort(key=_.timestamp)  # sort population by timestamp
+        population.sort(key = lambda x: x.timestamp)  # sort population by timestamp
 
         # get a 50-50 mix of base and best cfgs as many operators do nothing given identical input cfgs
         cfg = self.manipulator.copy(population[0].config)
@@ -480,7 +479,7 @@ class GreedyComposableTechnique(ComposableEvolutionaryTechnique):
 
     def update_population(self, config, population):
         # replace the oldest configuration if the new one is better.
-        population.sort(key=_.timestamp)
+        population.sort(key = lambda x: x.timestamp)
         if self.lt(config, population[0].config):
             population[0].config = config
 

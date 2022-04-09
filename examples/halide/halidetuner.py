@@ -35,7 +35,6 @@ import subprocess
 import tempfile
 import textwrap
 from io import StringIO
-from fn import _
 from pprint import pprint
 
 import opentuner
