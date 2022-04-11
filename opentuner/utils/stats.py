@@ -9,6 +9,7 @@ from builtins import range
 from builtins import str
 from builtins import zip
 from functools import reduce
+from itertools import chain
 
 from past.utils import old_div
 
@@ -27,9 +28,6 @@ import subprocess
 import sys
 
 from collections import defaultdict
-from fn import _
-from fn import Stream
-from fn.iters import repeat
 from pprint import pprint
 
 import opentuner
@@ -52,7 +50,7 @@ argparser.add_argument('--stats-input', default="opentuner.db")
 argparser.add_argument('--min-runs', type=int, default=1,
                        help="ignore series with less then N runs")
 
-PCTSTEPS = list(map(old_div(_, 20.0), list(range(21))))
+PCTSTEPS = list(map(lambda n: old_div(n, 20.0), list(range(21))))
 
 
 def mean(vals):
@@ -89,7 +87,7 @@ def variance(vals):
         return None
     if avg in (float('inf'), float('-inf')):
         return avg
-    return mean(list(map((_ - avg) ** 2, vals)))
+    return mean(list(map(lambda n: (n - avg) ** 2, vals)))
 
 
 def stddev(vals):
@@ -162,7 +160,7 @@ class StatsMain(object):
                 os.makedirs(d)
             session = list(label_runs.values())[0][0][1]
             objective = list(label_runs.values())[0][0][0].objective
-            all_run_ids = list(map(_[0].id, itertools.chain(*list(label_runs.values()))))
+            all_run_ids = list(map(lambda x: x[0].id, chain(*list(label_runs.values()))))
             q = (session.query(Result)
                  .filter(Result.tuning_run_id.in_(all_run_ids))
                  .filter(Result.time < float('inf'))
@@ -330,7 +328,7 @@ class StatsMain(object):
         """
 
         # extract_fn = lambda dr: objective.stats_quality_score(dr.result, worst, best)
-        extract_fn = _.result.time
+        extract_fn = lambda x: x.result.time
         combine_fn = min
         no_data = 999
 
@@ -339,7 +337,7 @@ class StatsMain(object):
                   for run, session in runs]
         max_len = max(list(map(len, by_run)))
 
-        by_run_streams = [Stream() << x << repeat(x[-1], max_len - len(x))
+        by_run_streams = [chain(x, repeat(x[-1], max_len - len(x)))
                           for x in by_run]
         by_quanta = list(zip(*by_run_streams[:]))
 

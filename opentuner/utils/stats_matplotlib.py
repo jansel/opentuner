@@ -23,12 +23,10 @@ import sqlalchemy
 import sqlalchemy.orm.exc
 
 from collections import defaultdict
-from fn import _
-from fn import Stream
-from fn.iters import repeat
+from itertools import chain, repeat
 from opentuner import resultsdb
 
-PCTSTEPS = list(map(old_div(_, 20.0), list(range(21))))
+PCTSTEPS = list(map(lambda n: old_div(n, 20.0), list(range(21))))
 
 
 def mean(vals):
@@ -150,7 +148,7 @@ def combined_stats_over_time(label,
     combine stats_over_time() vectors for multiple runs
     """
 
-    extract_fn = _.result.time
+    extract_fn = lambda x: x.result.time
     combine_fn = min
     no_data = 999
 
@@ -158,7 +156,7 @@ def combined_stats_over_time(label,
               for run, session in runs]
     max_len = max(list(map(len, by_run)))
 
-    by_run_streams = [Stream() << x << repeat(x[-1], max_len - len(x))
+    by_run_streams = [chain(x, repeat(x[-1], max_len - len(x)))
                       for x in by_run]
     by_quanta = list(zip(*by_run_streams[:]))
 
@@ -266,7 +264,7 @@ def get_values(labels):
     all_run_ids = list()
     returned_values = {}
     for d, label_runs in list(dir_label_runs.items()):
-        all_run_ids = list(map(_[0].id, itertools.chain(*list(label_runs.values()))))
+        all_run_ids = list(map(lambda x: x[0].id, chain(*list(label_runs.values()))))
         session = list(label_runs.values())[0][0][1]
         objective = list(label_runs.values())[0][0][0].objective
 

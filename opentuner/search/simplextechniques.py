@@ -11,8 +11,6 @@ from builtins import str
 from collections import defaultdict
 from functools import cmp_to_key
 
-from fn import _
-from fn.iters import map, filter
 from past.utils import old_div
 
 from .manipulator import Parameter
@@ -61,7 +59,7 @@ class SimplexTechnique(SequentialSearchTechnique):
     def cfg_to_str(self, cfg):
         params = list(filter(Parameter.is_primitive,
                              self.manipulator.parameters(cfg)))
-        params.sort(key=_.name)
+        params.sort(key = lambda x: x.name)
         return str(tuple([x.get_unit_value(cfg) for x in params]))
 
     def debug_log(self):

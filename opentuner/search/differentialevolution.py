@@ -8,7 +8,6 @@ from builtins import map
 from builtins import object
 from builtins import range
 
-from fn import _
 from past.utils import old_div
 
 from .technique import SearchTechnique
@@ -67,7 +66,7 @@ class DifferentialEvolution(SearchTechnique):
         if not pop_without_replacements:
             # everything has a pending replacement
             return None
-        pop_without_replacements.sort(key=_.timestamp)
+        pop_without_replacements.sort(key = lambda x: x.timestamp)
         return pop_without_replacements[0]
 
     def desired_configuration(self):
@@ -118,7 +117,7 @@ class DifferentialEvolution(SearchTechnique):
                              * self.information_sharing)
 
         random.shuffle(shuffled_pop)
-        x1, x2, x3 = list(map(_.config.data, shuffled_pop[0:3]))
+        x1, x2, x3 = list(map(lambda x: x.config.data, shuffled_pop[0:3]))
 
         use_f = old_div(random.random(), 2.0) + 0.5
 

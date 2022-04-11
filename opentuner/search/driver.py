@@ -9,8 +9,6 @@ from builtins import object
 from builtins import range
 from datetime import datetime
 
-from fn import _
-
 from opentuner.driverbase import DriverBase
 from opentuner.resultsdb.models import BanditInfo
 from opentuner.resultsdb.models import BanditSubTechnique
@@ -102,13 +100,13 @@ class SearchDriver(DriverBase):
             else:
                 log.error('no such file for --seed-configuration %s', cfg_filename)
 
-        self.plugins.sort(key=_.priority)
+        self.plugins.sort(key = lambda x: x.priority)
 
     def add_plugin(self, p):
         if p in self.plugins:
             return
         self.plugins.append(p)
-        self.plugins.sort(key=_.priority)
+        self.plugins.sort(key = lambda x: x.priority)
         p.set_driver(self)
 
     def convergence_criteria(self):
