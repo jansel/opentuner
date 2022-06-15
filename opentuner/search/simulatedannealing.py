@@ -3,6 +3,7 @@ from __future__ import division
 import math
 import random
 from builtins import range
+from functools import cmp_to_key
 
 from past.utils import old_div
 
@@ -105,7 +106,7 @@ class PseudoAnnealingSearch(technique.SequentialSearchTechnique):
             # No relative compare
             else:
                 # sort points by "energy" (quality)
-                points.sort(cmp=objective.compare)
+                points.sort(key=cmp_to_key(objective.compare))
 
                 # Make decision about changing state
                 # probability picking next-best state is exp^(-1/temp)
