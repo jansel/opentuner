@@ -356,7 +356,7 @@ class Torczon(SimplexTechnique):
         for p in self.simplex_points:
             self.yield_nonblocking(p)
         yield None  # wait until results are ready
-        self.simplex_points.sort(cmp=objective.compare)
+        self.simplex_points.sort(key=cmp_to_key(objective.compare))
 
         while not self.convergence_criterea():
             # set limit from worst point
@@ -367,14 +367,14 @@ class Torczon(SimplexTechnique):
 
             reflected = self.reflected_simplex()
             yield None  # wait until results are ready
-            reflected.sort(cmp=objective.compare)
+            reflected.sort(key=cmp_to_key(objective.compare))
 
             # this next condition implies reflected[0] < simplex_points[0] since
             # reflected is sorted and contains simplex_points[0] (saves a db query)
             if reflected[0] is not self.simplex_points[0]:
                 expanded = self.expanded_simplex()
                 yield None  # wait until results are ready
-                expanded.sort(cmp=objective.compare)
+                expanded.sort(key=cmp_to_key(objective.compare))
 
                 if objective.lt(expanded[0], reflected[0]):
                     log.debug("expansion performed")
@@ -385,7 +385,7 @@ class Torczon(SimplexTechnique):
             else:
                 contracted = self.contracted_simplex()
                 yield None  # wait until results are ready
-                contracted.sort(cmp=objective.compare)
+                contracted.sort(key=cmp_to_key(objective.compare))
 
                 log.debug("contraction performed")
                 self.simplex_points = contracted
