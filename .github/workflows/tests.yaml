@@ -1,6 +1,6 @@
 name: run testcase
 on: [push, pull_request]
-
+permissions: read-all
 jobs:
   tests:
     name: unittest
