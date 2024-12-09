@@ -65,7 +65,6 @@ class ComposableSearchTechniqueTests(unittest.TestCase):
 
     def test_get_default_oeprator(self):
         default = self.technique.get_default_operator(manipulator.PermutationParameter)
-        self.assertFalse(True, "test failed!!! test_get_default_oeprator")
         self.assertDictEqual(default, {'op_name': 'op1_nop', 'args': [], 'kwargs': {}})
 
     def test_get_operator(self):
