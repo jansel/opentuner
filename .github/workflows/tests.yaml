@@ -13,7 +13,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       # install pytest-cov
-      - run: pip install pytest-cov
+      - run: pip install pytest-cov==v6.0.0
 
       # run unittest and covertest
       - run: pytest -v --cov=.
