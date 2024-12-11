@@ -1,0 +1,21 @@
+name: test
+on: [push, pull_request]
+permissions: read-all
+jobs:
+  unittest:
+    name: unittest
+    runs-on: ubuntu-latest
+    steps:
+      # checkout source code
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      # install dependencies
+      - run: pip install -r requirements.txt
+
+      # install pytest-cov
+      - run: pip install pytest-cov==v6.0.0
+
+      # run unittest and covertest
+      - run: pytest -v --cov=.
+      
+  
