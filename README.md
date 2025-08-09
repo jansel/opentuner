@@ -98,3 +98,41 @@ OpenTuner is supported in part by the United States Department of Energy
 [xstack]: http://science.energy.gov/ascr/research/computer-science/ascr-x-stack-portfolio/
 [dtec]: http://www.dtec-xstack.org/
 
+## Attaching custom attributes to Result
+
+You can now attach arbitrary metadata to each `Result` via a mutable `extra` dict.
+
+Example:
+
+```python
+from opentuner import Result
+
+# return a result with extra metrics
+return Result(time=elapsed_seconds).update_attributes({
+  'throughput': qps,
+  'build_hash': git_sha,
+})
+
+# or later, after creating a result instance
+result.set_attribute('notes', 'warm cache')
+print(result.get_attribute('throughput'))
+```
+
+The `extra` field is stored in the database using a compressed pickle and is tracked for in-place mutations, so updating keys will be persisted automatically on commit.
+
+### Using custom attributes as metrics
+
+You can drive the search by any built-in `Result` field or a key in `Result.extra` using the new flexible objectives:
+
+```python
+from opentuner.search.objective import MinimizeAttribute, MaximizeAttribute
+
+# Example: minimize a custom latency value stored in Result.extra['p95_ms']
+objective = MinimizeAttribute('p95_ms', missing_value=float('inf'))
+
+# Or maximize a custom throughput stored in Result.extra['qps']
+objective = MaximizeAttribute('qps', missing_value=float('-inf'))
+```
+
+If the attribute name matches a concrete column (e.g., `time`, `accuracy`), ordering is done directly in SQL. Otherwise, ordering falls back to in-Python comparisons.
+

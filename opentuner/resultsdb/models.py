@@ -14,6 +14,7 @@ import re
 
 from pickle import dumps, loads
 from gzip import zlib
+from sqlalchemy.ext.mutable import MutableDict
 
 
 class CompressedPickler(object):
@@ -263,9 +264,30 @@ class Result(Base):
     size = Column(Float)
     confidence = Column(Float)
     # extra = Column(PickleType)
+    extra = Column(MutableDict.as_mutable(PickleType(pickler=CompressedPickler)), default=dict)
 
     # set by SearchDriver
     was_new_best = Column(Boolean)
+
+    # Convenience helpers for per-result arbitrary attributes
+    def set_attribute(self, key, value):
+        if self.extra is None:
+            self.extra = {}
+        self.extra[key] = value
+        return self
+
+    def get_attribute(self, key, default=None):
+        if self.extra is None:
+            return default
+        return self.extra.get(key, default)
+
+    def update_attributes(self, mapping):
+        if not mapping:
+            return self
+        if self.extra is None:
+            self.extra = {}
+        self.extra.update(mapping)
+        return self
 
 
 Index('ix_result_custom1', Result.tuning_run_id, Result.was_new_best)
