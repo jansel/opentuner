@@ -299,3 +299,77 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
         log.warning('result_relative() not yet implemented for %s',
                     self.__class__.__name__)
         return None
+
+
+class MinimizeAttribute(SearchObjective):
+    """
+    Minimize an attribute on Result. If the attribute is not a concrete
+    database column, it will be read from Result.extra at runtime.
+    """
+
+    def __init__(self, attribute_name, missing_value=None):
+        super(MinimizeAttribute, self).__init__()
+        self.attribute_name = attribute_name
+        self.missing_value = missing_value
+
+    def result_order_by_terms(self):
+        # Use DB ordering only if this is a concrete column on Result
+        col = getattr(Result, self.attribute_name, None)
+        return [col] if col is not None else []
+
+    def _value_of(self, result):
+        if hasattr(result, self.attribute_name):
+            return getattr(result, self.attribute_name)
+        return (result.get_attribute(self.attribute_name, self.missing_value)
+                if hasattr(result, 'get_attribute') else self.missing_value)
+
+    def result_compare(self, result1, result2):
+        return cmp(self._value_of(result1), self._value_of(result2))
+
+    def result_relative(self, result1, result2):
+        v1 = self._value_of(result1)
+        v2 = self._value_of(result2)
+        try:
+            if v1 is None or v2 in (None, 0):
+                return None
+            return old_div(v1, v2)
+        except Exception:
+            return None
+
+
+class MaximizeAttribute(SearchObjective):
+    """
+    Maximize an attribute on Result. If the attribute is not a concrete
+    database column, it will be read from Result.extra at runtime.
+    """
+
+    def __init__(self, attribute_name, missing_value=None):
+        super(MaximizeAttribute, self).__init__()
+        self.attribute_name = attribute_name
+        self.missing_value = missing_value
+
+    def result_order_by_terms(self):
+        # Use DB ordering only if this is a concrete column on Result
+        col = getattr(Result, self.attribute_name, None)
+        return [-col] if col is not None else []
+
+    def _value_of(self, result):
+        if hasattr(result, self.attribute_name):
+            return getattr(result, self.attribute_name)
+        return (result.get_attribute(self.attribute_name, self.missing_value)
+                if hasattr(result, 'get_attribute') else self.missing_value)
+
+    def result_compare(self, result1, result2):
+        # note opposite order for maximize
+        return cmp(self._value_of(result2), self._value_of(result1))
+
+    def result_relative(self, result1, result2):
+        # For maximize, relative goodness mirrors MaximizeAccuracy
+        v1 = self._value_of(result1)
+        v2 = self._value_of(result2)
+        try:
+            if v1 in (None, 0) or v2 is None:
+                return None
+            return old_div(v2, v1)
+        except Exception:
+            return None

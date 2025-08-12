@@ -11,7 +11,7 @@ from .models import Base, _Meta
 
 log = logging.getLogger(__name__)
 
-DB_VERSION = "0.0"
+DB_VERSION = "0.1"
 
 if False:  # profiling of queries
     import atexit
