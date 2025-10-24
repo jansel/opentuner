@@ -1,5 +1,7 @@
 ---
-layout: default title: OpenTuner - Using OpenTuner permalink: /tutorial/gettingstarted/index.html
+layout: default
+title: OpenTuner - Using OpenTuner
+permalink: /tutorial/gettingstarted/index.html
 ---
 
 Tutorial: Optimizing Block Matrix Multiplication
