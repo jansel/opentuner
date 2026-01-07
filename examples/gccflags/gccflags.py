@@ -95,7 +95,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
 
     def extract_gcc_version(self):
         m = re.search(r'([0-9]+)[.]([0-9]+)[.]([0-9]+)', subprocess.check_output([
-            self.args.cc, '--version']))
+            self.args.cc, '--version']).decode())
         if m:
             gcc_version = tuple(map(int, m.group(1, 2, 3)))
         else:
@@ -115,7 +115,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
             # extract flags from --help=optimizers
             optimizers, err = subprocess.Popen([self.args.cc, '--help=optimizers'],
                                                stdout=subprocess.PIPE).communicate()
-            found_cc_flags = re.findall(r'^  (-f[a-z0-9-]+) ', optimizers,
+            found_cc_flags = re.findall(r'^  (-f[a-z0-9-]+) ', optimizers.decode(),
                                         re.MULTILINE)
             log.info('Determining which of %s possible gcc flags work',
                      len(found_cc_flags))
@@ -161,7 +161,7 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
         """
         params, err = subprocess.Popen(
             [self.args.cc, '--help=params'], stdout=subprocess.PIPE).communicate()
-        all_params = re.findall(r'^  ([a-z0-9-]+) ', params, re.MULTILINE)
+        all_params = re.findall(r'^  ([a-z0-9-]+) ', params.decode(), re.MULTILINE)
         all_params = sorted(set(all_params) &
                             set(self.cc_param_defaults.keys()))
         if os.path.isfile(PARAMS_WORKING_CACHE_FILE) and not args.no_cached_flags:
@@ -185,10 +185,13 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
         if compile_result['returncode'] != 0:
             log.warning("removing flag %s because it results in compile error", flag)
             return False
-        if 'warning: this target' in compile_result['stderr']:
+        stderr = compile_result['stderr']
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode()
+        if 'warning: this target' in stderr:
             log.warning("removing flag %s because not supported by target", flag)
             return False
-        if 'has been renamed' in compile_result['stderr']:
+        if 'has been renamed' in stderr:
             log.warning("removing flag %s because renamed", flag)
             return False
         if try_inverted and flag[:2] == '-f':
@@ -333,7 +336,10 @@ class GccFlagsTuner(opentuner.measurement.MeasurementInterface):
                 log.warning("gcc timeout")
                 return self.compile_results['timeout']
             else:
-                log.warning("gcc error %s", compile_result['stderr'])
+                stderr = compile_result['stderr']
+                if isinstance(stderr, bytes):
+                    stderr = stderr.decode()
+                log.warning("gcc error %s", stderr)
                 self.debug_gcc_error(flags)
                 return self.compile_results['error']
         return self.compile_results['ok']
