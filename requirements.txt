@@ -1,4 +1,4 @@
 argparse>=1.4.0
 future
-numpy>=1.22
+numpy>=2.4.4
 SQLAlchemy>=2.0.49
