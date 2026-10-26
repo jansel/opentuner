@@ -37,12 +37,11 @@ class PSO(technique.SequentialSearchTechnique):
         while True:
             for particle in population:
                 g = driver.best_result.configuration.data
-                old = m.copy(particle.position)
                 particle.move(g)
                 yield config(particle.position)
                 # update individual best
                 if objective.lt(config(particle.position), config(particle.best)):
-                    particle.best = particle.position
+                    particle.best = m.copy(particle.position)
 
 
 class HybridParticle(object):
@@ -57,7 +56,7 @@ class HybridParticle(object):
 
         self.manipulator = m
         self.position = self.manipulator.random()
-        self.best = self.position
+        self.best = self.manipulator.copy(self.position)
         self.omega = omega
         self.phi_l = phi_l
         self.phi_g = phi_g
