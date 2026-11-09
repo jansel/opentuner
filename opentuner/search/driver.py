@@ -102,6 +102,37 @@ class SearchDriver(DriverBase):
 
         self.plugins.sort(key = lambda x: x.priority)
 
+        if getattr(self.args, 'resume', False) or getattr(self.args, 'resume_uuid', None):
+            self.restore_resumed_state()
+
+    def restore_resumed_state(self):
+        """
+        Pick the search back up where an interrupted run left it.
+
+        The three pieces of state SearchDriver keeps in memory are rebuilt
+        from the database: the test counter (so --test-limit still means
+        "tests in total for this TuningRun"), the generation number (so new
+        DesiredResults do not collide with old ones) and the best result so
+        far (so process_new_results() keeps comparing against it instead of
+        crowning the first new result).
+        """
+        self.test_count = self.requests_query().count()
+
+        last = (self.session.query(DesiredResult.generation)
+                .filter_by(tuning_run=self.tuning_run)
+                .order_by(DesiredResult.generation.desc())
+                .first())
+        self.generation = 0 if last is None else last[0] + 1
+
+        self.best_result = self.results_query(objective_ordered=True).first()
+
+        log.info('resumed TuningRun %s: %d request(s) recorded, continuing at '
+                 'generation %d, best result so far: %s',
+                 self.tuning_run.uuid, self.test_count, self.generation,
+                 'none' if self.best_result is None
+                 else 'id=%d time=%r' % (self.best_result.id,
+                                         self.best_result.time))
+
     def add_plugin(self, p):
         if p in self.plugins:
             return
