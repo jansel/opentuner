@@ -109,12 +109,13 @@ class SearchDriver(DriverBase):
         """
         Pick the search back up where an interrupted run left it.
 
-        The three pieces of state SearchDriver keeps in memory are rebuilt
-        from the database: the test counter (so --test-limit still means
-        "tests in total for this TuningRun"), the generation number (so new
-        DesiredResults do not collide with old ones) and the best result so
-        far (so process_new_results() keeps comparing against it instead of
-        crowning the first new result).
+        The state SearchDriver keeps in memory is rebuilt from the database:
+        the test counter (so --test-limit still means "tests in total for
+        this TuningRun"), the generation number (so new DesiredResults do not
+        collide with old ones), the best result so far (so
+        process_new_results() keeps comparing against it instead of crowning
+        the first new result), and -- when a bandit meta-technique is used --
+        the bandit's history.
         """
         self.test_count = self.requests_query().count()
 
@@ -132,6 +133,47 @@ class SearchDriver(DriverBase):
                  'none' if self.best_result is None
                  else 'id=%d time=%r' % (self.best_result.id,
                                          self.best_result.time))
+
+        self.restore_bandit_history()
+
+    def restore_bandit_history(self):
+        """
+        Rebuild a bandit meta-technique's history from the recorded results.
+
+        A bandit learns from a sequence of (technique name, did this result
+        beat the best known so far) pairs.  Both halves are already in the
+        database: DesiredResult.requestor names the technique that asked for
+        the test, and Result.was_new_best records the outcome -- so a resumed
+        run can keep the bandit's accumulated knowledge instead of making it
+        start learning from scratch.
+        """
+        bandit = getattr(self.root_technique, 'bandit', None)
+        if bandit is None:
+            return
+
+        rows = (self.session.query(DesiredResult.requestor,
+                                   Result.was_new_best)
+                .join(Result, DesiredResult.result_id == Result.id)
+                .filter(DesiredResult.tuning_run == self.tuning_run)
+                .filter(Result.was_new_best.isnot(None))
+                .order_by(Result.collection_date, Result.id,
+                          DesiredResult.id))
+
+        # one DesiredResult means one callback, and therefore one bandit
+        # update -- a repeated configuration that reuses an earlier
+        # measurement had two of them
+        replayed = skipped = 0
+        for requestor, was_new_best in rows:
+            if requestor not in bandit.use_counts:
+                # e.g. a seed configuration, which no sub-technique requested
+                skipped += 1
+                continue
+            bandit.on_result(requestor, was_new_best)
+            replayed += 1
+
+        if replayed or skipped:
+            log.info('resumed run: replayed %d bandit result(s) (%d not from '
+                     'a sub-technique)', replayed, skipped)
 
     def add_plugin(self, p):
         if p in self.plugins:

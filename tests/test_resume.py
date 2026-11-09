@@ -126,6 +126,31 @@ def test_resume_requeues_requests_left_running(tmp_path):
         session.close()
 
 
+def test_resume_replays_bandit_history(tmp_path):
+    run_interrupted(tmp_path)
+
+    args = make_args(tmp_path)
+    session = open_db(args.database)
+    try:
+        measured = (session.query(DesiredResult)
+                    .filter(DesiredResult.result_id.isnot(None)).count())
+    finally:
+        session.close()
+    assert measured > 0
+
+    resume_args = make_args(tmp_path, resume=True)
+    trm = TuningRunMain(TinyInterface(resume_args), resume_args)
+    try:
+        trm.init()
+        bandit = trm.search_driver.root_technique.bandit
+        # every sub-technique starts with a zero count, so the totals are
+        # entirely what the replay put back
+        assert sum(bandit.use_counts.values()) == measured
+        assert len(bandit.history) == measured
+    finally:
+        trm.session.close()
+
+
 def test_resume_by_uuid(tmp_path):
     run_interrupted(tmp_path)
     args = make_args(tmp_path)
