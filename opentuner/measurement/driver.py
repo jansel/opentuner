@@ -47,6 +47,30 @@ class MeasurementDriver(DriverBase):
         self.laptime = time.time()
         self.machine = self.get_machine()
 
+        if getattr(self.args, 'resume', False) or getattr(self.args, 'resume_uuid', None):
+            self.requeue_stale_desired_results()
+
+    def requeue_stale_desired_results(self):
+        """
+        Re-queue what the interrupted process left in state RUNNING.
+
+        claim_desired_result() only ever claims REQUESTED rows and
+        query_pending_desired_results() only ever looks at REQUESTED rows, so
+        a row a dead process had claimed stays RUNNING forever: it is neither
+        measured again nor reported.  Rows still REQUESTED are picked up on
+        their own; only the RUNNING ones need this reset.
+        """
+        stale = (self.session.query(DesiredResult)
+                 .filter_by(tuning_run=self.tuning_run, state='RUNNING')
+                 .all())
+        for desired_result in stale:
+            desired_result.state = 'REQUESTED'
+        if stale:
+            self.session.flush()
+            log.info('resumed run: re-queued %d DesiredResult(s) left RUNNING '
+                     'by the previous process', len(stale))
+
+
     def get_machine(self):
         """
         get (or create) the machine we are currently running on
