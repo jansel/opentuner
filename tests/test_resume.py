@@ -1,6 +1,7 @@
 """Tests for --resume / --resume-uuid (continuing an interrupted TuningRun)."""
 
 import argparse
+from collections import Counter
 
 import pytest
 
@@ -31,6 +32,13 @@ class TinyInterface(MeasurementInterface):
         pass
 
 
+class SeededTinyInterface(TinyInterface):
+    """Requests the same configuration twice as seeds."""
+
+    def seed_configurations(self):
+        return [{'x': 50}, {'x': 50}]
+
+
 class StopEarlySearchDriver(SearchDriver):
     """Behaves like a run whose process was killed after a few tests."""
 
@@ -58,16 +66,21 @@ def make_args(tmp_path, **overrides):
     return args
 
 
-def run_interrupted(tmp_path):
-    args = make_args(tmp_path)
+def run_interrupted(tmp_path, interface_cls=TinyInterface, **overrides):
+    args = make_args(tmp_path, **overrides)
     with pytest.raises(Interrupted):
-        TuningRunMain(TinyInterface(args), args,
+        TuningRunMain(interface_cls(args), args,
                       search_driver=StopEarlySearchDriver).main()
 
 
 def open_db(database):
     _engine, Session = resultsdb.connect(database)
     return Session()
+
+
+def results_per_configuration(session):
+    return Counter(result.configuration_id
+                   for result in session.query(Result).all())
 
 
 def test_resume_continues_the_interrupted_run(tmp_path):
@@ -97,6 +110,45 @@ def test_resume_continues_the_interrupted_run(tmp_path):
         # --test-limit counts every request ever made for the run, so the
         # resumed session stops at 30 in total rather than 4 + 30
         assert session.query(DesiredResult).count() == resume_args.test_limit
+    finally:
+        session.close()
+
+
+def test_duplicate_request_reuses_the_existing_result(tmp_path):
+    args = make_args(tmp_path, test_limit=6)
+    TuningRunMain(SeededTinyInterface(args), args).main()
+
+    session = open_db(args.database)
+    try:
+        seed_rows = (session.query(DesiredResult)
+                     .filter_by(requestor='seed')
+                     .order_by(DesiredResult.id).all())
+        # the duplicate request is still recorded ...
+        assert len(seed_rows) == 2
+        # ... but it reuses the first request's Result instead of evaluating
+        # the same configuration a second time
+        assert seed_rows[0].result_id is not None
+        assert seed_rows[0].result_id == seed_rows[1].result_id
+        assert max(results_per_configuration(session).values()) == 1
+    finally:
+        session.close()
+
+
+def test_resume_does_not_request_seed_configurations_again(tmp_path):
+    run_interrupted(tmp_path, SeededTinyInterface)
+
+    resume_args = make_args(tmp_path, resume=True)
+    TuningRunMain(SeededTinyInterface(resume_args), resume_args).main()
+
+    session = open_db(resume_args.database)
+    try:
+        # the two seed requests are the ones the interrupted process made;
+        # the resumed session does not spend --test-limit budget on them again
+        assert (session.query(DesiredResult)
+                .filter_by(requestor='seed').count()) == 2
+        assert session.query(DesiredResult).count() == resume_args.test_limit
+        # and no configuration was evaluated twice across the two sessions
+        assert max(results_per_configuration(session).values()) == 1
     finally:
         session.close()
 

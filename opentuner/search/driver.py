@@ -119,6 +119,19 @@ class SearchDriver(DriverBase):
         """
         self.test_count = self.requests_query().count()
 
+        # The interrupted process already requested this run's seed
+        # configurations.  Requesting them again would only consume
+        # --test-limit budget and leave duplicate DesiredResult rows behind
+        # (for a seed that was never measured, the old row is still queued
+        # and will be measured by the measurement driver).
+        requested_config_ids = set(
+            configuration_id for (configuration_id,) in
+            self.requests_query().with_entities(
+                DesiredResult.configuration_id))
+        self.seed_cfgs = [
+            cfg for cfg in self.seed_cfgs
+            if self.get_configuration(cfg).id not in requested_config_ids]
+
         last = (self.session.query(DesiredResult.generation)
                 .filter_by(tuning_run=self.tuning_run)
                 .order_by(DesiredResult.generation.desc())
@@ -253,6 +266,10 @@ class SearchDriver(DriverBase):
             if dr is None or dr is False:
                 log.debug("no desired result, skipping to testing phase")
                 break
+            # Add the row before flushing: configuration_id is only populated
+            # once the DesiredResult itself is in the session, so a transient
+            # row would make every duplicate check below come up empty.
+            self.session.add(dr)
             self.session.flush()  # populate configuration_id
             duplicates = (self.session.query(DesiredResult)
                           .filter_by(tuning_run=self.tuning_run,
@@ -260,7 +277,6 @@ class SearchDriver(DriverBase):
                           .filter(DesiredResult.id != dr.id)
                           .order_by(DesiredResult.request_date)
                           .limit(1).all())
-            self.session.add(dr)
             if len(duplicates):
                 if not self.args.no_dups:
                     log.warning("duplicate configuration request #%d %s/%s %s",
