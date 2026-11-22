@@ -32,8 +32,13 @@ appended to NODIST by ``--with-lto`` / ``--enable-optimizations`` and come
 after the user CFLAGS, so they cannot be overridden via ``CFLAGS`` and are
 intentionally left out of the search space.
 
+``--enable-bolt`` (BOLT post-link optimization, new in CPython 3.12) is a
+configure-level flag rather than a CFLAGS, so it is exposed as its own
+``bolt`` parameter (on/off) and appended to the configure command. It requires
+``llvm-bolt`` and ``merge-fdata`` on PATH.
+
 For each configuration the tuner:
-  1. builds a python3.10 out-of-tree via configure + make + make install;
+  1. builds a python3 out-of-tree via configure + make + make install;
   2. runs pyperformance on that interpreter using the host python;
   3. parses the pyperformance JSON output and scores the run as the geometric
      mean of all benchmark medians (lower is faster), which is returned to
@@ -60,11 +65,29 @@ Notes:
                         to stop by wall-clock time;
 * ``--parallelism 1``   build one configuration at a time so parallel makes
                         don't thrash the CPU;
+* with ``--fast`` the tuning ends with a final phase: the ``--topn N`` best
+  configurations (default 5) are re-measured WITHOUT ``-f`` (full
+  pyperformance mode), re-ranked by those full-mode scores and written to
+  ``topn_results.json``; the champion reported in ``best_config.json`` /
+  ``best_flags.sh`` comes from this full-mode ranking, so the reported
+  improvement is reproducible in full-mode re-testing;
+* a non-zero pyperformance exit does not discard a configuration when the
+  result file still parses: pyperformance exits non-zero as soon as ONE
+  benchmark dies, so the geomean over the surviving benchmarks is salvaged
+  instead (benchmarks broken on the target interpreter, e.g. sympy 1.8
+  importing distutils on 3.12, then cost a fixed set of missing entries
+  rather than poisoning every configuration);
 * per-configuration build/run timeouts are controlled by ``--build-timeout`` /
   ``--run-timeout`` (this fork's ``--test-limit`` is no longer a per-test
   timeout, see above);
-* re-running after an interrupt resumes automatically (results are stored in
-  opentuner.db);
+* re-running after an interrupt does NOT resume by itself: every start
+  creates a new ``TuningRun``, and the search begins from scratch even
+  though earlier results stay in opentuner.db.  Pass ``--resume`` (with the
+  same ``--label``) or ``--resume-uuid <uuid>`` to continue the interrupted
+  run in place, keeping its test counter, generation and best result --
+  requires the ``--resume`` support on top of upstream (see issue #117);
+  without it, export the top-N configurations and re-seed them with
+  ``--seed-configuration``;
 * each configuration's dependencies go into its own venv, but pip hits the
   local cache (no repeated network download); the venv is removed after each
   run by default, use ``--keep-venv`` to keep it;
@@ -129,6 +152,52 @@ GCC_PARAMS = [
     ("predictable-branch-outcome", 0, 50),  # gcc 11 valid range is <0,50>
 ]
 
+# Second wave of dimensions (2026-11-20).  These cover four areas the first
+# space missed: code-generation overhead (CET / PLT), LTO partitioning, PGO
+# profile use, and BOLT's own sub-options.  Each entry is
+# (name, values, tier); tier 1 = expected to matter, tier 2 = worth trying.
+# "default" always means "let CPython's configure decide".
+NEW_PARAMS = [
+    # -- tier 1 ------------------------------------------------------
+    # Ubuntu's gcc defaults to -fcf-protection=full, which puts endbr64 on
+    # every indirect-branch target -- the computed-goto dispatch is exactly
+    # that shape, so disabling CET can pay off on interpreters.
+    ("cf-protection", ["default", "none"], 1),
+    # CPython 3.12 passes -flto-partition=none itself (3.16 dropped it);
+    # "one" merges every LTO partition so cross-module inlining sees the
+    # whole program.  Costs a lot of link-time memory.
+    ("lto-partition", ["default", "one", "balanced"], 1),
+    # Treat functions absent from the PGO training set as cold; compacts
+    # the hot path.  Risk: cold code (rarely exercised by benchmarks) slows.
+    ("pgo", ["default", "partial-training"], 1),
+    ("align-functions", ["default", "16", "32", "64"], 1),
+    ("vect-cost-model", ["default", "very-cheap", "dynamic"], 1),
+    # -- tier 2 ------------------------------------------------------
+    # Replaces CPython's default BOLT_APPLY_FLAGS wholesale; only takes
+    # effect with --enable-bolt.
+    ("bolt-preset", ["default", "icf-all", "aggressive", "minimal"], 2),
+    ("no-plt", ["default", "on"], 2),
+    ("ipa-icf", ["default", "on", "off"], 2),
+    ("linker", ["default", "lld", "gold"], 2),
+]
+
+# BOLT_APPLY_FLAGS replacements.  The "default" entry means "do not export
+# BOLT_APPLY_FLAGS at all", i.e. use CPython's own defaults (with the
+# -frame-opt=hot workaround applied by _build()).
+BOLT_PRESETS = {
+    "icf-all": ("-reorder-blocks=ext-tsp -reorder-functions=cdsort "
+                "-split-functions -icf=all -inline-all -split-eh "
+                "-reorder-functions-use-hot-size -peepholes=none "
+                "-jump-tables=aggressive -inline-ap "
+                "-indirect-call-promotion=all -use-gnu-stack"),
+    "aggressive": ("-reorder-blocks=ext-tsp -reorder-functions=cdsort "
+                   "-split-functions -icf=all -inline-all -split-eh "
+                   "-reorder-functions-use-hot-size -peepholes=none "
+                   "-jump-tables=aggressive -inline-ap "
+                   "-indirect-call-promotion=all -dyno-stats -use-gnu-stack"),
+    "minimal": "-reorder-blocks=ext-tsp -reorder-functions=cdsort -icf=all",
+}
+
 
 class CpythonTuner(MeasurementInterface):
     def __init__(self, *pargs, **kwargs):
@@ -150,6 +219,9 @@ class CpythonTuner(MeasurementInterface):
         # Whether to target the local CPU microarchitecture
         # (-march=native / -mtune=native).
         manipulator.add_parameter(EnumParameter("march", ["default", "native"]))
+        # BOLT post-link optimization (new in CPython 3.12). A configure-level
+        # flag, so it is handled by _cfg_to_configure_flags, not CFLAGS.
+        manipulator.add_parameter(EnumParameter("bolt", ["on", "off"]))
 
         for flag in COMPILE_FLAGS:
             manipulator.add_parameter(
@@ -157,6 +229,13 @@ class CpythonTuner(MeasurementInterface):
 
         for param, lo, hi in GCC_PARAMS:
             manipulator.add_parameter(IntegerParameter(param, lo, hi))
+
+        # Second wave of dimensions (see NEW_PARAMS); --space-size controls
+        # whether tier 2 is included so a scan run can stay cheap.
+        tiers = {1, 2} if self.args.space_size == "full" else {1}
+        for name, values, tier in NEW_PARAMS:
+            if tier in tiers:
+                manipulator.add_parameter(EnumParameter(name, values))
 
         return manipulator
 
@@ -178,23 +257,94 @@ class CpythonTuner(MeasurementInterface):
         for param, _lo, _hi in GCC_PARAMS:
             flags.append("--param=%s=%d" % (param, cfg[param]))
 
+        # Second-wave dimensions.  cfg.get() because these keys are absent
+        # when the parameter was filtered out by --space-size.
+        if cfg.get("cf-protection", "default") == "none":
+            flags.append("-fcf-protection=none")
+        lto_part = cfg.get("lto-partition", "default")
+        if lto_part != "default":
+            flags.append("-flto-partition=" + lto_part)
+        if cfg.get("pgo", "default") == "partial-training":
+            flags.append("-fprofile-partial-training")
+        align = cfg.get("align-functions", "default")
+        if align != "default":
+            flags.append("-falign-functions=" + align)
+        vcm = cfg.get("vect-cost-model", "default")
+        if vcm != "default":
+            flags.append("-fvect-cost-model=" + vcm)
+        if cfg.get("no-plt", "default") == "on":
+            flags.append("-fno-plt")
+        icf = cfg.get("ipa-icf", "default")
+        if icf == "on":
+            flags.append("-fipa-icf")
+        elif icf == "off":
+            flags.append("-fno-ipa-icf")
+
         return " ".join(flags)
 
     def _cfg_to_ldflags(self, cfg):
-        # No extra link-stage options for now; extend here if needed
-        # (e.g. -Wl,-O1).
-        return ""
+        ld = []
+        linker = cfg.get("linker", "default")
+        if linker != "default":
+            ld.append("-fuse-ld=" + linker)
+        return " ".join(ld)
+
+    def _cfg_to_bolt_apply_flags(self, cfg):
+        """BOLT_APPLY_FLAGS replacement, or None to keep CPython's defaults."""
+        preset = cfg.get("bolt-preset", "default")
+        if preset == "default" or cfg.get("bolt") != "on":
+            return None
+        return BOLT_PRESETS[preset]
+
+    def _cfg_to_configure_flags(self, cfg):
+        """Return extra configure-level flags driven by the configuration.
+
+        BOLT (--enable-bolt) is a post-link optimizer introduced in CPython
+        3.12 and cannot be expressed as a CFLAGS, so it is appended to the
+        configure command instead. It requires llvm-bolt and merge-fdata on
+        PATH (configure errors out otherwise, which the tuner sees as a build
+        failure).
+        """
+        flags = []
+        if cfg["bolt"] == "on":
+            flags.append("--enable-bolt")
+        return " ".join(flags)
 
     # ------------------------------------------------------------------
     # Build CPython
     # ------------------------------------------------------------------
-    def _build(self, build_dir, cflags, ldflags):
+    def _build(self, build_dir, cflags, ldflags, extra_configure_flags="",
+               bolt_apply_flags=None):
         build_dir = os.path.abspath(build_dir)
         prefix = os.path.join(build_dir, "install")
         configure = os.path.join(self.args.source_dir, "configure")
         logfile = os.path.join(build_dir, "build.log")
 
+        # Fixed configure flags (PGO/LTO, etc.) plus any tunable
+        # configure-level flags such as --enable-bolt.
+        configure_flags = self.args.configure_flags
+        if extra_configure_flags:
+            configure_flags = (configure_flags + " " + extra_configure_flags).strip()
+
         os.makedirs(build_dir, exist_ok=True)
+
+        # llvm-bolt 23 miscompiles the binary when -frame-opt=hot and
+        # -indirect-call-promotion=all are both active (both are in
+        # cpython's default BOLT_APPLY_FLAGS): the bolt-optimized python
+        # segfaults in _PyEval_EvalFrameDefault with zeroed arguments on
+        # some builds (bisection 2026-10-27, /tmp/cpython-segv).  Dropping
+        # -frame-opt=hot alone avoids it; every other optimization
+        # (reorder-blocks/functions, icf, icp, ...) is kept.
+        bolt_fix = ""
+        if "--enable-bolt" in configure_flags:
+            bolt_fix = "sed -i 's/ -frame-opt=hot//' Makefile; "
+
+        # A BOLT preset replaces CPython's BOLT_APPLY_FLAGS wholesale
+        # (configure reads it as an AC_ARG_VAR and bakes it into the
+        # Makefile), so it has to be exported before configure runs.
+        bolt_env = ""
+        if bolt_apply_flags:
+            bolt_env = "export BOLT_APPLY_FLAGS=%s; " % shlex.quote(bolt_apply_flags)
 
         # Run cd/configure/make/make install inside a subshell so the whole
         # output is redirected to build.log, making configure/make failures
@@ -204,7 +354,9 @@ class CpythonTuner(MeasurementInterface):
             "cd {build_dir}; "
             "export CFLAGS={cflags}; "
             "export LDFLAGS={ldflags}; "
+            "{bolt_env}"
             "{configure} --prefix={prefix} {configure_flags}; "
+            "{bolt_fix}"
             "make -j{jobs}; "
             "make install ) > {log} 2>&1"
         ).format(
@@ -213,12 +365,15 @@ class CpythonTuner(MeasurementInterface):
             ldflags=shlex.quote(ldflags),
             configure=shlex.quote(configure),
             prefix=shlex.quote(prefix),
-            configure_flags=self.args.configure_flags,
+            configure_flags=configure_flags,
+            bolt_env=bolt_env,
+            bolt_fix=bolt_fix,
             jobs=self.args.jobs,
             log=shlex.quote(logfile),
         )
 
-        log.info("building: CFLAGS=%s LDFLAGS=%s", cflags, ldflags)
+        log.info("building: CFLAGS=%s LDFLAGS=%s CONFIGURE=%s",
+                 cflags, ldflags, configure_flags)
         result = self.call_program(cmd, limit=self.args.build_timeout)
 
         if result["timeout"]:
@@ -250,24 +405,42 @@ class CpythonTuner(MeasurementInterface):
     # ------------------------------------------------------------------
     # Run pyperformance and parse the score
     # ------------------------------------------------------------------
-    def _run_pyperformance(self, build_dir, python_bin, result_path):
+    def _run_pyperformance(self, build_dir, python_bin, result_path, fast=None):
         """Run pyperformance; return "OK" / "TIMEOUT" / "ERROR"."""
+        if fast is None:
+            fast = self.args.fast
         logfile = os.path.join(build_dir, "pyperformance.log")
 
         cmd = [
+            # Drop SETUPTOOLS_USE_DISTUTILS from the child environment: with
+            # "stdlib" setuptools' distutils shim stays inactive and 3.12 has
+            # no stdlib distutils, so benchmarks importing distutils
+            # (sympy 1.8, django 3.2.4) would die on every run.
+            "env", "-u", "SETUPTOOLS_USE_DISTUTILS",
             self.args.pyperformance_python, "-m", "pyperformance", "run",
             "--python", python_bin,
             "-o", result_path,
         ]
-        if self.args.fast:
+        if fast:
             cmd.append("-f")
         if self.args.benchmarks:
-            cmd += ["-b", self.args.benchmarks]
+            # "=" form so exclusion lists ("-sympy,...") survive argparse.
+            cmd += ["-b=" + self.args.benchmarks]
 
-        # Run inside build_dir so pyperformance's venv/ lands under build_dir
-        # and can be cleaned up together with it.
+        # pyperformance resolves its venv root relative to the cwd
+        # (_venv.get_venv_root -> abspath("venv/...")), so run from a
+        # dedicated empty subdir of build_dir: the venv still lands under
+        # build_dir for cleanup, but the cwd must NOT be the build root --
+        # it contains pybuilddir.txt, and setuptools' distutils shim
+        # (_distutils_hack.DistutilsMetaFinder.is_cpython) disables itself
+        # when that file exists in the cwd ("am I inside the CPython
+        # repo?").  On 3.12 (PEP 632) there is no stdlib distutils to fall
+        # back to, so sympy 1.8 and django 3.2.4 (both import distutils at
+        # runtime) died on every single run.
+        run_cwd = os.path.join(build_dir, "bench")
+        os.makedirs(run_cwd, exist_ok=True)
         result = self.call_program(
-            cmd, limit=self.args.run_timeout, cwd=build_dir)
+            cmd, limit=self.args.run_timeout, cwd=run_cwd)
 
         # Persist stdout/stderr for troubleshooting individual runs.
         with open(logfile, "wb") as fd:
@@ -315,33 +488,68 @@ class CpythonTuner(MeasurementInterface):
     # ------------------------------------------------------------------
     def run(self, desired_result, input, limit):  # noqa: A002
         cfg = desired_result.configuration.data
-        cflags = self._cfg_to_cflags(cfg)
-        ldflags = self._cfg_to_ldflags(cfg)
 
-        cache_key = (cflags, ldflags)
-        cached = self._build_cache.get(cache_key)
-        if cached is not None:
-            build_dir, python_bin = cached
-        else:
-            build_dir = os.path.join(
-                os.path.abspath(self.args.build_root),
-                "build-%d" % desired_result.id)
-            prefix = self._build(build_dir, cflags, ldflags)
-            if prefix is None:
-                return Result(state="ERROR", time=float("inf"))
-
-            python_bin = self._find_python(prefix)
-            if python_bin is None:
-                log.error("could not find a python3 executable under install")
-                return Result(state="ERROR", time=float("inf"))
-            self._build_cache[cache_key] = (build_dir, python_bin)
+        got = self._get_build(cfg, "build-%d" % desired_result.id)
+        if got is None:
+            return Result(state="ERROR", time=float("inf"))
+        build_dir, python_bin = got
 
         result_path = os.path.join(build_dir, "pyperformance.json")
         status = self._run_pyperformance(build_dir, python_bin, result_path)
+        self._post_run_cleanup(build_dir)
 
+        if status == "TIMEOUT":
+            # A partial result after a timeout only covers the benchmarks
+            # that finished (roughly the fast ones first), which would bias
+            # the geomean, so do not salvage it.
+            return Result(state="TIMEOUT", time=float("inf"))
+
+        score = self._parse_score(result_path)
+        if score is None:
+            return Result(state="ERROR", time=float("inf"))
+
+        if status == "ERROR":
+            log.warning("pyperformance failed; salvaged partial score "
+                        "(broken benchmarks excluded)")
+        else:
+            log.info("score (geomean of medians) = %.4f s", score)
+        return Result(time=score)
+
+    # ------------------------------------------------------------------
+    # Build cache shared by the search phase and the final top-N phase
+    # ------------------------------------------------------------------
+    def _get_build(self, cfg, dirname):
+        """Return (build_dir, python_bin) for cfg, building it if needed."""
+        cflags = self._cfg_to_cflags(cfg)
+        ldflags = self._cfg_to_ldflags(cfg)
+        configure_flags = self._cfg_to_configure_flags(cfg)
+        bolt_flags = self._cfg_to_bolt_apply_flags(cfg)
+
+        cache_key = (cflags, ldflags, configure_flags, bolt_flags)
+        cached = self._build_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        build_dir = os.path.join(
+            os.path.abspath(self.args.build_root), dirname)
+        prefix = self._build(build_dir, cflags, ldflags, configure_flags,
+                             bolt_apply_flags=bolt_flags)
+        if prefix is None:
+            return None
+
+        python_bin = self._find_python(prefix)
+        if python_bin is None:
+            log.error("could not find a python3 executable under install")
+            return None
+
+        self._build_cache[cache_key] = (build_dir, python_bin)
+        return (build_dir, python_bin)
+
+    def _post_run_cleanup(self, build_dir):
+        """Remove the venv and build intermediates after one measurement."""
         # Remove the venv after the run to save disk (deps are already in the
         # pip cache and would just be reinstalled if the config is re-measured).
-        venv_dir = os.path.join(build_dir, "venv")
+        venv_dir = os.path.join(build_dir, "bench", "venv")
         if not self.args.keep_venv and os.path.isdir(venv_dir):
             shutil.rmtree(venv_dir, ignore_errors=True)
 
@@ -353,23 +561,129 @@ class CpythonTuner(MeasurementInterface):
         if not self.args.keep_builds:
             self._cleanup_build_intermediates(build_dir)
 
-        if status != "OK":
-            return Result(state=status, time=float("inf"))
+    # ------------------------------------------------------------------
+    # Final phase: re-measure the top-N configurations in full mode
+    # ------------------------------------------------------------------
+    def _top_config_results(self, n):
+        """Best n distinct successful configurations, best-first."""
+        ranked = []
+        seen = set()
+        for result in self.driver.results_query(objective_ordered=True):
+            if result.state != "OK" or result.time is None:
+                continue
+            if not math.isfinite(result.time):
+                continue
+            cfg = result.configuration.data
+            key = json.dumps(cfg, sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
+            ranked.append((result.time, cfg))
+            if len(ranked) >= n:
+                break
+        return ranked
 
-        score = self._parse_score(result_path)
-        if score is None:
-            return Result(state="ERROR", time=float("inf"))
+    def _remeasure_topn(self, n):
+        """Re-measure the top-n configurations in full pyperformance mode.
 
-        log.info("score (geomean of medians) = %.4f s", score)
-        return Result(time=score)
+        Search runs use --fast (one value per benchmark); its noise can
+        reorder closely-spaced configurations, so the final ranking is
+        redone without -f and the champion is picked from these full-mode
+        scores.  Builds are reused from the cache when possible.
+        """
+        ranked = self._top_config_results(n)
+        entries = []
+        for rank, (fast_time, cfg) in enumerate(ranked, 1):
+            log.info("top-%d/%d full-mode re-measure: CFLAGS=%s",
+                     rank, len(ranked), self._cfg_to_cflags(cfg))
+            full_time = None
+            build_dir = None
+            got = self._get_build(cfg, "build-top%d" % rank)
+            if got is not None:
+                build_dir, python_bin = got
+                result_path = os.path.join(
+                    build_dir, "pyperformance_full.json")
+                status = self._run_pyperformance(
+                    build_dir, python_bin, result_path, fast=False)
+                self._post_run_cleanup(build_dir)
+                if status == "OK":
+                    full_time = self._parse_score(result_path)
+            if full_time is None:
+                log.error("top-%d full-mode re-measure failed", rank)
+            else:
+                log.info("top-%d full-mode score = %.4f s (fast: %.4f s)",
+                         rank, full_time, fast_time)
+            entries.append({
+                "rank_by_fast": rank,
+                "time_fast": fast_time,
+                "time_full": full_time,
+                "config": cfg,
+                "build_dir": build_dir,
+            })
+        # Full-mode score decides the final order; failed re-measures sink.
+        entries.sort(key=lambda e: (e["time_full"] is None,
+                                    e["time_full"] or 0.0))
+        return entries
+
+    def _write_topn_results(self, entries):
+        """Print and save the full-mode ranking of the top configurations."""
+        out = os.path.join(self.args.output_dir, "topn_results.json")
+        records = []
+        print("Top-%d configurations (ranked by FULL-mode score):"
+              % len(entries))
+        for rank, entry in enumerate(entries, 1):
+            cfg = entry["config"]
+            configure_flags = (self.args.configure_flags + " " +
+                               self._cfg_to_configure_flags(cfg)).strip()
+            print("  #%d  full=%s  fast=%.4f s" % (
+                rank,
+                ("%.4f s" % entry["time_full"]
+                 if entry["time_full"] is not None else "FAILED"),
+                entry["time_fast"]))
+            print("      CFLAGS=%s" % self._cfg_to_cflags(cfg))
+            print("      CONFIGURE=%s" % configure_flags)
+            records.append({
+                "rank": rank,
+                "time_fast": entry["time_fast"],
+                "time_full": entry["time_full"],
+                "cflags": self._cfg_to_cflags(cfg),
+                "ldflags": self._cfg_to_ldflags(cfg),
+                "configure_flags": configure_flags,
+                "config": cfg,
+                "build_dir": entry["build_dir"],
+                "pyperformance_full_json": (
+                    os.path.join(entry["build_dir"],
+                                 "pyperformance_full.json")
+                    if entry["build_dir"] else None),
+            })
+        with open(out, "w") as fd:
+            json.dump(records, fd, indent=2, sort_keys=True)
+        print("  written to:", out)
 
     # ------------------------------------------------------------------
     # Emit the best configuration at the end of tuning
     # ------------------------------------------------------------------
     def save_final_config(self, configuration):
         cfg = configuration.data
+
+        # Optional final phase: re-rank the best configurations with full
+        # (non-fast) pyperformance runs; the champion then comes from the
+        # full-mode ranking, not from the noisy --fast search.
+        entries = []
+        if self.args.fast and self.args.topn > 0:
+            entries = self._remeasure_topn(self.args.topn)
+            if entries and entries[0]["time_full"] is not None:
+                cfg = entries[0]["config"]
+
         cflags = self._cfg_to_cflags(cfg)
         ldflags = self._cfg_to_ldflags(cfg)
+        configure_flags = self._cfg_to_configure_flags(cfg)
+
+        # Fixed configure flags (PGO/LTO, etc.) plus tunable configure-level
+        # flags (e.g. --enable-bolt).
+        full_configure_flags = self.args.configure_flags
+        if configure_flags:
+            full_configure_flags = (full_configure_flags + " " + configure_flags).strip()
 
         os.makedirs(self.args.output_dir, exist_ok=True)
         out_json = os.path.join(self.args.output_dir, "best_config.json")
@@ -383,22 +697,32 @@ class CpythonTuner(MeasurementInterface):
             fd.write("# Best CPython compile/link options found by OpenTuner\n")
             fd.write("export CFLAGS=%s\n" % shlex.quote(cflags))
             fd.write("export LDFLAGS=%s\n" % shlex.quote(ldflags))
+            # Same llvm-bolt workaround as _build(): strip -frame-opt=hot so
+            # reproducing a bolt build does not hit the bolt miscompile.
+            bolt_fix = ("sed -i 's/ -frame-opt=hot//' Makefile && "
+                        if "--enable-bolt" in full_configure_flags else "")
             fd.write(
                 "cd build/best && %s/configure --prefix=$PWD/install %s && "
+                "%s"
                 "make -j && make install\n"
-                % (shlex.quote(self.args.source_dir),
-                   self.args.configure_flags))
+                % (shlex.quote(self.args.source_dir), full_configure_flags,
+                   bolt_fix))
 
         print("Best configuration written to:")
         print("  ", out_json)
         print("  ", out_sh)
         print("  CFLAGS =", cflags)
         print("  LDFLAGS =", ldflags)
+        print("  CONFIGURE =", full_configure_flags)
+
+        if entries:
+            self._write_topn_results(entries)
 
         # Preserve the best configuration's installed interpreter so it can be
         # used directly for the final comparison without a rebuild. The build
-        # cache maps (cflags, ldflags) to the build dir that produced it.
-        cached = self._build_cache.get((cflags, ldflags))
+        # cache maps (cflags, ldflags, configure flags) to the build dir that
+        # produced it.
+        cached = self._build_cache.get((cflags, ldflags, configure_flags))
         keep = ()
         if cached is not None:
             keep = (os.path.basename(cached[0]),)
@@ -419,7 +743,8 @@ class CpythonTuner(MeasurementInterface):
         so the object files and generated sources in build_dir are no longer
         needed; keeping install/ lets a re-measurement reuse the cached build.
         """
-        keep = ("install", "build.log", "pyperformance.log", "pyperformance.json")
+        keep = ("install", "bench", "build.log", "pyperformance.log",
+                "pyperformance.json", "pyperformance_full.json")
         if not os.path.isdir(build_dir):
             return
         for name in os.listdir(build_dir):
@@ -435,12 +760,12 @@ class CpythonTuner(MeasurementInterface):
                 shutil.rmtree(path, ignore_errors=True)
 
     def _cleanup_build_dirs(self, keep=()):
-        """Remove all build-<id> directories under --build-root, except `keep`."""
+        """Remove all build-<id>/build-top<N> dirs under --build-root, except `keep`."""
         build_root = os.path.abspath(self.args.build_root)
         if not os.path.isdir(build_root):
             return
         for name in os.listdir(build_root):
-            if re.fullmatch(r"build-\d+", name) and name not in keep:
+            if re.fullmatch(r"build-(\d+|top\d+)", name) and name not in keep:
                 shutil.rmtree(os.path.join(build_root, name), ignore_errors=True)
                 log.info("removed intermediate build directory %s", name)
 
@@ -493,11 +818,95 @@ def _add_args(argparser):
         "--keep-builds", action="store_true",
         help="keep intermediate build directories after tuning completes "
              "(removed by default)")
+    argparser.add_argument(
+        # Default 10 rather than 5: fast-mode repeatability is good (median
+        # relative spread 0.17% over 11 repeated measurements of the same
+        # configuration) but rare outliers are not -- one fast score was 7%
+        # better than its full-mode score. An outlier occupies a re-measure
+        # slot and can push the true winner out of the list; five extra
+        # full-mode re-measures cost ~2.5 h against a ~50 h search.
+        "--topn", type=int, default=10,
+        help="with --fast: re-measure the N best configurations in full "
+             "pyperformance mode at the end, rank by those scores and write "
+             "topn_results.json (0 disables)")
+    argparser.add_argument(
+        "--space-size", choices=["core", "tier1", "full"], default="full",
+        help="core = original 18 dimensions, tier1 = core + the five "
+             "high-confidence additions, full = tier1 + tier2 (default)")
+    argparser.add_argument(
+        "--facet-scan", choices=["off", "tier1", "tier2", "all"],
+        default="off",
+        help="one-factor-at-a-time scan of the new dimensions around "
+             "--scan-base; the generated configurations are injected as "
+             "seeds and --test-limit is set to their count")
+    argparser.add_argument(
+        "--scan-base", default=None,
+        help="base configuration (JSON) the facet scan varies; required "
+             "with --facet-scan")
+    argparser.add_argument(
+        "--scan-extra", type=int, default=0,
+        help="with --facet-scan: number of random configurations to run "
+             "after the scan (default 0, i.e. scan only)")
     return argparser
+
+
+def _facet_scan_seeds(args):
+    """Write one-factor-at-a-time configurations around args.scan_base.
+
+    Returns the list of paths written.  Each configuration is the base with
+    exactly one new dimension changed, so the scan answers "what does this
+    knob do on top of what we already have" instead of re-searching.
+    """
+    if not args.scan_base:
+        raise SystemExit("--facet-scan 需要 --scan-base <配置.json>")
+    with open(args.scan_base, encoding="utf-8") as f:
+        base = json.load(f)
+
+    # Every configuration handed to OpenTuner must carry a value for every
+    # parameter in the search space, otherwise ConfigurationManipulator
+    # raises KeyError when it hashes the seed.  Fill the ones the base
+    # predates with "default" (= let configure decide).
+    for name, _values, _tier in NEW_PARAMS:
+        base.setdefault(name, "default")
+
+    tiers = {"tier1": {1}, "tier2": {2}, "all": {1, 2}}[args.facet_scan]
+    outdir = os.path.join(args.output_dir, "facet-scan")
+    os.makedirs(outdir, exist_ok=True)
+
+    paths = []
+    # The base itself is the control: every other row is compared against it.
+    base_path = os.path.join(outdir, "base.json")
+    with open(base_path, "w", encoding="utf-8") as f:
+        json.dump(base, f, indent=2, sort_keys=True)
+    paths.append(base_path)
+
+    for name, values, tier in NEW_PARAMS:
+        if tier not in tiers:
+            continue
+        for value in values:
+            # "default" means "leave it to configure", which is exactly the
+            # base configuration -- measuring it again would waste an hour.
+            if value == "default":
+                continue
+            cfg = dict(base)
+            cfg[name] = value
+            path = os.path.join(
+                outdir, "%s=%s.json" % (name, str(value).replace("/", "_")))
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2, sort_keys=True)
+            paths.append(path)
+    log.info("facet scan: %d configurations -> %s", len(paths), outdir)
+    return paths
 
 
 if __name__ == "__main__":
     opentuner.init_logging()
     argparser = opentuner.default_argparser()
     argparser = _add_args(argparser)
-    CpythonTuner.main(argparser.parse_args())
+    _args = argparser.parse_args()
+    if _args.facet_scan != "off":
+        _seeds = _facet_scan_seeds(_args)
+        _args.seed_configuration = list(_args.seed_configuration) + _seeds
+        _args.test_limit = len(_args.seed_configuration) + _args.scan_extra
+        log.info("facet scan mode: test-limit=%s", _args.test_limit)
+    CpythonTuner.main(_args)
