@@ -198,6 +198,76 @@ BOLT_PRESETS = {
     "minimal": "-reorder-blocks=ext-tsp -reorder-functions=cdsort -icf=all",
 }
 
+# Interaction tests.  One-factor-at-a-time cannot see these: each side can be
+# neutral on its own while the combination moves the needle.  Every entry is
+# applied on top of the base configuration.
+PAIR_TESTS = [
+    # LTO visibility (one partition) only pays off with enough inlining
+    # headroom; with the default limits the extra visibility goes unused.
+    ("lto-inline-headroom",
+     {"lto-partition": "one", "inline-unit-growth": 100,
+      "max-inline-insns-auto": 100}),
+    ("lto-early-inlining",
+     {"lto-partition": "one", "early-inlining-insns": 300}),
+    # BOLT reorders code post-link; compiler-side layout flags compete with it.
+    ("bolt-vs-compiler-layout",
+     {"bolt-preset": "icf-all", "reorder-blocks-and-partition": "off",
+      "gcse-after-reload": "off"}),
+    ("bolt-aggressive-no-layout",
+     {"bolt-preset": "aggressive", "reorder-blocks-and-partition": "off"}),
+    # The vectorizer cost model is only observable when vectorization is on.
+    ("vectorize-very-cheap",
+     {"tree-vectorize": "on", "vect-cost-model": "very-cheap"}),
+    ("vectorize-dynamic",
+     {"tree-vectorize": "on", "vect-cost-model": "dynamic"}),
+]
+
+
+def _paley_pb_rows(n_factors):
+    """Plackett-Burman design rows (lists of +1/-1).
+
+    12 runs for up to 11 two-level factors, 8 runs for up to 7.  Built from a
+    Paley Hadamard matrix (order q+1 for prime q == 3 mod 4) and verified:
+    every pair of columns must be orthogonal, otherwise the main effects are
+    not separable.
+    """
+    q = 7 if n_factors <= 7 else 11
+    residues = {(i * i) % q for i in range(1, q)}
+
+    def chi(a):
+        a %= q
+        if a == 0:
+            return 0
+        return 1 if a in residues else -1
+
+    hadamard = [[1] * (q + 1)]
+    for i in range(q):
+        hadamard.append([1] + [(-1 if i == j else chi(i - j))
+                               for j in range(q)])
+    # Delete the first column (which is all +1 in a normalised Hadamard
+    # matrix) and keep all q+1 rows: the result is the PB design.  The
+    # criterion is orthogonality of *columns* -- that is what makes the main
+    # effects separately estimable -- so check exactly that.
+    rows = [row[1:] for row in hadamard]
+    nrows = len(rows)
+    for i in range(len(rows[0])):
+        for j in range(i + 1, len(rows[0])):
+            if sum(r[i] * r[j] for r in rows) != 0:
+                raise AssertionError("PB design is not orthogonal")
+        if abs(sum(r[i] for r in rows)) > 1e-9:
+            raise AssertionError("PB column is not balanced")
+    if nrows not in (8, 12):
+        raise AssertionError("unexpected PB run count: %d" % nrows)
+    return [row[:n_factors] for row in rows]
+
+
+def _promising_value(name, values, overrides):
+    """The value a screening run should test for this factor."""
+    if name in overrides:
+        return overrides[name]
+    candidates = [v for v in values if v != "default"]
+    return candidates[-1] if candidates else None
+
 
 class CpythonTuner(MeasurementInterface):
     def __init__(self, *pargs, **kwargs):
@@ -847,18 +917,40 @@ def _add_args(argparser):
         "--scan-extra", type=int, default=0,
         help="with --facet-scan: number of random configurations to run "
              "after the scan (default 0, i.e. scan only)")
+    argparser.add_argument(
+        "--facet-design", choices=["ofat", "pb", "pair", "all"],
+        default="ofat",
+        help="what the scan generates: ofat = one factor at a time (default), "
+             "pb = Plackett-Burman screening (all main effects in 8-12 runs, "
+             "interactions show up in the residual), pair = targeted A+B "
+             "tests for interactions OFAT cannot see, all = every design")
+    argparser.add_argument(
+        "--scan-promising", default=None,
+        help="per-dimension override for the value the PB design should test, "
+             "as name=value[,name=value] (default: the last non-default value)")
     return argparser
 
 
 def _facet_scan_seeds(args):
-    """Write one-factor-at-a-time configurations around args.scan_base.
+    """Write the screening configurations around args.scan_base.
 
-    Returns the list of paths written.  Each configuration is the base with
-    exactly one new dimension changed, so the scan answers "what does this
-    knob do on top of what we already have" instead of re-searching.
+    --facet-design selects what is generated:
+
+    * ``ofat``  one factor at a time -- main effect of every dimension value,
+      and the table you look at to decide what deserves a long search;
+    * ``pb``    Plackett-Burman design over the selected dimensions -- all
+      main effects from 8-12 runs, and a residual that tells you whether
+      interactions exist at all;
+    * ``pair``  targeted A+B tests for the interactions OFAT structurally
+      cannot see (A alone neutral, B alone neutral, A+B large);
+    * ``all``   ofat + pb + pair.
+
+    Identical configurations are generated only once (the PB row with every
+    factor at "default" is the base itself, for example).
     """
     if not args.scan_base:
-        raise SystemExit("--facet-scan 需要 --scan-base <配置.json>")
+        raise SystemExit(
+            "--facet-scan/--facet-design require --scan-base <config.json>")
     with open(args.scan_base, encoding="utf-8") as f:
         base = json.load(f)
 
@@ -873,29 +965,69 @@ def _facet_scan_seeds(args):
     outdir = os.path.join(args.output_dir, "facet-scan")
     os.makedirs(outdir, exist_ok=True)
 
-    paths = []
-    # The base itself is the control: every other row is compared against it.
-    base_path = os.path.join(outdir, "base.json")
-    with open(base_path, "w", encoding="utf-8") as f:
-        json.dump(base, f, indent=2, sort_keys=True)
-    paths.append(base_path)
+    # Optional per-dimension override for what "the promising value" means,
+    # e.g. --scan-promising lto-partition=balanced
+    overrides = {}
+    for item in (args.scan_promising or "").split(","):
+        if "=" in item:
+            key, value = item.split("=", 1)
+            overrides[key.strip()] = value.strip()
 
-    for name, values, tier in NEW_PARAMS:
-        if tier not in tiers:
-            continue
-        for value in values:
-            # "default" means "leave it to configure", which is exactly the
-            # base configuration -- measuring it again would waste an hour.
-            if value == "default":
+    design = args.facet_design
+    wanted = {"ofat", "pb", "pair"} if design == "all" else {design}
+
+    configs = []
+    seen = set()
+
+    def add(name, cfg):
+        key = json.dumps(cfg, sort_keys=True)
+        if key in seen:
+            return
+        seen.add(key)
+        configs.append((name, cfg))
+
+    # The base itself is the control: every other row is compared against it.
+    add("base", base)
+
+    if "ofat" in wanted:
+        for name, values, tier in NEW_PARAMS:
+            if tier not in tiers:
                 continue
+            for value in values:
+                # "default" means "leave it to configure", which is exactly
+                # the base -- measuring it again would waste an hour.
+                if value == "default":
+                    continue
+                cfg = dict(base)
+                cfg[name] = value
+                add("%s=%s" % (name, value), cfg)
+
+    if "pb" in wanted:
+        factors = [(name, values) for name, values, tier in NEW_PARAMS
+                   if tier in tiers
+                   and _promising_value(name, values, overrides) is not None]
+        if factors:
+            for idx, row in enumerate(_paley_pb_rows(len(factors)), 1):
+                cfg = dict(base)
+                for (name, values), sign in zip(factors, row):
+                    if sign > 0:
+                        cfg[name] = _promising_value(name, values, overrides)
+                add("pb-%02d" % idx, cfg)
+
+    if "pair" in wanted:
+        for name, changes in PAIR_TESTS:
             cfg = dict(base)
-            cfg[name] = value
-            path = os.path.join(
-                outdir, "%s=%s.json" % (name, str(value).replace("/", "_")))
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2, sort_keys=True)
-            paths.append(path)
-    log.info("facet scan: %d configurations -> %s", len(paths), outdir)
+            cfg.update(changes)
+            add("pair-%s" % name, cfg)
+
+    paths = []
+    for name, cfg in configs:
+        path = os.path.join(outdir, name.replace("/", "_") + ".json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, sort_keys=True)
+        paths.append(path)
+    log.info("facet design %s: %d configurations -> %s",
+             design, len(paths), outdir)
     return paths
 
 
